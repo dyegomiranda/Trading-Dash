@@ -1,0 +1,206 @@
+"""Componentes HTML da UI (separados do CSS para imports estáveis)."""
+
+from __future__ import annotations
+
+import html
+from typing import Sequence
+
+import streamlit as st
+
+from src.ui.theme import COLORS, apply_theme
+
+
+def render_brand(sidebar: bool = True) -> None:
+    apply_theme()
+    mark = '<div class="td-brand-mark">TD</div>'
+    text = (
+        '<div class="td-brand-text">'
+        "<strong>TradingDash</strong>"
+        "<span>Renda · treino · clareza</span>"
+        "</div>"
+    )
+    block = f'<div class="td-brand">{mark}{text}</div>'
+    if sidebar:
+        st.sidebar.markdown(block, unsafe_allow_html=True)
+    else:
+        st.markdown(block, unsafe_allow_html=True)
+
+
+def render_hero(
+    title: str,
+    subtitle: str,
+    kicker: str = "TradingDash",
+    chips: Sequence[str] | None = None,
+) -> None:
+    chips = chips or []
+    chips_html = "".join(
+        f'<span class="td-chip">{html.escape(c)}</span>' for c in chips
+    )
+    st.markdown(
+        f"""
+<div class="td-hero">
+  <div class="td-hero-kicker">{html.escape(kicker)}</div>
+  <h1>{html.escape(title)}</h1>
+  <p>{html.escape(subtitle)}</p>
+  <div class="td-hero-meta">{chips_html}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_page_header(title: str, subtitle: str = "") -> None:
+    sub = f"<span>{html.escape(subtitle)}</span>" if subtitle else ""
+    st.markdown(
+        f"""
+<div class="td-page-title">
+  <h2>{html.escape(title)}</h2>
+  {sub}
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def chart_card_open() -> None:
+    st.markdown('<div class="td-chart-card">', unsafe_allow_html=True)
+
+
+def chart_card_close() -> None:
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_section_label(text: str) -> None:
+    st.markdown(
+        f'<div class="td-section-label">{html.escape(text)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_feature_cards(
+    cards: Sequence[tuple[str, str, str]],
+) -> None:
+    """cards: (icon_emoji_or_text, title, body)"""
+    parts = ['<div class="td-feature-grid">']
+    for icon, title, body in cards:
+        parts.append(
+            f"""
+<div class="td-feature">
+  <div class="td-feature-icon">{html.escape(icon)}</div>
+  <h3>{html.escape(title)}</h3>
+  <p>{html.escape(body)}</p>
+</div>
+"""
+        )
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+
+def render_steps_card(title: str, steps: Sequence[str]) -> None:
+    items = "".join(f"<li>{html.escape(s)}</li>" for s in steps)
+    st.markdown(
+        f"""
+<div class="td-step-card">
+  <div class="td-section-label" style="margin-top:0">{html.escape(title)}</div>
+  <ol>{items}</ol>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_kpi_row(
+    items: Sequence[tuple[str, str, str | None, str | None]],
+) -> None:
+    """items: (label, value, hint, hint_class up|down|neutral|None)"""
+    parts = ['<div class="td-kpi-row">']
+    for label, value, hint, hint_class in items:
+        hint_html = ""
+        if hint:
+            cls = hint_class or "neutral"
+            hint_html = f'<div class="hint {html.escape(cls)}">{html.escape(hint)}</div>'
+        parts.append(
+            f"""
+<div class="td-kpi">
+  <div class="label">{html.escape(label)}</div>
+  <div class="value">{html.escape(value)}</div>
+  {hint_html}
+</div>
+"""
+        )
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+
+def render_guide_box(title: str, steps: Sequence[str]) -> None:
+    items = "".join(f"<li>{html.escape(s)}</li>" for s in steps)
+    st.markdown(
+        f"""
+<div class="td-guide">
+  <div class="td-guide-title">{html.escape(title)}</div>
+  <ol>{items}</ol>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_disclaimer_bar(
+    text: str = (
+        "Ferramenta de estudo e treino. Não é recomendação de compra ou venda. "
+        "Investimentos envolvem risco de perda."
+    ),
+) -> None:
+    st.markdown(
+        f"""
+<div class="td-disclaimer">
+  <span class="icon">ⓘ</span>
+  <div>{html.escape(text)}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def plotly_layout(**extra):
+    """Layout padrão dark para Plotly (FundPip / wallet feel)."""
+    base = dict(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=COLORS["text"], family="Inter, sans-serif", size=12),
+        margin=dict(l=40, r=20, t=50, b=40),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            bordercolor="rgba(0,0,0,0)",
+            font=dict(color=COLORS["muted"]),
+        ),
+        xaxis=dict(
+            gridcolor="rgba(36,48,68,0.7)",
+            zerolinecolor="rgba(36,48,68,0.7)",
+            color=COLORS["muted"],
+        ),
+        yaxis=dict(
+            gridcolor="rgba(36,48,68,0.7)",
+            zerolinecolor="rgba(36,48,68,0.7)",
+            color=COLORS["muted"],
+        ),
+        colorway=list(
+            [
+                COLORS["primary"],
+                COLORS["cyan"],
+                COLORS["green"],
+                COLORS["pink"],
+                "#FBBF24",
+                COLORS["primary_2"],
+            ]
+        ),
+    )
+    base.update(extra)
+    return base
+
+
+def style_plotly_fig(fig):
+    fig.update_layout(**plotly_layout(title_font=dict(size=15, color=COLORS["text"])))
+    fig.update_traces(marker_line_width=0)
+    return fig
+

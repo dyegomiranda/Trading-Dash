@@ -1,0 +1,69 @@
+# TradingDash — dark fintech (inspirado em Exodus / modern trading dashboards)
+
+[theme]
+base = "dark"
+primaryColor = "#A78BFA"
+backgroundColor = "#070B14"
+secondaryBackgroundColor = "#111827"
+codeBackgroundColor = "#0B1220"
+textColor = "#E8EDF7"
+linkColor = "#C4B5FD"
+borderColor = "#243044"
+codeTextColor = "#C7D2FE"
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "14px"
+buttonRadius = "12px"
+
+font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+baseFontSize = 15
+baseFontWeight = 400
+codeFontSize = "13px"
+headingFontSizes = ["2.1rem", "1.55rem", "1.25rem", "1.05rem", "0.95rem", "0.85rem"]
+headingFontWeights = [700, 650, 600, 600, 600, 500]
+linkUnderline = false
+
+# Semântica financeira
+greenColor = "#34D399"
+redColor = "#F87171"
+yellowColor = "#FBBF24"
+orangeColor = "#FB923C"
+blueColor = "#60A5FA"
+violetColor = "#A78BFA"
+grayColor = "#94A3B8"
+greenBackgroundColor = "#052E1C"
+redBackgroundColor = "#3F1219"
+yellowBackgroundColor = "#3B2F0B"
+violetBackgroundColor = "#2E1065"
+
+chartCategoricalColors = [
+  "#A78BFA",
+  "#38BDF8",
+  "#34D399",
+  "#F472B6",
+  "#FBBF24",
+  "#818CF8",
+  "#2DD4BF",
+  "#FB7185",
+]
+
+dataframeBorderColor = "#243044"
+dataframeHeaderBackgroundColor = "#0F172A"
+
+[theme.sidebar]
+backgroundColor = "#050812"
+secondaryBackgroundColor = "#0F172A"
+codeBackgroundColor = "#0B1220"
+textColor = "#E8EDF7"
+borderColor = "#1E293B"
+primaryColor = "#A78BFA"
+dataframeHeaderBackgroundColor = "#0F172A"
+dataframeBorderColor = "#1E293B"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
