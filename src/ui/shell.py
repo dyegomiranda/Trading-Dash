@@ -11,7 +11,7 @@ import streamlit as st
 from src.ui.paths import ICON_PATH, LOGO_PATH, ROOT
 from src.ui.theme import apply_theme
 
-# Cor de borda do logo TD (~RGB 8,7,20) para blend com a sidebar
+# Cor de borda do logo TD (~RGB 8,7,20)
 LOGO_BG = "#080714"
 
 
@@ -25,75 +25,83 @@ def _logo_data_uri() -> str | None:
     path = LOGO_PATH if LOGO_PATH.exists() else (ICON_PATH if ICON_PATH.exists() else None)
     if path is None or not path.exists():
         return None
-    mime = "image/png"
     b64 = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"data:{mime};base64,{b64}"
+    return f"data:image/png;base64,{b64}"
 
 
 def inject_branding() -> None:
-    """Um único logo grande no topo da sidebar, fundido ao fundo (sem st.logo)."""
+    """Logo grande **acima** do menu de navegação (CSS no stSidebarNav).
+
+    O st.navigation renderiza o menu no topo da sidebar; conteúdo via st.sidebar
+    fica *abaixo*. Por isso o logo é injetado como ::before do nav.
+    """
     apply_theme()
     uri = _logo_data_uri()
+    bg = uri or "none"
 
-    # CSS: esconde qualquer logo nativo residual + fundo da sidebar = cor do logo
-    hide_native = """
+    st.markdown(
+        f"""
 <style>
-/* Remove o logo nativo pequeno do Streamlit (st.logo / header da nav) */
+/* Remove logo nativo pequeno do Streamlit */
 [data-testid="stSidebarHeader"],
 [data-testid="stLogo"],
 [data-testid="stSidebar"] [data-testid="stLogoLink"],
-div[data-testid="stSidebarContent"] > div:has(> [data-testid="stLogo"]),
-[data-testid="stSidebar"] a[href="/"] img {
+[data-testid="stSidebar"] a[href="/"] > img {{
   display: none !important;
   height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
+  opacity: 0 !important;
+  pointer-events: none !important;
+}}
 
-/* Sidebar na mesma cor do fundo do logo */
+/* Sidebar na cor do fundo do logo */
 [data-testid="stSidebar"],
 [data-testid="stSidebar"] > div,
-section[data-testid="stSidebar"] > div {
-  background: #080714 !important;
-  background-color: #080714 !important;
-}
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"] {{
+  background: {LOGO_BG} !important;
+  background-color: {LOGO_BG} !important;
+}}
 
-[data-testid="stSidebarNav"] {
-  background: transparent !important;
-  padding-top: 0.25rem !important;
-}
+/* Logo ACIMA dos itens do menu */
+[data-testid="stSidebarNav"] {{
+  background: {LOGO_BG} !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}}
 
-/* Bloco do logo no topo */
-.td-sidebar-brand {
+[data-testid="stSidebarNav"]::before {{
+  content: "";
   display: block;
   width: 100%;
-  margin: 0 0 0.75rem 0;
-  padding: 1.1rem 1rem 0.35rem 1rem;
-  background: #080714;
-  text-align: center;
+  height: 150px;
+  margin: 0.35rem 0 0.85rem 0;
+  padding: 0;
   box-sizing: border-box;
-}
-.td-sidebar-brand img {
-  width: min(100%, 240px);
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  background: #080714;
-  border: none;
-  outline: none;
-  box-shadow: none;
-}
-</style>
-"""
-    st.markdown(hide_native, unsafe_allow_html=True)
+  background-color: {LOGO_BG};
+  background-image: url("{bg}");
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: contain;
+}}
 
-    if uri:
-        # Inserido na sidebar no início do script — aparece acima dos controles das páginas
-        st.sidebar.markdown(
-            f'<div class="td-sidebar-brand"><img src="{uri}" alt="TradingDash" /></div>',
-            unsafe_allow_html=True,
-        )
+/* Lista do menu logo abaixo do logo */
+[data-testid="stSidebarNav"] ul {{
+  margin-top: 0 !important;
+}}
+
+/* Remove bloco antigo de logo em st.sidebar (se existir em cache visual) */
+.td-sidebar-brand {{
+  display: none !important;
+}}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
 
 def page_setup() -> None:
