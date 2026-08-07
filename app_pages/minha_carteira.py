@@ -200,10 +200,23 @@ with tab_trade:
     with st.container(border=True):
         cc1, cc2, cc3 = st.columns([1.2, 1, 1])
         with cc1:
+            # Evita StreamlitValueBelowMinError por float (ex.: 999.9999999999999)
+            # e por valor antigo no session_state abaixo do min_value
+            _eq = float(summary.get("equity") or portfolio.initial_cash or 100_000.0)
+            _eq = round(_eq + 1e-9, 2)
+            _min_cap = 100.0
+            _default_cap = max(_min_cap, _eq)
+            if "pf_capital_input" in st.session_state:
+                try:
+                    prev = float(st.session_state["pf_capital_input"])
+                    if prev < _min_cap or prev != prev:  # NaN
+                        st.session_state["pf_capital_input"] = _default_cap
+                except (TypeError, ValueError):
+                    st.session_state["pf_capital_input"] = _default_cap
             new_capital = st.number_input(
                 "Patrimônio total (R$)",
-                min_value=1000.0,
-                value=float(summary.get("equity") or portfolio.initial_cash or 100_000.0),
+                min_value=_min_cap,
+                value=_default_cap,
                 step=1000.0,
                 key="pf_capital_input",
             )
@@ -477,7 +490,7 @@ with tab_more:
     with st.expander("Reset / backup", icon=":material/settings:"):
         new_cash = st.number_input(
             "Capital inicial (reset total)",
-            min_value=1000.0,
+            min_value=100.0,
             value=100_000.0,
             step=1000.0,
             key="pf_reset_cash",

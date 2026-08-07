@@ -48,11 +48,29 @@ _CSS = f"""
   background: transparent !important;
 }}
 
-/* Sidebar — wallet style */
+/* Sidebar — mesma base do logo TD (#080714) para blend */
 [data-testid="stSidebar"] {{
-  background:
-    linear-gradient(180deg, #050812 0%, #0A1020 50%, #070B14 100%) !important;
-  border-right: 1px solid rgba(167, 139, 250, 0.12) !important;
+  background: #080714 !important;
+  background-color: #080714 !important;
+  border-right: 1px solid rgba(167, 139, 250, 0.10) !important;
+}}
+
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"] {{
+  background: #080714 !important;
+}}
+
+/* Esconde logo nativo pequeno se aparecer */
+[data-testid="stSidebarHeader"],
+[data-testid="stLogo"],
+[data-testid="stSidebar"] [data-testid="stLogoLink"] {{
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }}
 
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {{

@@ -53,14 +53,15 @@ dataframeBorderColor = "#243044"
 dataframeHeaderBackgroundColor = "#0F172A"
 
 [theme.sidebar]
-backgroundColor = "#050812"
-secondaryBackgroundColor = "#0F172A"
-codeBackgroundColor = "#0B1220"
+# Mesma base do fundo do logo TD (~#080714) para blend
+backgroundColor = "#080714"
+secondaryBackgroundColor = "#0C0B1A"
+codeBackgroundColor = "#0A0918"
 textColor = "#E8EDF7"
-borderColor = "#1E293B"
+borderColor = "#1A1830"
 primaryColor = "#A78BFA"
-dataframeHeaderBackgroundColor = "#0F172A"
-dataframeBorderColor = "#1E293B"
+dataframeHeaderBackgroundColor = "#0C0B1A"
+dataframeBorderColor = "#1A1830"
 
 [browser]
 gatherUsageStats = false
