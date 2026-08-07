@@ -1,4 +1,4 @@
-"""TradingDash — entrada multipage com navegação estilizada."""
+"""TradingDash — entrada multipage com sidebar custom (logo acima do menu)."""
 
 from __future__ import annotations
 
@@ -11,10 +11,9 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.ui.paths import ICON_PATH, LOGO_PATH
-from src.ui.shell import inject_branding
+from src.ui.paths import ICON_PATH
+from src.ui.shell import inject_branding, render_sidebar_nav
 
-# set_page_config deve ser a primeira chamada Streamlit do entrypoint
 _page_icon = str(ICON_PATH) if ICON_PATH.exists() else ":material/savings:"
 st.set_page_config(
     page_title="TradingDash",
@@ -25,36 +24,37 @@ st.set_page_config(
 
 inject_branding()
 
-pages = {
-    "Menu": [
-        st.Page(
-            "app_pages/inicio.py",
-            title="Início",
-            icon=":material/home:",
-            default=True,
-        ),
-        st.Page(
-            "app_pages/descobrir_acoes.py",
-            title="Descubra ações",
-            icon=":material/travel_explore:",
-        ),
-        st.Page(
-            "app_pages/minha_carteira.py",
-            title="Minha carteira",
-            icon=":material/account_balance_wallet:",
-        ),
-        st.Page(
-            "app_pages/teste_no_passado.py",
-            title="Teste no passado",
-            icon=":material/history:",
-        ),
-        st.Page(
-            "app_pages/guia.py",
-            title="Guia do iniciante",
-            icon=":material/menu_book:",
-        ),
-    ]
-}
+# Páginas na ordem do menu
+page_inicio = st.Page(
+    "app_pages/inicio.py",
+    title="Início",
+    icon=":material/home:",
+    default=True,
+)
+page_descobrir = st.Page(
+    "app_pages/descobrir_acoes.py",
+    title="Descubra ações",
+    icon=":material/travel_explore:",
+)
+page_carteira = st.Page(
+    "app_pages/minha_carteira.py",
+    title="Minha carteira",
+    icon=":material/account_balance_wallet:",
+)
+page_sim = st.Page(
+    "app_pages/teste_no_passado.py",
+    title="Teste no passado",
+    icon=":material/history:",
+)
+page_guia = st.Page(
+    "app_pages/guia.py",
+    title="Guia do iniciante",
+    icon=":material/menu_book:",
+)
 
-pg = st.navigation(pages, position="sidebar")
+pages = [page_inicio, page_descobrir, page_carteira, page_sim, page_guia]
+
+# Menu nativo oculto — montamos o menu manualmente (logo → links)
+pg = st.navigation(pages, position="hidden")
+render_sidebar_nav(pages)
 pg.run()

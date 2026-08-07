@@ -1,17 +1,17 @@
-"""Bootstrap compartilhado das páginas (tema, paths)."""
+"""Bootstrap compartilhado das páginas (tema, paths, sidebar)."""
 
 from __future__ import annotations
 
 import base64
 import sys
 from pathlib import Path
+from typing import Sequence
 
 import streamlit as st
 
 from src.ui.paths import ICON_PATH, LOGO_PATH, ROOT
 from src.ui.theme import apply_theme
 
-# Cor de borda do logo TD (~RGB 8,7,20)
 LOGO_BG = "#080714"
 
 
@@ -30,35 +30,24 @@ def _logo_data_uri() -> str | None:
 
 
 def inject_branding() -> None:
-    """Logo grande **acima** do menu de navegação (CSS no stSidebarNav).
-
-    O st.navigation renderiza o menu no topo da sidebar; conteúdo via st.sidebar
-    fica *abaixo*. Por isso o logo é injetado como ::before do nav.
-    """
+    """Apenas CSS de fundo / esconde chrome nativo. Logo vem em render_sidebar_nav."""
     apply_theme()
-    uri = _logo_data_uri()
-    bg = uri or "none"
-
     st.markdown(
         f"""
 <style>
-/* Remove logo nativo pequeno do Streamlit */
+/* Esconde logo nativo e header residual */
 [data-testid="stSidebarHeader"],
 [data-testid="stLogo"],
-[data-testid="stSidebar"] [data-testid="stLogoLink"],
-[data-testid="stSidebar"] a[href="/"] > img {{
+[data-testid="stSidebar"] [data-testid="stLogoLink"] {{
   display: none !important;
   height: 0 !important;
   min-height: 0 !important;
-  max-height: 0 !important;
+  overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
 }}
 
-/* Sidebar na cor do fundo do logo */
+/* Sidebar = cor do logo */
 [data-testid="stSidebar"],
 [data-testid="stSidebar"] > div,
 [data-testid="stSidebarContent"],
@@ -67,36 +56,50 @@ def inject_branding() -> None:
   background-color: {LOGO_BG} !important;
 }}
 
-/* Logo ACIMA dos itens do menu */
-[data-testid="stSidebarNav"] {{
-  background: {LOGO_BG} !important;
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}}
-
-[data-testid="stSidebarNav"]::before {{
-  content: "";
+/* Logo no topo */
+.td-sidebar-brand {{
   display: block;
   width: 100%;
-  height: 150px;
-  margin: 0.35rem 0 0.85rem 0;
-  padding: 0;
+  margin: 0 0 0.9rem 0;
+  padding: 0.85rem 0.75rem 0.25rem 0.75rem;
+  background: {LOGO_BG};
+  text-align: center;
   box-sizing: border-box;
-  background-color: {LOGO_BG};
-  background-image: url("{bg}");
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: contain;
+}}
+.td-sidebar-brand img {{
+  width: min(100%, 230px);
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  background: {LOGO_BG};
+  border: 0;
 }}
 
-/* Lista do menu logo abaixo do logo */
-[data-testid="stSidebarNav"] ul {{
-  margin-top: 0 !important;
+/* page_link como botões do menu */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"],
+[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"] {{
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.65rem !important;
+  border-radius: 14px !important;
+  padding: 0.72rem 0.9rem !important;
+  margin: 0 0 0.4rem 0 !important;
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.7)) !important;
+  border: 1px solid rgba(167, 139, 250, 0.16) !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22) !important;
+  color: #E2E8F0 !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
 }}
-
-/* Remove bloco antigo de logo em st.sidebar (se existir em cache visual) */
-.td-sidebar-brand {{
-  display: none !important;
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {{
+  border-color: rgba(167, 139, 250, 0.45) !important;
+  background: linear-gradient(145deg, rgba(49, 46, 129, 0.45), rgba(15, 23, 42, 0.85)) !important;
+}}
+/* item ativo (aria-current / selected) */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"],
+[data-testid="stSidebar"] a[aria-current="page"] {{
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.45), rgba(59, 130, 246, 0.28)) !important;
+  border-color: rgba(167, 139, 250, 0.55) !important;
 }}
 </style>
 """,
@@ -104,7 +107,19 @@ def inject_branding() -> None:
     )
 
 
+def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
+    """Logo no topo + links de página (ordem controlada por nós)."""
+    uri = _logo_data_uri()
+    with st.sidebar:
+        if uri:
+            st.markdown(
+                f'<div class="td-sidebar-brand"><img src="{uri}" alt="TradingDash" /></div>',
+                unsafe_allow_html=True,
+            )
+        for page in pages:
+            st.page_link(page, icon=page.icon, width="stretch")
+
+
 def page_setup() -> None:
-    """Chamado no início de cada página de conteúdo."""
     ensure_root_on_path()
     apply_theme()
