@@ -1,29 +1,34 @@
 # TradingDash
 
-Dashboard Streamlit para estudar a tese **Quality Dividend** na B3: ranking filtrado, carteira **paper money**, projeção de renda e **simulação histórica** (backtest) das indicações.
+App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileira (B3): ranking de ações, carteira de treino (paper money), projeção de renda e simulação histórica.
 
 > Ferramenta de estudo. **Não é recomendação de investimento.**
 
-## O que tem no MVP
+**Repositório:** https://github.com/dyegomiranda/Trading-Dash
 
-| Módulo | Função |
+---
+
+## O que o app faz
+
+| Página | Função |
 |--------|--------|
-| **Ranking** | Universo amplo B3 → score Quality Dividend → filtros → top N com pesos core/satélite |
-| **Carteira** | Paper trading (dinheiro fictício), rebalance pelas recomendações, projeção de renda |
-| **Simulação** | “E se eu tivesse seguido a tese desde a data X?” — curva de patrimônio, trades, dividendos |
-| **Demo / Yahoo** | Dados sintéticos offline ou yfinance (tickers `.SA`) |
+| **Início** | Visão geral: patrimônio de treino, radar da tese e **notícias reais** com links |
+| **Descubra ações** | Nota 0–100, pesos sugeridos e **gráfico histórico** de preço |
+| **Minha carteira** | Capital editável, aplicar tese, alocar manualmente, projetar renda |
+| **Teste no passado** | “E se eu tivesse seguido a tese desde 2022?” — com guia antes do 1º teste |
+| **Guia do iniciante** | Dicionário e explicação da estratégia em português claro |
 
-## Tese
+### Modo treino vs Bolsa real
 
-**Quality Dividend** focada em renda passiva:
+| | **Modo treino** | **Bolsa real** |
+|--|-----------------|----------------|
+| O que é | Mercado **simulado** (rápido, offline) | Preços/dividendos via **Yahoo Finance** (`.SA`) |
+| Quando usar | Aprender o fluxo, primeira vez | Experimentar com histórico mais “de verdade” |
+| Limitação | Não é a B3 real | Pode ser lento/incompleto; score fundamental do MVP ainda não é 100% histórico |
 
-- Qualidade (ROE/ROIC, margens, FCF)
-- Dividendos sustentáveis (DY preferencial ~4–12%, payout saudável)
-- Saúde financeira (alavancagem controlada)
-- Valuation razoável
-- Core ~70% / satélite ~30%
+---
 
-## Setup
+## Como rodar
 
 ```bash
 git clone https://github.com/dyegomiranda/Trading-Dash.git
@@ -33,55 +38,58 @@ python3 -m venv .venv
 .venv/bin/streamlit run app.py
 ```
 
-**fish shell:** use `.venv/bin/streamlit run app.py` (o `source .venv/bin/activate` é para bash/zsh; no fish use `source .venv/bin/activate.fish`).
-
 Abra o endereço local (geralmente `http://localhost:8501`).
 
-### Recursos principais
+**fish shell:** prefira `.venv/bin/streamlit run app.py`.  
+Para ativar o venv no fish: `source .venv/bin/activate.fish`.
 
-- **Início:** overview, radar da tese, headlines reais (Google News / Yahoo)
-- **Descubra ações:** ranking + gráficos de histórico de preço
-- **Minha carteira:** capital editável, aplicar tese, alocação manual por ação
-- **Teste no passado:** simulação histórica
-- **Guia do iniciante:** dicionário e tese em português claro
+---
 
-## Uso rápido (para iniciantes)
+## Uso rápido (iniciante)
 
-1. Abra **Descubra ações**, mantenha **Modo treino**, clique em **Ver lista de sugestões**.
-2. Em **Minha carteira**, use **Montar carteira com as sugestões** (R$ 100.000 fictícios).
-3. Veja **Quanto posso receber de renda?**.
-4. Em **Teste no passado**, rode com modo treino + amostra rápida (2022 → hoje).
+1. **Início** — veja o overview e as notícias.  
+2. **Descubra ações** — Modo treino → **Atualizar** → explore o ranking e o histórico.  
+3. **Minha carteira → Operar**  
+   - ajuste o **capital** se quiser  
+   - **Aplicar sugestões da tese** (feedback com as ordens)  
+   - ou aloque **manualmente** por ação  
+4. **Teste no passado** — leia o guia na tela → Modo treino + amostra rápida → **Rodar simulação**.  
 5. Dúvidas de vocabulário: **Guia do iniciante**.
 
-## Estrutura
+---
+
+## Tese (resumo)
+
+**Quality Dividend** — renda passiva com qualidade:
+
+- empresas sólidas (lucro e caixa consistentes)  
+- dividendos **sustentáveis** (não “high yield trap”)  
+- carteira **base** (~70%) + **complemento** (~30%)  
+
+---
+
+## Estrutura (visão rápida)
 
 ```
-TradingDash/
-  app.py                 # Entrada + navegação (Início, Descubra ações, …)
-  app_pages/             # Páginas (st.navigation)
-  assets/logo/           # TD_logo.png
-  assets/icon/           # TD_icon.png
-  src/
-    ui/                  # tema, componentes, charts, wallet
-    config.py
-    data/providers.py
-    data/news.py         # headlines da tese
-    thesis/scoring.py
-    portfolio/
-    backtest/engine.py
-  data/cache/
-  data/portfolio/
+app.py              # entrada + menu (logo acima dos links)
+app_pages/          # telas do app
+src/                # scoring, dados, carteira, backtest, UI
+assets/             # logo e ícone
+PROJECT.md          # handoff técnico completo (para devs / outras IAs)
 ```
+
+Para arquitetura, bugs já resolvidos e **backlog do que falta**, veja **[PROJECT.md](./PROJECT.md)**.
+
+---
 
 ## Limitações do MVP
 
-- Backtest usa **preços/dividendos históricos**, mas o **score fundamental** é snapshot atual (ou demo fixo) — não contabilidade point-in-time completa.
-- Sem custos de corretagem, taxes, slippage.
-- Yahoo pode ser lento / rate-limit no universo amplo.
+- Simulação usa preços/dividendos históricos, mas o **score fundamental** ainda não é point-in-time contábil completo.  
+- Não modela corretagem, impostos nem slippage.  
+- Fontes gratuitas podem falhar ou demorar.
 
-## Próximos passos naturais
+---
 
-- Fundamentals históricos point-in-time (CVM / provedor pago)
-- Camada de IA para resumo de notícias e narrativa da tese
-- Regime macro (Selic, IPCA) ajustando pesos setoriais
-- Benchmark vs Ibovespa / IDIV na simulação
+## Licença
+
+Ver arquivo [LICENSE](./LICENSE).
