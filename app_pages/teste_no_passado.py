@@ -13,6 +13,7 @@ from src.data.universe import get_universe
 from src.services import format_brl, format_pct
 from src.ui.charts import holdings_donut
 from src.ui.components import render_kpi_row, render_page_header
+from src.ui.data_source import provider_selectbox
 from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 
@@ -22,20 +23,7 @@ render_page_header("Teste no passado", "Simulação da tese Quality Dividend")
 # ── Controles ──────────────────────────────────────────────
 with st.sidebar:
     st.markdown("##### Configurar o teste")
-    provider = st.selectbox(
-        "Fonte de dados",
-        options=["demo", "yfinance"],
-        format_func=lambda x: (
-            "Modo treino (rápido, dados simulados)"
-            if x == "demo"
-            else "Bolsa real (Yahoo Finance, mais lento)"
-        ),
-        key="bt_provider",
-        help=(
-            "Modo treino: mercado sintético local, ideal para aprender o fluxo. "
-            "Bolsa real: preços e dividendos históricos da B3 via Yahoo."
-        ),
-    )
+    provider = provider_selectbox(key="bt_provider", show_help=True)
     start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
     end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
     initial_cash = st.number_input(
@@ -231,35 +219,109 @@ render_kpi_row(
     ]
 )
 
+# KPIs vs benchmarks
+ibov_r = m.get("ibov_return")
+cdi_r = m.get("cdi_return")
+if ibov_r is not None or cdi_r is not None:
+    xs_ibov = m.get("excess_vs_ibov")
+    xs_cdi = m.get("excess_vs_cdi")
+    render_kpi_row(
+        [
+            (
+                "Ibovespa (mesmo período)",
+                format_pct(ibov_r) if ibov_r is not None else "—",
+                None,
+                None,
+            ),
+            (
+                "CDI (mesmo período)",
+                format_pct(cdi_r) if cdi_r is not None else "—",
+                None,
+                None,
+            ),
+            (
+                "Vs Ibovespa",
+                format_pct(xs_ibov) if xs_ibov is not None else "—",
+                "acima" if (xs_ibov or 0) >= 0 else "abaixo",
+                "up" if (xs_ibov or 0) >= 0 else "down",
+            ),
+            (
+                "Vs CDI",
+                format_pct(xs_cdi) if xs_cdi is not None else "—",
+                "acima" if (xs_cdi or 0) >= 0 else "abaixo",
+                "up" if (xs_cdi or 0) >= 0 else "down",
+            ),
+        ]
+    )
+    bm_meta = m.get("benchmark_meta") or {}
+    st.caption(
+        f"Fontes dos benchmarks · Ibovespa: {bm_meta.get('ibov_source', '—')} · "
+        f"CDI: {bm_meta.get('cdi_source', '—')}"
+    )
+
+# Curva com benchmarks
 eq = result.equity_curve
+bm = getattr(result, "benchmarks", None)
 fig = go.Figure()
 fig.add_trace(
     go.Scatter(
         x=eq["date"],
         y=eq["equity"],
         mode="lines",
-        line={"color": "#A78BFA", "width": 2.5, "shape": "spline"},
-        fill="tozeroy",
-        fillcolor="rgba(167,139,250,0.16)",
-        hovertemplate="%{x|%d/%m/%Y}<br>R$ %{y:,.2f}<extra></extra>",
+        name="Sua carteira (tese)",
+        line={"color": "#A78BFA", "width": 2.8, "shape": "spline"},
+        hovertemplate="%{x|%d/%m/%Y}<br>Carteira R$ %{y:,.2f}<extra></extra>",
     )
 )
+if bm is not None and not getattr(bm, "empty", True):
+    if "ibovespa" in bm.columns and bm["ibovespa"].notna().any():
+        fig.add_trace(
+            go.Scatter(
+                x=bm["date"],
+                y=bm["ibovespa"],
+                mode="lines",
+                name="Ibovespa",
+                line={"color": "#38BDF8", "width": 2, "shape": "spline"},
+                hovertemplate="%{x|%d/%m/%Y}<br>Ibov R$ %{y:,.2f}<extra></extra>",
+            )
+        )
+    if "cdi" in bm.columns and bm["cdi"].notna().any():
+        fig.add_trace(
+            go.Scatter(
+                x=bm["date"],
+                y=bm["cdi"],
+                mode="lines",
+                name="CDI",
+                line={"color": "#34D399", "width": 2, "dash": "dot", "shape": "spline"},
+                hovertemplate="%{x|%d/%m/%Y}<br>CDI R$ %{y:,.2f}<extra></extra>",
+            )
+        )
 fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    height=360,
+    height=400,
     margin={"l": 40, "r": 16, "t": 40, "b": 40},
     title={
-        "text": "Evolução do patrimônio fictício",
+        "text": "Patrimônio: tese × Ibovespa × CDI",
         "font": {"size": 14, "color": "#CBD5E1"},
     },
     font={"color": "#94A3B8", "family": "Inter, sans-serif"},
     xaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B"},
     yaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B"},
-    showlegend=False,
+    legend={
+        "orientation": "h",
+        "yanchor": "bottom",
+        "y": 1.02,
+        "x": 0,
+        "bgcolor": "rgba(0,0,0,0)",
+    },
 )
 with st.container(border=True):
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    st.caption(
+        "Todos começam com o mesmo capital fictício no primeiro dia, "
+        "para comparar a evolução no mesmo período."
+    )
 
 c1, c2 = st.columns(2, gap="medium")
 with c1:

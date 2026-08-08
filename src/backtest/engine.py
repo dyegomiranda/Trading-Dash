@@ -9,6 +9,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from src.data.benchmarks import build_benchmark_curves
 from src.data.providers import DataProvider
 from src.data.universe import normalize_ticker
 from src.portfolio.paper import PaperPortfolio
@@ -32,6 +33,7 @@ class BacktestConfig:
     # No modo demo/live sem fundamentals históricos pontuais,
     # usamos o snapshot atual + preços históricos (limitação documentada).
     use_point_in_time_fundamentals: bool = False
+    include_benchmarks: bool = True
 
 
 @dataclass
@@ -43,6 +45,7 @@ class BacktestResult:
     metrics: dict[str, Any]
     config: BacktestConfig
     notes: list[str] = field(default_factory=list)
+    benchmarks: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def _month_ends(dates: pd.DatetimeIndex, freq: RebalanceFreq) -> list[pd.Timestamp]:
@@ -226,12 +229,14 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     equity_curve = pd.DataFrame(equity_rows).set_index("date").sort_index()
     eq = equity_curve["equity"]
     rets = eq.pct_change().dropna()
-    metrics = {
+    final_eq = float(eq.iloc[-1]) if len(eq) else config.initial_cash
+    total_ret = float(final_eq / config.initial_cash - 1) if len(eq) else 0.0
+    metrics: dict[str, Any] = {
         "start": str(all_days[0].date()),
         "end": str(all_days[-1].date()),
         "initial_cash": config.initial_cash,
-        "final_equity": float(eq.iloc[-1]) if len(eq) else config.initial_cash,
-        "total_return": float(eq.iloc[-1] / config.initial_cash - 1) if len(eq) else 0.0,
+        "final_equity": final_eq,
+        "total_return": total_ret,
         "cagr": _cagr(eq),
         "max_drawdown": _max_drawdown(eq),
         "volatility_ann": float(rets.std() * np.sqrt(252)) if len(rets) else 0.0,
@@ -242,6 +247,55 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "rebalance": config.rebalance,
         "provider": provider.name,
     }
+
+    benchmarks = pd.DataFrame()
+    if config.include_benchmarks and len(all_days):
+        try:
+            bm_df, bm_meta = build_benchmark_curves(
+                equity_dates=all_days,
+                initial_cash=config.initial_cash,
+                provider=provider,
+                start=start,
+                end=end,
+            )
+            bm_df = bm_df.set_index("date")
+            bm_df["portfolio"] = eq.reindex(bm_df.index).ffill()
+            benchmarks = bm_df.reset_index()
+            metrics["benchmark_meta"] = bm_meta
+
+            def _series_return(col: str) -> float | None:
+                if col not in bm_df.columns or bm_df[col].isna().all():
+                    return None
+                s = bm_df[col].dropna()
+                if len(s) < 2 or float(s.iloc[0]) <= 0:
+                    return None
+                return float(s.iloc[-1] / s.iloc[0] - 1)
+
+            def _series_cagr(col: str) -> float | None:
+                if col not in bm_df.columns or bm_df[col].isna().all():
+                    return None
+                s = bm_df[col].dropna()
+                if len(s) < 2:
+                    return None
+                return _cagr(s)
+
+            ibov_ret = _series_return("ibovespa")
+            cdi_ret = _series_return("cdi")
+            metrics["ibov_return"] = ibov_ret
+            metrics["cdi_return"] = cdi_ret
+            metrics["ibov_cagr"] = _series_cagr("ibovespa")
+            metrics["cdi_cagr"] = _series_cagr("cdi")
+            if ibov_ret is not None:
+                metrics["excess_vs_ibov"] = total_ret - ibov_ret
+            if cdi_ret is not None:
+                metrics["excess_vs_cdi"] = total_ret - cdi_ret
+
+            notes.append(
+                f"Benchmarks: Ibovespa ({bm_meta.get('ibov_source')}), "
+                f"CDI ({bm_meta.get('cdi_source')})."
+            )
+        except Exception as e:
+            notes.append(f"Benchmarks indisponíveis neste run: {e}")
 
     last_prices = close.iloc[-1].dropna().to_dict()
     holdings = portfolio.holdings_frame(last_prices)
@@ -254,4 +308,5 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         metrics=metrics,
         config=config,
         notes=notes,
+        benchmarks=benchmarks,
     )

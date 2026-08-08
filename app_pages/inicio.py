@@ -15,6 +15,7 @@ from src.services import (
 from src.thesis.scoring import recommend_weights
 from src.ui.charts import holdings_donut
 from src.ui.components import render_kpi_row, render_page_header
+from src.ui.data_source import provider_selectbox
 from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
@@ -25,12 +26,7 @@ render_page_header("Início", "Visão geral · tese Quality Dividend")
 
 with st.sidebar:
     st.markdown("##### Dados")
-    provider = st.selectbox(
-        "Fonte",
-        options=["demo", "yfinance"],
-        format_func=lambda x: "Modo treino" if x == "demo" else "Bolsa real",
-        key="home_provider",
-    )
+    provider = provider_selectbox(key="home_provider", label="Fonte", show_help=True)
     if st.button("Atualizar overview", width="stretch", key="home_refresh"):
         st.cache_data.clear()
         st.rerun()

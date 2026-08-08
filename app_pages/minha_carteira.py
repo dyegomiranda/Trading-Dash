@@ -21,6 +21,7 @@ from src.ui.charts import (
     sector_breakdown_from_holdings,
 )
 from src.ui.components import render_page_header
+from src.ui.data_source import provider_selectbox
 from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.wallet import render_asset_rows, render_wallet_balance
@@ -31,12 +32,7 @@ render_page_header("Minha carteira", "Conta de treino")
 with st.sidebar:
     st.markdown("##### Conta")
     portfolio_name = st.text_input("Carteira", value="paper-main", key="pf_name")
-    provider = st.selectbox(
-        "Dados",
-        options=["demo", "yfinance"],
-        format_func=lambda x: "Modo treino" if x == "demo" else "Bolsa real",
-        key="pf_provider",
-    )
+    provider = provider_selectbox(key="pf_provider", label="Dados", show_help=True)
     if st.button("Atualizar", icon=":material/refresh:", width="stretch", key="pf_refresh"):
         st.cache_data.clear()
         st.rerun()

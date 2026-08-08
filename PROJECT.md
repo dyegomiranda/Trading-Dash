@@ -185,7 +185,8 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [ ] Setores preferenciais BESST mais explícitos na UI  
 
 ### Simulação / risco
-- [ ] **Benchmark** na simulação (Ibovespa, IDIV, CDI)  
+- [x] **Benchmark** na simulação (Ibovespa + CDI) — `src/data/benchmarks.py` + UI  
+- [ ] Benchmark IDIV (opcional)  
 - [ ] Custos de corretagem, slippage, IR simplificado  
 - [ ] Regras de saída (corte de dividendo, score caindo, rating downgrade)  
 - [ ] Export CSV/PDF do relatório de backtest  
@@ -202,10 +203,12 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 
 ### UX / produto
 - [ ] Onboarding global na primeira visita  
-- [ ] Explicar “Modo treino” em **todas** as páginas com o seletor (padrão do Teste no passado)  
+- [x] Explicar “Modo treino” em **todas** as páginas com o seletor (`src/ui/data_source.py`)  
 - [ ] Testes automatizados (pytest) para scoring, portfolio, backtest  
 - [ ] CI no GitHub (lint + testes)  
-- [ ] Deploy (Streamlit Community Cloud / Docker)  
+- [x] Instruções de deploy Streamlit Community Cloud no README  
+- [ ] Deploy efetivo (conectar conta no share.streamlit.io)  
+- [ ] Docker opcional  
 
 ### Qualidade
 - [ ] Tipagem e validação mais rígidas nos DataFrames  
@@ -248,4 +251,4 @@ git add -A && git commit -m "..." && git push origin main
 - Dono do repo GitHub: **dyegomiranda**  
 - Projeto iniciado a partir de conversa de produto (tese Quality Dividend / Barsi-like refinada) e implementação iterativa em Streamlit.
 
-*Última atualização do handoff: 2026-08-07.*
+*Última atualização do handoff: 2026-08-07 (benchmarks + data_source help + deploy docs).*

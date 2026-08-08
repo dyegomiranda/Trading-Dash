@@ -43,6 +43,16 @@ Abra o endereço local (geralmente `http://localhost:8501`).
 **fish shell:** prefira `.venv/bin/streamlit run app.py`.  
 Para ativar o venv no fish: `source .venv/bin/activate.fish`.
 
+### Deploy no Streamlit Community Cloud (para o amigo testar sem instalar)
+
+1. Repo no GitHub: `https://github.com/dyegomiranda/Trading-Dash`  
+2. Acesse [share.streamlit.io](https://share.streamlit.io) e faça login com GitHub  
+3. **New app** → selecione o repo → branch `main`  
+4. **Main file path:** `app.py`  
+5. Deploy  
+
+O app usa `requirements.txt` na raiz. Cache e carteiras paper ficam no servidor (efêmeros no free tier).
+
 ---
 
 ## Uso rápido (iniciante)
