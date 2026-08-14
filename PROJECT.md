@@ -179,9 +179,13 @@ TradingDash/
 Priorize com o usuário; itens em **negrito** são alto valor.
 
 ### Dados e tese
+- [x] Cadastro B3 de **nome/setor** (`data/reference/b3_tickers.json` + `reference.py`) — demo **não inventa setor**  
+- [x] Renomeações conhecidas (ELET3→AXIA3) no universo  
+- [x] Default da UI: **Bolsa real**; demo com banner de risco  
 - [ ] **Fundamentals point-in-time** (CVM/ITR/DFP ou provedor pago) no backtest  
 - [ ] Melhor cobertura de indicadores BR (JCP, payout real, etc.)  
-- [ ] Fonte B3 dedicada (brapi, etc.) além de Yahoo  
+- [ ] Fonte B3 dedicada (brapi / dados CVM) além de Yahoo  
+- [ ] Revisão humana periódica do JSON de tickers  
 - [ ] Setores preferenciais BESST mais explícitos na UI  
 
 ### Simulação / risco

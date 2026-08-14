@@ -91,9 +91,8 @@ B3_UNIVERSE: list[str] = [
     "PSSA3",
     "WIZC3",
     "IRBR3",
-    # Energia / Utilities
-    "ELET3",
-    "ELET6",
+    # Energia / Utilities (ELET3/ELET6 migraram para AXIA)
+    "AXIA3",
     "CMIG4",
     "CMIG3",
     "CPLE6",

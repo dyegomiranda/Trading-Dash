@@ -103,23 +103,24 @@ class DemoDataProvider(DataProvider):
         return np.random.default_rng(h)
 
     def _build_fundamentals(self) -> pd.DataFrame:
+        """Números sintéticos + metadados REAIS do cadastro B3 (nome/setor).
+
+        Nunca inventa setor a partir do índice do ticker — isso gerava erros
+        graves (ex.: LREN3 como Utilities). Indicadores (ROE, DY, etc.) no
+        modo demo **continuam fictícios** e não devem embasar dinheiro real.
+        """
+        from src.data.reference import get_ticker_meta
+
         rows = []
-        sectors_core = list(CORE_SECTORS)[:8] or ["Utilities"]
-        sectors_other = [
-            "Energy",
-            "Basic Materials",
-            "Industrials",
-            "Consumer Cyclical",
-            "Technology",
-            "Healthcare",
-            "Real Estate",
-        ]
-        for i, t in enumerate(self._universe):
+        for t in self._universe:
             rng = self._rng_for(t)
-            is_core = i % 3 != 0
-            sector = sectors_core[i % len(sectors_core)] if is_core else sectors_other[i % len(sectors_other)]
-            # Qualidade maior para subset "core-like"
-            quality_boost = 0.08 if is_core else 0.0
+            meta = get_ticker_meta(t)
+            sector = meta.get("sector") or "Unknown"
+            industry = meta.get("industry")
+            name = meta.get("name") or t
+            # qualidade um pouco maior se setor está no core da tese
+            is_core = sector in CORE_SECTORS
+            quality_boost = 0.06 if is_core else 0.0
             roe = float(np.clip(rng.normal(0.16 + quality_boost, 0.07), -0.05, 0.45))
             roic = float(np.clip(roe - rng.uniform(0, 0.04), -0.05, 0.40))
             net_margin = float(np.clip(rng.normal(0.12 if is_core else 0.06, 0.05), -0.1, 0.35))
@@ -139,8 +140,9 @@ class DemoDataProvider(DataProvider):
             rows.append(
                 {
                     "ticker": t,
-                    "name": t,
+                    "name": name,
                     "sector": sector,
+                    "industry": industry,
                     "price": price,
                     "market_cap": price * rng.uniform(2e8, 8e10),
                     "roe": roe,
@@ -167,7 +169,10 @@ class DemoDataProvider(DataProvider):
                     "fcf_positive": fcf_yield > 0,
                     "currency": "BRL",
                     "as_of": datetime.utcnow().date().isoformat(),
-                    "source": "demo",
+                    "source": "demo_synthetic_metrics+b3_reference_meta",
+                    "data_quality": "synthetic_fundamentals",
+                    "meta_source": meta.get("source") or "reference",
+                    "ticker_status": meta.get("status") or "unknown",
                 }
             )
         return pd.DataFrame(rows).set_index("ticker", drop=False)
@@ -280,8 +285,22 @@ class YFinanceDataProvider(DataProvider):
     def get_fundamentals(self, tickers: list[str] | None = None) -> pd.DataFrame:
         import yfinance as yf
 
-        tickers = [normalize_ticker(t) for t in (tickers or get_universe())]
-        cache_key = f"yf_fund_v2:{','.join(sorted(tickers))}"
+        from src.data.reference import get_ticker_meta, resolve_successor
+
+        raw_list = [normalize_ticker(t) for t in (tickers or get_universe())]
+        # resolve renomeações (ELET3→AXIA3) e dedupe
+        tickers = []
+        seen: set[str] = set()
+        for t in raw_list:
+            nt = resolve_successor(t)
+            meta = get_ticker_meta(nt)
+            if meta.get("status") == "delisted_or_renamed":
+                continue
+            if nt not in seen:
+                seen.add(nt)
+                tickers.append(nt)
+
+        cache_key = f"yf_fund_v3:{','.join(sorted(tickers))}"
         cached = _read_cache(cache_key, self.settings.cache_ttl_hours)
         if cached is not None:
             return pd.DataFrame(cached)
@@ -298,6 +317,7 @@ class YFinanceDataProvider(DataProvider):
                 tickers_obj = None
             for t, sym in zip(batch, symbols):
                 try:
+                    meta = get_ticker_meta(t)
                     tk = (
                         tickers_obj.tickers.get(sym)
                         if tickers_obj is not None
@@ -335,12 +355,24 @@ class YFinanceDataProvider(DataProvider):
                     net_debt_ebitda = None
                     if ebitda and ebitda > 0 and total_debt is not None:
                         net_debt_ebitda = (total_debt - cash) / ebitda
+                    # Nome/setor: yfinance se confiável; senão cadastro de referência
+                    yf_name = info.get("shortName") or info.get("longName")
+                    yf_sector = info.get("sector")
+                    yf_industry = info.get("industry")
+                    name = yf_name or meta.get("name") or t
+                    sector = yf_sector or meta.get("sector") or "Unknown"
+                    industry = yf_industry or meta.get("industry")
+                    quality = (
+                        "market"
+                        if (price and price > 0 and (yf_name or yf_sector))
+                        else "partial"
+                    )
                     rows.append(
                         {
                             "ticker": t,
-                            "name": info.get("shortName") or info.get("longName") or t,
-                            "sector": info.get("sector") or "Unknown",
-                            "industry": info.get("industry"),
+                            "name": name,
+                            "sector": sector,
+                            "industry": industry,
                             "price": price,
                             "market_cap": info.get("marketCap"),
                             "roe": roe,
@@ -380,6 +412,13 @@ class YFinanceDataProvider(DataProvider):
                             "currency": info.get("currency") or "BRL",
                             "as_of": datetime.utcnow().date().isoformat(),
                             "source": "yfinance",
+                            "data_quality": quality,
+                            "meta_source": (
+                                "yfinance"
+                                if yf_sector
+                                else (meta.get("source") or "reference")
+                            ),
+                            "ticker_status": meta.get("status") or "unknown",
                         }
                     )
                 except Exception:

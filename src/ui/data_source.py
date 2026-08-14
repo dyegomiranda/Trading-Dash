@@ -5,30 +5,50 @@ from __future__ import annotations
 import streamlit as st
 
 
-PROVIDER_OPTIONS = ("demo", "yfinance")
+PROVIDER_OPTIONS = ("yfinance", "demo")  # bolsa real primeiro (mais sério)
 
 
 def format_provider_label(x: str) -> str:
     return (
-        "Modo treino (rápido, dados simulados)"
-        if x == "demo"
-        else "Bolsa real (Yahoo Finance)"
+        "Bolsa real (Yahoo Finance — preferível)"
+        if x == "yfinance"
+        else "Modo treino (NÃO usar para decisão real)"
     )
 
 
 def render_provider_help() -> None:
-    with st.expander("O que significa Modo treino vs Bolsa real?", icon=":material/help:"):
+    with st.expander("O que significa cada fonte de dados?", icon=":material/help:"):
         st.markdown(
             """
-| | **Modo treino** | **Bolsa real** |
-|--|-----------------|----------------|
-| **O que é** | Mercado **simulado** no app (números realistas, mas inventados) | Preços e (quando possível) fundamentals da B3 via **Yahoo Finance** |
-| **Quando usar** | Aprender o fluxo, testar botões, primeira experiência | Experimentar com histórico mais próximo do mercado |
-| **Velocidade** | Rápido / offline | Pode demorar e falhar (fonte gratuita) |
-| **Limitação** | **Não** é a B3 de verdade | Dados incompletos às vezes; score fundamental do MVP ainda não é 100% histórico |
+| | **Bolsa real (Yahoo)** | **Modo treino** |
+|--|------------------------|-----------------|
+| **Nome e setor** | Mercado (com fallback no cadastro B3 local) | Cadastro B3 local (não inventa setor) |
+| **Preços / indicadores** | Yahoo Finance (podem atrasar ou falhar) | **Números sintéticos** (fictícios) |
+| **Quando usar** | Análise e simulação com cara de mercado | Só aprender a interface / testar botões |
+| **Dinheiro real?** | Ainda **não** é consultoria; valide fora do app | **Nunca** para decidir compra/venda real |
 
-**Dica:** comece no **Modo treino**. Só mude para Bolsa real quando o fluxo já estiver claro.
+**Importante:** mesmo na Bolsa real, o Yahoo é gratuito e **imperfeito**. Tickers renomeados
+(ex.: ELET3 → AXIA3) e gaps de dados exigem checagem. O app **não substitui** Status Invest,
+Fundamentus, RI da empresa ou um profissional habilitado.
 """
+        )
+
+
+def render_data_quality_banner(provider: str) -> None:
+    """Aviso forte no topo da página conforme a fonte."""
+    if provider == "demo":
+        st.error(
+            "**Modo treino ativo:** indicadores (ROE, DY, P/L, scores, rankings) são "
+            "**sintéticos/fictícios**. Nome e setor vêm do cadastro de referência, mas "
+            "**não use esta tela para colocar dinheiro real.** Mude para **Bolsa real**.",
+            icon=":material/dangerous:",
+        )
+    else:
+        st.warning(
+            "**Bolsa real (Yahoo Finance):** dados de mercado gratuitos — podem estar "
+            "atrasados, incompletos ou divergir de fontes oficiais. Use como apoio, "
+            "não como única fonte de verdade. Valide no site de RI / CVM / casa de análise.",
+            icon=":material/info:",
         )
 
 
@@ -36,20 +56,21 @@ def provider_selectbox(
     *,
     key: str,
     label: str = "Fonte de dados",
-    default: str = "demo",
+    default: str = "yfinance",
     show_help: bool = True,
 ) -> str:
-    """Selectbox padrão + ajuda opcional logo abaixo (na sidebar)."""
-    idx = 0 if default == "demo" else 1
+    """Selectbox padrão + ajuda opcional. Default = bolsa real."""
+    opts = list(PROVIDER_OPTIONS)
+    idx = opts.index(default) if default in opts else 0
     provider = st.selectbox(
         label,
-        options=list(PROVIDER_OPTIONS),
+        options=opts,
         format_func=format_provider_label,
         index=idx,
         key=key,
         help=(
-            "Modo treino = simulado e rápido. "
-            "Bolsa real = Yahoo Finance (mais lento, dados de mercado)."
+            "Bolsa real = Yahoo + cadastro B3. "
+            "Modo treino = indicadores fictícios (só UI)."
         ),
     )
     if show_help:

@@ -19,8 +19,16 @@ def to_yf_symbol(ticker: str) -> str:
     return f"{t}.SA"
 
 
-def get_universe(extra: list[str] | None = None) -> list[str]:
-    """Retorna universo amplo único (sem .SA)."""
+def get_universe(
+    extra: list[str] | None = None,
+    *,
+    resolve_renames: bool = True,
+) -> list[str]:
+    """Retorna universo amplo único (sem .SA).
+
+    Por padrão, remove tickers renomeados/delisted e aplica sucessor
+    (ex.: ELET3 → AXIA3) via cadastro em data/reference.
+    """
     items = list(B3_UNIVERSE)
     if extra:
         items.extend(extra)
@@ -31,4 +39,8 @@ def get_universe(extra: list[str] | None = None) -> list[str]:
         if n and n not in seen:
             seen.add(n)
             out.append(n)
+    if resolve_renames:
+        from src.data.reference import active_universe
+
+        out = active_universe(out)
     return out

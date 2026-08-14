@@ -131,3 +131,12 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
 def page_setup() -> None:
     ensure_root_on_path()
     apply_theme()
+
+
+def page_setup_with_data_banner(provider: str | None = None) -> None:
+    """page_setup + banner de qualidade de dados (se provider informado)."""
+    page_setup()
+    if provider:
+        from src.ui.data_source import render_data_quality_banner
+
+        render_data_quality_banner(provider)
