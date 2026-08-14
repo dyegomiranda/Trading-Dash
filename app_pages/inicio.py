@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 from src.data.news import fetch_headlines
@@ -36,24 +37,51 @@ render_data_quality_banner(provider)
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _scored(provider: str):
-    return load_scored_universe(provider_name=provider)  # type: ignore[arg-type]
-
-
-with st.spinner("Carregando overview…"):
-    result = _scored(provider)
-    scored = result.scored
-    filtered = result.filtered
-    recs = recommend_weights(
-        filtered if not filtered.empty else scored,
-        top_n=10,
+    # yfinance: scan core (~40) — full universe trava a UI
+    return load_scored_universe(
+        provider_name=provider,  # type: ignore[arg-type]
+        universe_mode="auto",
     )
-    portfolio = load_portfolio("paper-main")
-    prices = prices_dict_from_fundamentals(scored)
-    summary = portfolio.summary(prices)
-    holdings = portfolio.holdings_frame(prices)
-    watch = recs["ticker"].head(8).tolist() if not recs.empty else []
-    # Sempre busca notícias reais (Google News RSS); provider só muda os tickers/fonte extra
-    news = fetch_headlines(watch, provider="yfinance", limit=10)
+
+
+# Carteira paper é local e instantânea — mostra mesmo se Yahoo demorar
+portfolio = load_portfolio("paper-main")
+scored = pd.DataFrame()
+filtered = scored
+recs = scored
+prices: dict = {}
+news = pd.DataFrame()
+
+try:
+    with st.spinner(
+        "Carregando overview… (Bolsa real: até ~15–30s na 1ª vez; depois cache)"
+        if provider == "yfinance"
+        else "Carregando overview…"
+    ):
+        result = _scored(provider)
+        scored = result.scored
+        filtered = result.filtered
+        recs = recommend_weights(
+            filtered if not filtered.empty else scored,
+            top_n=10,
+        )
+        prices = prices_dict_from_fundamentals(scored)
+except Exception as e:
+    st.error(f"Falha ao carregar mercado: {e}")
+    scored = pd.DataFrame()
+    recs = scored
+
+summary = portfolio.summary(prices)
+holdings = portfolio.holdings_frame(prices)
+watch = (
+    recs["ticker"].head(6).tolist()
+    if not recs.empty and "ticker" in recs.columns
+    else ["ITUB4", "PETR4", "VALE3"]
+)
+try:
+    news = fetch_headlines(watch, provider="yfinance", limit=6, timeout_sec=6.0)
+except Exception:
+    news = pd.DataFrame()
 
 # KPIs rápidos
 pnl = float(summary.get("pnl") or 0)

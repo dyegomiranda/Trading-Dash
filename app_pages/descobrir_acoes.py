@@ -41,6 +41,7 @@ def _cached_score(provider: str, min_score: float, strict: bool):
         provider_name=provider,  # type: ignore[arg-type]
         min_score=min_score,
         strict_filters=strict,
+        universe_mode="auto",
     )
 
 
@@ -55,24 +56,31 @@ def _price_hist(provider: str, ticker: str, days: int):
     return hist[hist["ticker"] == ticker].copy() if "ticker" in hist.columns else hist
 
 
-if run or "ranking_loaded" not in st.session_state:
-    with st.spinner("Calculando…"):
-        scored = _cached_score(provider, float(min_score), strict)
-        st.session_state["ranking_loaded"] = True
-        st.session_state["scored_df"] = scored.scored
-        st.session_state["provider"] = provider
+need_load = (
+    run
+    or "ranking_loaded" not in st.session_state
+    or st.session_state.get("provider") != provider
+)
+if need_load:
+    try:
+        with st.spinner(
+            "Calculando ranking… (Bolsa real: até ~30s na 1ª carga; depois usa cache)"
+            if provider == "yfinance"
+            else "Calculando ranking…"
+        ):
+            scored = _cached_score(provider, float(min_score), strict)
+            st.session_state["ranking_loaded"] = True
+            st.session_state["scored_df"] = scored.scored
+            st.session_state["provider"] = provider
+    except Exception as e:
+        st.error(f"Falha ao carregar dados: {e}")
+        st.info("Tente **Modo treino** na barra lateral para carregar na hora.")
+        st.stop()
 
 scored_df = st.session_state.get("scored_df")
-if scored_df is None:
-    st.info("Clique em **Atualizar** na barra lateral.")
+if scored_df is None or getattr(scored_df, "empty", True):
+    st.warning("Sem dados de mercado. Clique em **Atualizar** ou use Modo treino.")
     st.stop()
-
-if st.session_state.get("provider") != provider:
-    with st.spinner("Recarregando…"):
-        scored = _cached_score(provider, float(min_score), strict)
-        scored_df = scored.scored
-        st.session_state["scored_df"] = scored_df
-        st.session_state["provider"] = provider
 
 filtered, rejected = apply_filters(
     scored_df, min_score=float(min_score), strict=strict

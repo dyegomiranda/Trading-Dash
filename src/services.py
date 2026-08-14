@@ -18,9 +18,23 @@ def load_scored_universe(
     min_score: float | None = None,
     strict_filters: bool = False,
     tickers: list[str] | None = None,
+    *,
+    universe_mode: str = "auto",
 ) -> ScoreResult:
+    """Carrega e pontua o universo.
+
+    universe_mode:
+      - auto: demo=full, yfinance=core (rápido)
+      - core / full: força o modo
+    """
     provider = get_provider(provider_name)
-    universe = tickers or get_universe()
+    if tickers is not None:
+        universe = tickers
+    else:
+        mode = universe_mode
+        if mode == "auto":
+            mode = "core" if provider_name == "yfinance" else "full"
+        universe = get_universe(mode=mode)
     fundamentals = provider.get_fundamentals(universe)
     settings = get_settings()
     return score_universe(

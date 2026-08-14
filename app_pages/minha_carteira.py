@@ -43,7 +43,11 @@ render_data_quality_banner(provider)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _raw_fundamentals(provider: str):
-    return get_provider(provider).get_fundamentals()  # type: ignore[arg-type]
+    from src.data.universe import get_universe
+
+    # scan core na bolsa real (rápido); full no demo
+    mode = "core" if provider == "yfinance" else "full"
+    return get_provider(provider).get_fundamentals(get_universe(mode=mode))  # type: ignore[arg-type]
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -53,11 +57,24 @@ def _scored_table(provider: str):
 
 
 portfolio = load_portfolio(portfolio_name)
-fundamentals = _raw_fundamentals(provider)
-scored_table = _scored_table(provider)
-prices = prices_dict_from_fundamentals(
-    scored_table if not scored_table.empty else fundamentals
-)
+fundamentals = pd.DataFrame()
+scored_table = fundamentals
+prices: dict = {}
+try:
+    with st.spinner(
+        "Carregando cotações… (1ª vez na Bolsa real: ~15–30s; depois cache)"
+        if provider == "yfinance"
+        else "Carregando dados…"
+    ):
+        fundamentals = _raw_fundamentals(provider)
+        scored_table = _scored_table(provider)
+        prices = prices_dict_from_fundamentals(
+            scored_table if not scored_table.empty else fundamentals
+        )
+except Exception as e:
+    st.error(f"Falha ao carregar mercado: {e}")
+    st.info("A carteira paper ainda aparece abaixo. Tente Modo treino para dados instantâneos.")
+
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)
 

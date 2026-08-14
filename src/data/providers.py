@@ -283,13 +283,20 @@ class YFinanceDataProvider(DataProvider):
         self.settings = get_settings()
 
     def get_fundamentals(self, tickers: list[str] | None = None) -> pd.DataFrame:
+        """Snapshot via Yahoo — paralelo, com teto de tickers e timeout.
+
+        `tk.info` síncrono em 200 papéis trava a UI. Aqui:
+        - limita ao scan prioritário se lista for enorme
+        - busca em threads com timeout por ticker
+        - nome/setor sempre com fallback no cadastro B3
+        """
         import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         from src.data.reference import get_ticker_meta, resolve_successor
 
-        raw_list = [normalize_ticker(t) for t in (tickers or get_universe())]
-        # resolve renomeações (ELET3→AXIA3) e dedupe
-        tickers = []
+        raw_list = [normalize_ticker(t) for t in (tickers or get_universe(mode="core"))]
+        tickers_resolved: list[str] = []
         seen: set[str] = set()
         for t in raw_list:
             nt = resolve_successor(t)
@@ -298,136 +305,207 @@ class YFinanceDataProvider(DataProvider):
                 continue
             if nt not in seen:
                 seen.add(nt)
-                tickers.append(nt)
+                tickers_resolved.append(nt)
 
-        cache_key = f"yf_fund_v3:{','.join(sorted(tickers))}"
+        max_n = int(getattr(self.settings, "yfinance_max_tickers", 40) or 40)
+        if len(tickers_resolved) > max_n:
+            # prioriza core scan se a lista veio full
+            core = get_universe(mode="core")
+            ordered = [t for t in core if t in set(tickers_resolved)]
+            rest = [t for t in tickers_resolved if t not in set(ordered)]
+            tickers_resolved = (ordered + rest)[:max_n]
+
+        cache_key = f"yf_fund_v4:{','.join(sorted(tickers_resolved))}"
         cached = _read_cache(cache_key, self.settings.cache_ttl_hours)
         if cached is not None:
             return pd.DataFrame(cached)
 
-        rows: list[dict[str, Any]] = []
-        # Batch em blocos para não sobrecarregar
-        batch_size = 20
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i : i + batch_size]
-            symbols = [to_yf_symbol(t) for t in batch]
+        workers = int(getattr(self.settings, "yfinance_workers", 8) or 8)
+        t_timeout = float(getattr(self.settings, "yfinance_ticker_timeout", 4.0) or 4.0)
+
+        def _fetch_one(t: str) -> dict[str, Any] | None:
             try:
-                tickers_obj = yf.Tickers(" ".join(symbols))
-            except Exception:
-                tickers_obj = None
-            for t, sym in zip(batch, symbols):
+                meta = get_ticker_meta(t)
+                sym = to_yf_symbol(t)
+                tk = yf.Ticker(sym)
+                price = 0.0
+                # fast_info primeiro (bem mais rápido que .info)
                 try:
-                    meta = get_ticker_meta(t)
-                    tk = (
-                        tickers_obj.tickers.get(sym)
-                        if tickers_obj is not None
-                        else yf.Ticker(sym)
-                    )
-                    info = tk.info or {}
-                    if not info or info.get("trailingPegRatio") is None and info.get("regularMarketPrice") is None:
-                        # fallback rápido
-                        fast = getattr(tk, "fast_info", None)
-                        price = float(getattr(fast, "last_price", None) or 0) if fast else 0.0
-                    else:
+                    fast = getattr(tk, "fast_info", None)
+                    if fast is not None:
                         price = float(
-                            info.get("currentPrice")
-                            or info.get("regularMarketPrice")
-                            or info.get("previousClose")
+                            getattr(fast, "last_price", None)
+                            or getattr(fast, "lastPrice", None)
                             or 0
                         )
-                    trailing_pe = info.get("trailingPE")
-                    forward_pe = info.get("forwardPE")
-                    pe = trailing_pe or forward_pe
-                    dy = info.get("dividendYield")
-                    # yfinance às vezes devolve DY já em fração, às vezes *100 inconsistente
-                    if dy is not None and dy > 1:
-                        dy = dy / 100.0
-                    payout = info.get("payoutRatio")
-                    roe = info.get("returnOnEquity")
-                    roa = info.get("returnOnAssets")
-                    debt_eq = info.get("debtToEquity")
-                    if debt_eq is not None and debt_eq > 5:
-                        # frequentemente vem *100
-                        debt_eq = debt_eq / 100.0
-                    ebitda = info.get("ebitda")
-                    total_debt = info.get("totalDebt")
-                    cash = info.get("totalCash") or 0
-                    net_debt_ebitda = None
-                    if ebitda and ebitda > 0 and total_debt is not None:
-                        net_debt_ebitda = (total_debt - cash) / ebitda
-                    # Nome/setor: yfinance se confiável; senão cadastro de referência
-                    yf_name = info.get("shortName") or info.get("longName")
-                    yf_sector = info.get("sector")
-                    yf_industry = info.get("industry")
-                    name = yf_name or meta.get("name") or t
-                    sector = yf_sector or meta.get("sector") or "Unknown"
-                    industry = yf_industry or meta.get("industry")
-                    quality = (
-                        "market"
-                        if (price and price > 0 and (yf_name or yf_sector))
-                        else "partial"
-                    )
-                    rows.append(
-                        {
-                            "ticker": t,
-                            "name": name,
-                            "sector": sector,
-                            "industry": industry,
-                            "price": price,
-                            "market_cap": info.get("marketCap"),
-                            "roe": roe,
-                            "roic": info.get("returnOnCapital") or roe,
-                            "roa": roa,
-                            "net_margin": info.get("profitMargins"),
-                            "ebitda_margin": info.get("ebitdaMargins"),
-                            "gross_margin": info.get("grossMargins"),
-                            "dividend_yield": dy,
-                            "payout": payout,
-                            "net_debt_ebitda": net_debt_ebitda,
-                            "debt_equity": debt_eq,
-                            "current_ratio": info.get("currentRatio"),
-                            "interest_coverage": None,
-                            "pe": pe,
-                            "pb": info.get("priceToBook"),
-                            "ev_ebitda": info.get("enterpriseToEbitda"),
-                            "peg": info.get("pegRatio"),
-                            "fcf_yield": (
-                                (info.get("freeCashflow") / info.get("marketCap"))
-                                if info.get("freeCashflow") and info.get("marketCap")
-                                else None
-                            ),
-                            "revenue_cagr_5y": info.get("revenueGrowth"),
-                            "earnings_cagr_5y": info.get("earningsGrowth"),
-                            "dividend_cagr_5y": None,
-                            "years_paying_dividend": None,
-                            "fcf_positive": (
-                                True
-                                if info.get("freeCashflow") and info.get("freeCashflow") > 0
-                                else (
-                                    False
-                                    if info.get("freeCashflow") is not None
-                                    else None
-                                )
-                            ),
-                            "currency": info.get("currency") or "BRL",
-                            "as_of": datetime.utcnow().date().isoformat(),
-                            "source": "yfinance",
-                            "data_quality": quality,
-                            "meta_source": (
-                                "yfinance"
-                                if yf_sector
-                                else (meta.get("source") or "reference")
-                            ),
-                            "ticker_status": meta.get("status") or "unknown",
-                        }
-                    )
                 except Exception:
-                    continue
+                    price = 0.0
+
+                info: dict[str, Any] = {}
+                try:
+                    info = tk.info or {}
+                except Exception:
+                    info = {}
+
+                if not price:
+                    price = float(
+                        info.get("currentPrice")
+                        or info.get("regularMarketPrice")
+                        or info.get("previousClose")
+                        or 0
+                    )
+
+                pe = info.get("trailingPE") or info.get("forwardPE")
+                dy = info.get("dividendYield")
+                if dy is not None and dy > 1:
+                    dy = dy / 100.0
+                payout = info.get("payoutRatio")
+                roe = info.get("returnOnEquity")
+                roa = info.get("returnOnAssets")
+                debt_eq = info.get("debtToEquity")
+                if debt_eq is not None and debt_eq > 5:
+                    debt_eq = debt_eq / 100.0
+                ebitda = info.get("ebitda")
+                total_debt = info.get("totalDebt")
+                cash = info.get("totalCash") or 0
+                net_debt_ebitda = None
+                if ebitda and ebitda > 0 and total_debt is not None:
+                    net_debt_ebitda = (total_debt - cash) / ebitda
+
+                yf_name = info.get("shortName") or info.get("longName")
+                yf_sector = info.get("sector")
+                yf_industry = info.get("industry")
+                name = yf_name or meta.get("name") or t
+                sector = yf_sector or meta.get("sector") or "Unknown"
+                industry = yf_industry or meta.get("industry")
+                quality = (
+                    "market"
+                    if (price and price > 0)
+                    else "partial"
+                )
+                return {
+                    "ticker": t,
+                    "name": name,
+                    "sector": sector,
+                    "industry": industry,
+                    "price": price,
+                    "market_cap": info.get("marketCap"),
+                    "roe": roe,
+                    "roic": info.get("returnOnCapital") or roe,
+                    "roa": roa,
+                    "net_margin": info.get("profitMargins"),
+                    "ebitda_margin": info.get("ebitdaMargins"),
+                    "gross_margin": info.get("grossMargins"),
+                    "dividend_yield": dy,
+                    "payout": payout,
+                    "net_debt_ebitda": net_debt_ebitda,
+                    "debt_equity": debt_eq,
+                    "current_ratio": info.get("currentRatio"),
+                    "interest_coverage": None,
+                    "pe": pe,
+                    "pb": info.get("priceToBook"),
+                    "ev_ebitda": info.get("enterpriseToEbitda"),
+                    "peg": info.get("pegRatio"),
+                    "fcf_yield": (
+                        (info.get("freeCashflow") / info.get("marketCap"))
+                        if info.get("freeCashflow") and info.get("marketCap")
+                        else None
+                    ),
+                    "revenue_cagr_5y": info.get("revenueGrowth"),
+                    "earnings_cagr_5y": info.get("earningsGrowth"),
+                    "dividend_cagr_5y": None,
+                    "years_paying_dividend": None,
+                    "fcf_positive": (
+                        True
+                        if info.get("freeCashflow") and info.get("freeCashflow") > 0
+                        else (
+                            False
+                            if info.get("freeCashflow") is not None
+                            else None
+                        )
+                    ),
+                    "currency": info.get("currency") or "BRL",
+                    "as_of": datetime.utcnow().date().isoformat(),
+                    "source": "yfinance",
+                    "data_quality": quality,
+                    "meta_source": (
+                        "yfinance" if yf_sector else (meta.get("source") or "reference")
+                    ),
+                    "ticker_status": meta.get("status") or "unknown",
+                }
+            except Exception:
+                return None
+
+        rows: list[dict[str, Any]] = []
+        # deadline global para não travar a UI (ex.: 40s)
+        global_timeout = min(45.0, max(12.0, len(tickers_resolved) * t_timeout / max(workers, 1) + 8))
+        with ThreadPoolExecutor(max_workers=max(2, workers)) as pool:
+            futs = {pool.submit(_fetch_one, t): t for t in tickers_resolved}
+            try:
+                for fut in as_completed(futs, timeout=global_timeout):
+                    try:
+                        row = fut.result(timeout=0.1)
+                    except Exception:
+                        row = None
+                    if row:
+                        rows.append(row)
+            except Exception:
+                # TimeoutError de as_completed — segue com o que já veio
+                pass
+
+        # se Yahoo falhou quase tudo, ainda devolve meta+preço vazio a partir do cadastro
+        # (melhor que travar / tela em branco)
+        got = {r["ticker"] for r in rows}
+        for t in tickers_resolved:
+            if t in got:
+                continue
+            meta = get_ticker_meta(t)
+            rows.append(
+                {
+                    "ticker": t,
+                    "name": meta.get("name") or t,
+                    "sector": meta.get("sector") or "Unknown",
+                    "industry": meta.get("industry"),
+                    "price": 0.0,
+                    "market_cap": None,
+                    "roe": None,
+                    "roic": None,
+                    "roa": None,
+                    "net_margin": None,
+                    "ebitda_margin": None,
+                    "gross_margin": None,
+                    "dividend_yield": None,
+                    "payout": None,
+                    "net_debt_ebitda": None,
+                    "debt_equity": None,
+                    "current_ratio": None,
+                    "interest_coverage": None,
+                    "pe": None,
+                    "pb": None,
+                    "ev_ebitda": None,
+                    "peg": None,
+                    "fcf_yield": None,
+                    "revenue_cagr_5y": None,
+                    "earnings_cagr_5y": None,
+                    "dividend_cagr_5y": None,
+                    "years_paying_dividend": None,
+                    "fcf_positive": None,
+                    "currency": "BRL",
+                    "as_of": datetime.utcnow().date().isoformat(),
+                    "source": "yfinance",
+                    "data_quality": "unavailable",
+                    "meta_source": meta.get("source") or "reference",
+                    "ticker_status": meta.get("status") or "unknown",
+                }
+            )
 
         df = pd.DataFrame(rows)
         if not df.empty:
-            _write_cache(cache_key, df.to_dict(orient="records"))
+            # só cacheia se pelo menos 1 preço veio
+            if (df["price"].fillna(0) > 0).any():
+                _write_cache(cache_key, df.to_dict(orient="records"))
         return df
+
 
     def get_price_history(
         self,

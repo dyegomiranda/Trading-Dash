@@ -138,63 +138,77 @@ def fetch_headlines(
     *,
     provider: str = "demo",
     limit: int = 10,
+    timeout_sec: float | None = None,
 ) -> pd.DataFrame:
-    """Headlines reais com URL clicável.
+    """Headlines reais com URL clicável (com timeout global).
 
     Estratégia:
-    1) Google News RSS (sempre tenta — links reais)
-    2) yfinance news por ticker
+    1) Google News RSS (links reais) — poucas queries
+    2) yfinance news (opcional, se ainda faltar)
     3) se tudo falhar, devolve vazio (sem fake)
     """
-    tickers = [normalize_ticker(t) for t in (tickers or []) if t][:10]
-    items: list[dict[str, Any]] = []
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
-    # Consultas temáticas da tese + tickers
-    queries: list[str] = []
-    if tickers:
-        # até 4 tickers na query principal
-        tq = " OR ".join(tickers[:4])
-        queries.append(f"({tq}) (ações OR dividendos OR B3)")
-        for t in tickers[:3]:
-            queries.append(f"{t} ações OR dividendos")
-    queries.extend(
-        [
-            "dividendos B3 ações",
-            "renda passiva ações Brasil",
-            "Ibovespa dividendos",
-        ]
+    from src.config import get_settings
+
+    tickers = [normalize_ticker(t) for t in (tickers or []) if t][:10]
+    settings = get_settings()
+    deadline = float(
+        timeout_sec
+        if timeout_sec is not None
+        else getattr(settings, "news_timeout_sec", 8.0) or 8.0
     )
 
-    per_q = max(2, limit // max(1, min(len(queries), 4)))
-    for q in queries[:5]:
-        batch = _fetch_google_rss(q, limit=per_q)
-        # associa ticker se o título mencionar
-        for it in batch:
-            title_u = it["title"].upper()
-            for t in tickers:
-                if t.upper() in title_u or t.upper().replace("11", "") in title_u:
-                    it["ticker"] = t
-                    break
-            if not it.get("ticker") and tickers:
-                it["ticker"] = tickers[0]
-            it["tag"] = "tese" if "dividend" in q.lower() or "renda" in q.lower() else "mercado"
-        items.extend(batch)
-        if len(items) >= limit:
-            break
+    def _work() -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        queries: list[str] = []
+        if tickers:
+            tq = " OR ".join(tickers[:3])
+            queries.append(f"({tq}) (ações OR dividendos OR B3)")
+        queries.append("dividendos B3 ações")
+        queries.append("Ibovespa dividendos")
 
-    if len(items) < limit and tickers:
-        items.extend(_fetch_yfinance_news(tickers, limit=limit - len(items)))
+        for q in queries[:3]:
+            batch = _fetch_google_rss(q, limit=max(3, limit // 2))
+            for it in batch:
+                title_u = it["title"].upper()
+                for t in tickers:
+                    if t.upper() in title_u:
+                        it["ticker"] = t
+                        break
+                if not it.get("ticker") and tickers:
+                    it["ticker"] = tickers[0]
+                it["tag"] = (
+                    "tese"
+                    if "dividend" in q.lower() or "renda" in q.lower()
+                    else "mercado"
+                )
+            items.extend(batch)
+            if len(items) >= limit:
+                break
 
-    # dedupe por título
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-    for it in items:
-        key = re.sub(r"\s+", " ", it["title"].lower()).strip()
-        if key in seen or not it.get("url"):
-            continue
-        seen.add(key)
-        unique.append(it)
-        if len(unique) >= limit:
-            break
+        if len(items) < limit and tickers and provider == "yfinance":
+            items.extend(_fetch_yfinance_news(tickers[:3], limit=limit - len(items)))
+
+        seen: set[str] = set()
+        unique: list[dict[str, Any]] = []
+        for it in items:
+            key = re.sub(r"\s+", " ", it["title"].lower()).strip()
+            if key in seen or not it.get("url"):
+                continue
+            seen.add(key)
+            unique.append(it)
+            if len(unique) >= limit:
+                break
+        return unique
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(_work)
+            unique = fut.result(timeout=deadline)
+    except FuturesTimeout:
+        unique = []
+    except Exception:
+        unique = []
 
     return pd.DataFrame(unique)

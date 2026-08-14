@@ -23,13 +23,17 @@ def get_universe(
     extra: list[str] | None = None,
     *,
     resolve_renames: bool = True,
+    mode: str = "full",
 ) -> list[str]:
-    """Retorna universo amplo único (sem .SA).
+    """Retorna universo de tickers (sem .SA).
 
-    Por padrão, remove tickers renomeados/delisted e aplica sucessor
-    (ex.: ELET3 → AXIA3) via cadastro em data/reference.
+    mode:
+      - full: lista ampla B3_UNIVERSE
+      - core: B3_CORE_SCAN (líquidos, scan rápido)
     """
-    items = list(B3_UNIVERSE)
+    from src.config import B3_CORE_SCAN
+
+    items = list(B3_CORE_SCAN if mode == "core" else B3_UNIVERSE)
     if extra:
         items.extend(extra)
     seen: set[str] = set()

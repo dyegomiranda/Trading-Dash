@@ -35,6 +35,58 @@ class Settings(BaseSettings):
     min_payout: float = 0.20
     max_payout: float = 0.85
     yfinance_timeout: int = 20
+    # Limite de tickers por fetch Yahoo (evita travar a UI)
+    yfinance_max_tickers: int = Field(default=40, alias="YFINANCE_MAX_TICKERS")
+    yfinance_workers: int = Field(default=8, alias="YFINANCE_WORKERS")
+    yfinance_ticker_timeout: float = Field(default=4.0, alias="YFINANCE_TICKER_TIMEOUT")
+    news_timeout_sec: float = Field(default=8.0, alias="NEWS_TIMEOUT_SEC")
+
+
+# Universo líquido prioritário (scan rápido na Bolsa real)
+B3_CORE_SCAN: list[str] = [
+    "ITUB4",
+    "BBDC4",
+    "BBAS3",
+    "SANB11",
+    "BPAC11",
+    "B3SA3",
+    "BBSE3",
+    "CXSE3",
+    "PSSA3",
+    "AXIA3",
+    "CMIG4",
+    "CPLE3",
+    "CPFE3",
+    "ENGI11",
+    "EGIE3",
+    "TAEE11",
+    "EQTL3",
+    "SBSP3",
+    "SAPR11",
+    "CSMG3",
+    "VIVT3",
+    "TIMS3",
+    "ABEV3",
+    "LREN3",
+    "HYPE3",
+    "RADL3",
+    "WEGE3",
+    "RAIL3",
+    "CCRO3",
+    "VALE3",
+    "GGBR4",
+    "CSNA3",
+    "SUZB3",
+    "KLBN11",
+    "PETR4",
+    "PRIO3",
+    "UGPA3",
+    "VBBR3",
+    "RENT3",
+    "TOTS3",
+    "MULT3",
+    "IGTI11",
+]
 
 
 # Pesos do score composto (0–100). Soma = 1.0
