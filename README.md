@@ -20,11 +20,13 @@ App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileir
 
 ### Modo treino vs Bolsa real
 
-| | **Modo treino** | **Bolsa real** |
-|--|-----------------|----------------|
-| O que é | Mercado **simulado** (rápido, offline) | Preços/dividendos via **Yahoo Finance** (`.SA`) |
-| Quando usar | Aprender o fluxo, primeira vez | Experimentar com histórico mais “de verdade” |
-| Limitação | Não é a B3 real | Pode ser lento/incompleto; score fundamental do MVP ainda não é 100% histórico |
+| | **Bolsa real (padrão)** | **Modo treino** |
+|--|------------------------|-----------------|
+| Nome / setor | Yahoo + cadastro B3 local | Cadastro B3 local (**não inventa setor**) |
+| Preços e indicadores | Yahoo Finance | **Sintéticos — nunca para dinheiro real** |
+| Quando usar | Análise / simulação com dados de mercado | Só aprender a interface |
+
+> **Aviso de confiabilidade:** o app é MVP. Mesmo em Bolsa real, o Yahoo é gratuito e falível. Valide tickers, setores e números em RI/CVM/Status Invest antes de qualquer decisão. Cadastro de referência: `data/reference/b3_tickers.json` (atualizável com `scripts/refresh_b3_metadata.py`).
 
 ---
 
