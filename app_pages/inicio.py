@@ -14,16 +14,18 @@ from src.services import (
     prices_dict_from_fundamentals,
 )
 from src.thesis.scoring import recommend_weights
+from src.ai.coach import narrative_thesis, summarize_headlines
 from src.ui.charts import holdings_donut
-from src.ui.components import render_kpi_row, render_page_header
+from src.ui.components import render_journey, render_kpi_row, render_page_header, render_plain_help
 from src.ui.data_source import provider_selectbox, render_data_quality_banner
-from src.ui.friendly import friendly_dataframe
+from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
+from src.ui.onboarding import render_onboarding_if_needed, render_onboarding_reset_button
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
 
 page_setup()
 
-render_page_header("Início", "Visão geral · tese Quality Dividend")
+render_page_header("Início", "Comece aqui · caminho guiado para montar uma carteira de treino")
 
 with st.sidebar:
     st.markdown("##### Dados")
@@ -31,6 +33,11 @@ with st.sidebar:
     if st.button("Atualizar overview", width="stretch", key="home_refresh"):
         st.cache_data.clear()
         st.rerun()
+    render_onboarding_reset_button()
+
+# Tour na primeira visita
+if render_onboarding_if_needed():
+    st.stop()
 
 render_data_quality_banner(provider)
 
@@ -83,43 +90,91 @@ try:
 except Exception:
     news = pd.DataFrame()
 
-# KPIs rápidos
+# Jornada + KPIs
+has_pos = not holdings.empty
+render_journey(
+    JOURNEY_STEPS,
+    current=2 if has_pos else (0 if float(summary.get("equity") or 0) < 100 else 1),
+    completed_through=2 if has_pos else (0 if float(summary.get("equity") or 0) >= 100 else -1),
+)
+render_plain_help(
+    "Seu caminho em 4 passos",
+    """
+1. **Descubra ações** — veja notas e o gráfico de preço em vários períodos  
+2. **Minha carteira → Montar carteira** — defina o capital e clique em *Montar com a tese*  
+3. **Renda esperada** — entenda quanto poderia render em dividendos (estimativa)  
+4. **Teste no passado** (opcional) — veja como a ideia se comportaria historicamente  
+
+Tudo aqui é **conta de treino** (dinheiro de mentira), para aprender com segurança.
+""",
+)
+
+# Coach da tese (IA se XAI_API_KEY; senão texto local)
+try:
+    tops = (
+        recs["ticker"].astype(str).head(5).tolist()
+        if not recs.empty and "ticker" in recs.columns
+        else []
+    )
+    avg_sc = (
+        float(recs["score_total"].mean())
+        if not recs.empty and "score_total" in recs.columns
+        else None
+    )
+    narr = narrative_thesis(
+        n_suggestions=int(len(recs)),
+        avg_score=avg_sc,
+        top_tickers=tops,
+        provider=provider,
+    )
+    with st.container(border=True):
+        st.markdown("##### Coach da tese")
+        st.markdown(narr["text"])
+        st.caption(
+            "Texto com IA (SpaceXAI/xAI)"
+            if narr.get("source") == "ia"
+            else "Texto local · defina a variável de ambiente XAI_API_KEY para ativar a IA"
+        )
+except Exception:
+    pass
+
 pnl = float(summary.get("pnl") or 0)
 render_kpi_row(
     [
-        ("Patrimônio (treino)", format_brl(summary["equity"]), format_pct(summary.get("pnl_pct") or 0), "up" if pnl >= 0 else "down"),
-        ("Em carteira", str(summary.get("n_positions") or 0), None, None),
-        ("Sugestões da tese", str(len(recs)), None, None),
-        ("Universo analisado", str(len(scored)), None, None),
+        ("Dinheiro na conta de treino", format_brl(summary["equity"]), format_pct(summary.get("pnl_pct") or 0), "up" if pnl >= 0 else "down"),
+        ("Empresas na carteira", str(summary.get("n_positions") or 0), None, None),
+        ("Sugestões da tese agora", str(len(recs)), None, None),
+        ("Empresas analisadas", str(len(scored)), None, None),
     ]
 )
 
-# Wallet + donut
 left, right = st.columns([1.15, 1], gap="medium")
 with left:
     render_wallet_balance(
         total=format_brl(summary["equity"]),
-        delta=f"{format_brl(pnl)} ({format_pct(summary.get('pnl_pct') or 0)})",
+        delta=f"Lucro/prejuízo simulado: {format_brl(pnl)} ({format_pct(summary.get('pnl_pct') or 0)})",
         delta_positive=pnl >= 0,
-        badge="Paper · overview",
+        badge="Conta de treino",
+        label="Dinheiro total na conta de treino",
+        hint="Caixa livre + valor das ações. A renda de dividendos fica em Minha carteira → Renda esperada.",
         stats=[
-            ("Caixa", format_brl(summary["cash"])),
-            ("Investido", format_brl(summary["invested"])),
-            ("Dividendos", format_brl(summary["dividends_received"])),
-            ("Ativos", str(summary["n_positions"])),
+            ("Livre no caixa", format_brl(summary["cash"]), "Para comprar ações"),
+            ("Aplicado em ações", format_brl(summary["invested"]), "Pelo preço de hoje"),
+            ("Dividendos (simulado)", format_brl(summary["dividends_received"]), "Já “recebidos” no treino"),
+            ("Empresas", str(summary["n_positions"]), "Quantas você tem"),
         ],
     )
 with right:
     with st.container(border=True):
         if holdings.empty:
-            st.markdown("##### Carteira")
-            st.caption("Vazia — monte em **Minha carteira → Operar**.")
+            st.markdown("##### Sua carteira")
+            st.caption("Ainda vazia. Abra **Minha carteira → Montar carteira** e monte com a tese.")
         else:
             st.plotly_chart(
                 holdings_donut(
                     holdings,
                     center_value=format_brl(summary["invested"]),
-                    title="Sua carteira agora",
+                    title="Só o que está em ações (sem o caixa)",
                 ),
                 width="stretch",
                 config={"displayModeBar": False},
@@ -129,8 +184,11 @@ with right:
 c1, c2 = st.columns([1.2, 1], gap="medium")
 with c1:
     with st.container(border=True):
-        st.markdown("##### Radar da tese")
-        st.caption("Principais ações ranqueadas agora (Quality Dividend).")
+        st.markdown("##### Radar da tese (top da lista)")
+        st.caption(
+            "Empresas com melhor nota para a ideia de renda com qualidade. "
+            "Nomes em português na tabela."
+        )
         if recs.empty:
             st.warning("Sem sugestões com os filtros atuais.")
         else:

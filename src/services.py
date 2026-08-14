@@ -90,7 +90,7 @@ def thesis_summary() -> dict[str, Any]:
         "name": "Quality Dividend (renda passiva)",
         "description": (
             "Empresas de qualidade com dividendos sustentáveis e reinvestimento. "
-            "Core em setores mais previsíveis; satélite com yield um pouco maior."
+            "Base em setores mais previsíveis; complemento com um pouco mais de flexibilidade."
         ),
         "core_weight": s.core_weight,
         "satellite_weight": s.satellite_weight,

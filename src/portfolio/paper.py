@@ -46,6 +46,8 @@ class DividendEvent:
     amount: float
     shares: float
     note: str = ""
+    amount_per_share: float = 0.0
+    ex_date: str = ""  # YYYY-MM-DD — chave para não creditar duas vezes
 
 
 @dataclass
@@ -190,26 +192,79 @@ class PaperPortfolio:
         self._touch()
         return trade
 
+    def shares_at(self, ticker: str, as_of: datetime | str | pd.Timestamp) -> float:
+        """Quantidade de ações do ticker na data (pelo histórico de ordens)."""
+        ticker = normalize_ticker(ticker)
+        as_ts = pd.Timestamp(as_of)
+        if as_ts.tzinfo is not None:
+            as_ts = as_ts.tz_localize(None)
+        shares = 0.0
+        for t in self.trades:
+            if normalize_ticker(t.ticker) != ticker:
+                continue
+            t_ts = pd.Timestamp(t.ts)
+            if t_ts.tzinfo is not None:
+                t_ts = t_ts.tz_localize(None)
+            if t_ts <= as_ts:
+                if t.side == "buy":
+                    shares += float(t.shares)
+                elif t.side == "sell":
+                    shares -= float(t.shares)
+        return max(0.0, shares)
+
+    def _dividend_keys(self) -> set[str]:
+        keys: set[str] = set()
+        for d in self.dividends:
+            day = (d.ex_date or (d.ts[:10] if d.ts else "")).strip()
+            if day:
+                keys.add(f"{normalize_ticker(d.ticker)}|{day}")
+        return keys
+
     def credit_dividend(
         self,
         ticker: str,
         amount_per_share: float,
         ts: str | None = None,
         note: str = "",
+        *,
+        shares: float | None = None,
+        ex_date: str | None = None,
+        skip_if_duplicate: bool = True,
     ) -> DividendEvent | None:
+        """Credita dividendo em caixa.
+
+        Se ``shares`` for informado, usa essa quantidade (ex.: posição na data-ex).
+        Caso contrário, usa a posição atual.
+        """
         ticker = normalize_ticker(ticker)
-        pos = self.positions.get(ticker)
-        if pos is None or amount_per_share <= 0:
+        if amount_per_share <= 0:
             return None
-        total = pos.shares * amount_per_share
+
+        day = (ex_date or (ts[:10] if ts else "") or datetime.utcnow().date().isoformat())[:10]
+        if skip_if_duplicate and f"{ticker}|{day}" in self._dividend_keys():
+            return None
+
+        if shares is None:
+            pos = self.positions.get(ticker)
+            if pos is None:
+                return None
+            qty = float(pos.shares)
+        else:
+            qty = float(shares)
+        if qty <= 1e-12:
+            return None
+
+        total = qty * amount_per_share
         self.cash += total
         event = DividendEvent(
             id=str(uuid4()),
             ts=ts or datetime.utcnow().isoformat(),
             ticker=ticker,
             amount=total,
-            shares=pos.shares,
+            shares=qty,
             note=note,
+            amount_per_share=float(amount_per_share),
+            ex_date=day,
         )
         self.dividends.append(event)
         self._touch()
@@ -341,8 +396,19 @@ class PaperPortfolio:
         positions = {
             k: Position(**v) for k, v in (data.get("positions") or {}).items()
         }
-        trades = [Trade(**t) for t in data.get("trades") or []]
-        dividends = [DividendEvent(**d) for d in data.get("dividends") or []]
+        trades = [Trade(**{k: t[k] for k in t if k in Trade.__dataclass_fields__}) for t in data.get("trades") or []]
+        dividends = []
+        for d in data.get("dividends") or []:
+            # Compatível com JSONs antigos (sem ex_date / amount_per_share)
+            payload = {k: d[k] for k in d if k in DividendEvent.__dataclass_fields__}
+            if "ex_date" not in payload or not payload.get("ex_date"):
+                ts = str(payload.get("ts") or "")
+                payload["ex_date"] = ts[:10] if len(ts) >= 10 else ""
+            if "amount_per_share" not in payload:
+                sh = float(payload.get("shares") or 0)
+                amt = float(payload.get("amount") or 0)
+                payload["amount_per_share"] = (amt / sh) if sh > 0 else 0.0
+            dividends.append(DividendEvent(**payload))
         return cls(
             name=data.get("name", "paper-main"),
             cash=float(data.get("cash", 0)),

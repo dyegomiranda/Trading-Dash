@@ -11,9 +11,12 @@ import pandas as pd
 from src.config import (
     CORE_SECTORS,
     SCORE_WEIGHTS,
+    THESIS_ID,
+    THESIS_VERSION,
     Settings,
     get_settings,
 )
+from src.data.quality import enrich_fundamentals_quality, row_completeness
 
 # Colunas produzidas pelo motor (nunca devem ser entrada de rescore)
 _SCORE_OUTPUT_COLS = (
@@ -132,11 +135,13 @@ def score_quality(row: pd.Series) -> float:
 
 
 def score_dividends(row: pd.Series, settings: Settings) -> float:
-    """0–100: DY sustentável, payout, histórico."""
+    """0–100: DY sustentável, payout, histórico. Penaliza armadilha de yield alto."""
     dy = _safe(_row_get(row, "dividend_yield"))
     payout = _safe(_row_get(row, "payout"))
     div_cagr = _safe(_row_get(row, "dividend_cagr_5y"))
     years = _safe(_row_get(row, "years_paying_dividend"))
+    fcf_pos = _row_get(row, "fcf_positive")
+    debt = _safe(_row_get(row, "net_debt_ebitda"))
 
     parts = []
     if dy is not None:
@@ -147,7 +152,8 @@ def score_dividends(row: pd.Series, settings: Settings) -> float:
             dist = abs(dy - mid) / 0.05
             parts.append(100 * (1 - _clip01(dist) * 0.25))
         else:
-            parts.append(max(20.0, 70 - (dy - settings.preferred_dy_max) * 300))
+            # Acima da faixa preferida: cai rápido (tese = renda sustentável, não o maior DY)
+            parts.append(max(12.0, 65 - (dy - settings.preferred_dy_max) * 350))
     if payout is not None:
         if settings.min_payout <= payout <= settings.max_payout:
             parts.append(90.0)
@@ -160,7 +166,21 @@ def score_dividends(row: pd.Series, settings: Settings) -> float:
     if years is not None:
         parts.append(_clip01(years / 10.0) * 100)
 
-    return float(np.mean(parts)) if parts else 45.0
+    base = float(np.mean(parts)) if parts else 45.0
+
+    # Armadilha de yield: DY alto + sinais fracos de sustentabilidade
+    trap = float(getattr(settings, "high_yield_trap", 0.14) or 0.14)
+    if dy is not None and dy >= trap:
+        penalty = 18.0
+        if payout is not None and payout > settings.max_payout:
+            penalty += 12.0
+        if fcf_pos is False:
+            penalty += 12.0
+        if debt is not None and debt > settings.max_net_debt_ebitda:
+            penalty += 10.0
+        base = max(5.0, base - penalty)
+
+    return base
 
 
 def score_financial_health(row: pd.Series, settings: Settings) -> float:
@@ -232,12 +252,25 @@ def composite_score(row: pd.Series, settings: Settings | None = None) -> dict[st
         + h * SCORE_WEIGHTS["financial_health"]
         + v * SCORE_WEIGHTS["valuation"]
     )
+    # Dados muito incompletos → nota menos confiante (não inventa qualidade)
+    completeness = row_completeness(row)
+    if completeness < 0.45:
+        total *= 0.75 + 0.25 * (completeness / 0.45)
+    elif completeness < 0.65:
+        total *= 0.88 + 0.12 * ((completeness - 0.45) / 0.20)
+
+    # Sem preço válido não deve aparecer como “ótima sugestão”
+    price = _safe(_row_get(row, "price"))
+    if price is None or price <= 0:
+        total = min(total, 40.0)
+
     return {
         "score_quality": round(q, 2),
         "score_dividends": round(d, 2),
         "score_financial_health": round(h, 2),
         "score_valuation": round(v, 2),
-        "score_total": round(total, 2),
+        "score_total": round(float(total), 2),
+        "data_completeness": round(completeness * 100, 1),
     }
 
 
@@ -291,6 +324,11 @@ def apply_filters(
             why.append("payout alto")
         if score < min_score:
             why.append(f"score<{min_score}")
+        # Armadilha de yield no filtro rigoroso
+        trap = float(getattr(settings, "high_yield_trap", 0.14) or 0.14)
+        if strict and dy is not None and dy >= trap:
+            if payout is not None and payout > settings.max_payout:
+                why.append("possível armadilha de dividendo alto")
         reasons.append("; ".join(why) if why else "")
 
     work = work.copy()
@@ -340,6 +378,10 @@ def score_universe(
     df = _unique_columns(df)
     rejected = _unique_columns(rejected)
 
+    df = enrich_fundamentals_quality(df)
+    if not filtered.empty:
+        filtered = enrich_fundamentals_quality(filtered)
+
     return ScoreResult(
         scored=df,
         filtered=filtered,
@@ -352,6 +394,8 @@ def score_universe(
             "min_score": min_score
             if min_score is not None
             else settings.rebalance_min_score,
+            "thesis_id": THESIS_ID,
+            "thesis_version": THESIS_VERSION,
         },
     )
 
@@ -362,12 +406,50 @@ def recommend_weights(
     core_weight: float = 0.70,
     satellite_weight: float = 0.30,
     max_position_pct: float = 0.10,
+    max_sector_pct: float | None = None,
 ) -> pd.DataFrame:
-    """Distribui pesos core/satélite entre top N filtrados."""
+    """Distribui pesos core/satélite entre top N, com teto por ação e por setor.
+
+    Mantém a montagem automática da tese amigável, mas evita concentração excessiva
+    (mais realista e mais segura para iniciantes).
+    """
     if ranked is None or ranked.empty:
         return ranked.copy() if ranked is not None else pd.DataFrame()
 
-    picks = _unique_columns(ranked).head(top_n).copy()
+    settings = get_settings()
+    if max_sector_pct is None:
+        max_sector_pct = float(getattr(settings, "max_sector_pct", 0.30) or 0.30)
+
+    # Prefere linhas com preço e dados melhores quando empata score
+    work = _unique_columns(ranked).copy()
+    if "price" in work.columns:
+        prices = pd.to_numeric(work["price"], errors="coerce")
+        work = work[prices.notna() & (prices > 0)]
+    if work.empty:
+        work = _unique_columns(ranked).copy()
+
+    if "score_total" in work.columns:
+        work = work.sort_values(by="score_total", ascending=False, kind="mergesort")
+    # Evita muitas do mesmo setor no top (diversificação na seleção)
+    if "sector" in work.columns and max_sector_pct > 0:
+        max_per_sector = max(2, int(np.ceil(top_n * max_sector_pct * 1.5)))
+        selected_idx: list[int] = []
+        sector_count: dict[str, int] = {}
+        for idx, row in work.iterrows():
+            sec = str(row.get("sector") or "Outros")
+            if sector_count.get(sec, 0) >= max_per_sector:
+                continue
+            selected_idx.append(idx)
+            sector_count[sec] = sector_count.get(sec, 0) + 1
+            if len(selected_idx) >= top_n:
+                break
+        if selected_idx:
+            picks = work.loc[selected_idx].copy()
+        else:
+            picks = work.head(top_n).copy()
+    else:
+        picks = work.head(top_n).copy()
+
     if "bucket" not in picks.columns:
         picks["bucket"] = "satellite"
     if "score_total" not in picks.columns:
@@ -382,27 +464,66 @@ def recommend_weights(
     core_mask = bucket.eq("core")
     sat_mask = ~core_mask
 
+    cw, sw = core_weight, satellite_weight
     if not core_mask.any() and sat_mask.any():
-        core_weight, satellite_weight = 0.0, 1.0
+        cw, sw = 0.0, 1.0
     elif core_mask.any() and not sat_mask.any():
-        core_weight, satellite_weight = 1.0, 0.0
+        cw, sw = 1.0, 0.0
 
     weights: dict[str, float] = {}
-    if core_mask.any() and core_weight > 0:
+    if core_mask.any() and cw > 0:
         raw = score_total[core_mask].clip(lower=1)
-        w = (raw / raw.sum()) * core_weight
+        w = (raw / raw.sum()) * cw
         for t, val in zip(ticker[core_mask], w):
             weights[str(t)] = float(val)
-    if sat_mask.any() and satellite_weight > 0:
+    if sat_mask.any() and sw > 0:
         raw = score_total[sat_mask].clip(lower=1)
-        w = (raw / raw.sum()) * satellite_weight
+        w = (raw / raw.sum()) * sw
         for t, val in zip(ticker[sat_mask], w):
             weights[str(t)] = float(val)
 
     picks = picks.copy()
     picks["target_weight"] = ticker.map(weights).fillna(0.0).astype(float)
-    picks["target_weight"] = picks["target_weight"].clip(upper=max_position_pct)
+
+    # Itera: teto por ação + teto por setor + renormaliza para baixo se preciso
+    for _ in range(12):
+        picks["target_weight"] = picks["target_weight"].clip(lower=0.0, upper=max_position_pct)
+        if "sector" in picks.columns and max_sector_pct > 0 and len(picks) > 1:
+            sector_key = picks["sector"].fillna("Outros").astype(str)
+            sector_sums = picks.groupby(sector_key)["target_weight"].transform("sum")
+            over = sector_sums > max_sector_pct + 1e-9
+            if over.any():
+                factor = (max_sector_pct / sector_sums).clip(upper=1.0)
+                picks.loc[over, "target_weight"] = (
+                    picks.loc[over, "target_weight"] * factor[over]
+                )
+        total = float(picks["target_weight"].sum())
+        if total <= 0:
+            break
+        # Só reescala para baixo se passou de 100% — residual vira caixa (mais seguro)
+        if total > 1.0 + 1e-9:
+            picks["target_weight"] = picks["target_weight"] / total
+            continue
+        # Dentro do orçamento e caps ok?
+        if float(picks["target_weight"].max()) <= max_position_pct + 1e-9:
+            if "sector" not in picks.columns or max_sector_pct <= 0:
+                break
+            sec_max = float(
+                picks.groupby(picks["sector"].fillna("Outros").astype(str))[
+                    "target_weight"
+                ]
+                .sum()
+                .max()
+            )
+            if sec_max <= max_sector_pct + 1e-9:
+                break
+        else:
+            # reescala se alguma posição estourou por FP
+            picks["target_weight"] = picks["target_weight"].clip(upper=max_position_pct)
+
+    picks["target_weight"] = picks["target_weight"].clip(lower=0.0, upper=max_position_pct)
     total = float(picks["target_weight"].sum())
-    if total > 0:
+    if total > 1.0:
         picks["target_weight"] = picks["target_weight"] / total
+        picks["target_weight"] = picks["target_weight"].clip(upper=max_position_pct)
     return _unique_columns(picks)

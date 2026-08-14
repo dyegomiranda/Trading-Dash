@@ -13,6 +13,12 @@ CACHE_DIR = DATA_DIR / "cache"
 PORTFOLIO_DIR = DATA_DIR / "portfolio"
 
 
+# Versão da tese — grava em carteiras/projeções para reprodutibilidade
+THESIS_ID = "quality_dividend"
+THESIS_VERSION = "1.3.0"
+THESIS_LABEL = "Quality Dividend (renda com qualidade)"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
@@ -21,19 +27,25 @@ class Settings(BaseSettings):
     )
 
     brapi_token: str | None = Field(default=None, alias="BRAPI_TOKEN")
-    paper_initial_cash: float = Field(default=100_000.0, alias="PAPER_INITIAL_CASH")
+    # Default mais realista para iniciante (pode mudar no app)
+    paper_initial_cash: float = Field(default=10_000.0, alias="PAPER_INITIAL_CASH")
     cache_ttl_hours: int = 12
     default_top_n: int = 15
     core_weight: float = 0.70
     satellite_weight: float = 0.30
     max_position_pct: float = 0.10
+    max_sector_pct: float = 0.30  # diversificação: teto por setor na carteira modelo
     rebalance_min_score: float = 55.0
     preferred_dy_min: float = 0.04
     preferred_dy_max: float = 0.12
+    # DY acima disso com sinais fracos = armadilha de yield (penaliza score)
+    high_yield_trap: float = 0.14
     min_roe: float = 0.12
     max_net_debt_ebitda: float = 3.0
     min_payout: float = 0.20
     max_payout: float = 0.85
+    # Projeção de renda: teto de taxa de dividendo no longo prazo
+    projection_max_yield: float = 0.10
     yfinance_timeout: int = 20
     # Limite de tickers por fetch Yahoo (evita travar a UI)
     yfinance_max_tickers: int = Field(default=40, alias="YFINANCE_MAX_TICKERS")

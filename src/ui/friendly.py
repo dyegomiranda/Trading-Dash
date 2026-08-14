@@ -12,41 +12,41 @@ from src.ui.components import (
     render_guide_box,
 )
 
-# Nomes técnicos → nomes que um iniciante entende
+# Nomes técnicos → nomes que um iniciante entende (sem jargão)
 COLUMN_LABELS: dict[str, str] = {
     "ticker": "Código da ação",
     "name": "Nome da empresa",
-    "sector": "Setor",
-    "industry": "Ramo",
-    "price": "Preço (R$)",
+    "sector": "Setor da empresa",
+    "industry": "Ramo de atividade",
+    "price": "Preço de hoje (R$)",
     "market_cap": "Tamanho da empresa",
-    "bucket": "Tipo na carteira",
+    "bucket": "Papel na carteira",
     "rank": "Posição geral",
     "rank_filtered": "Posição",
-    "score_total": "Nota geral (0–100)",
-    "score_quality": "Nota de qualidade",
+    "score_total": "Nota do app (0–100)",
+    "score_quality": "Nota de qualidade do negócio",
     "score_dividends": "Nota de dividendos",
     "score_financial_health": "Nota de saúde financeira",
     "score_valuation": "Nota de preço justo",
-    "dividend_yield": "Renda por dividendo (ao ano)",
-    "roe": "Lucratividade (ROE)",
-    "roic": "Retorno sobre o capital (ROIC)",
-    "roa": "Retorno sobre ativos (ROA)",
+    "dividend_yield": "Quanto paga de dividendo ao ano (%)",
+    "roe": "Lucro sobre o patrimônio",
+    "roic": "Retorno sobre o capital investido",
+    "roa": "Lucro sobre os ativos",
     "payout": "Parte do lucro paga em dividendos",
     "net_debt_ebitda": "Nível de endividamento",
-    "debt_equity": "Dívida / patrimônio",
-    "pe": "Preço / lucro (P/L)",
-    "pb": "Preço / valor patrimonial (P/VP)",
+    "debt_equity": "Dívida em relação ao patrimônio",
+    "pe": "Preço em relação ao lucro",
+    "pb": "Preço em relação ao patrimônio",
     "ev_ebitda": "Preço da empresa / geração de caixa",
     "fcf_yield": "Caixa livre / valor da empresa",
-    "target_weight": "Peso sugerido na carteira",
+    "target_weight": "Fatia sugerida na carteira",
     "shares": "Quantidade de ações",
     "avg_price": "Preço médio de compra",
-    "market_value": "Valor atual",
+    "market_value": "Valor atual da posição",
     "cost": "Quanto você pagou",
-    "pnl": "Lucro ou prejuízo",
+    "pnl": "Lucro ou prejuízo (R$)",
     "pnl_pct": "Lucro ou prejuízo (%)",
-    "weight": "Peso na carteira",
+    "weight": "Fatia na carteira",
     "annual_income": "Renda estimada por ano",
     "monthly_income": "Renda estimada por mês",
     "reject_reason": "Por que não passou no filtro",
@@ -54,15 +54,30 @@ COLUMN_LABELS: dict[str, str] = {
     "amount": "Valor (R$)",
     "note": "Observação",
     "date": "Data",
-    "equity": "Patrimônio",
-    "cash": "Dinheiro em caixa",
+    "equity": "Dinheiro total na conta",
+    "cash": "Dinheiro livre no caixa",
     "n_positions": "Nº de empresas na carteira",
     "projected_annual_income": "Renda anual projetada",
     "projected_monthly_income": "Renda mensal projetada",
     "portfolio_equity_est": "Patrimônio estimado",
     "year": "Ano",
     "ts": "Quando",
+    "severidade": "Gravidade",
+    "codigo": "Código do alerta",
+    "mensagem": "O que está acontecendo",
+    "acao_sugerida": "O que você pode fazer",
 }
+
+# Períodos de gráfico de preço (rótulo amigável → dias aproximados; None = máximo)
+PRICE_PERIODS: list[tuple[str, int | None]] = [
+    ("1 mês", 30),
+    ("3 meses", 90),
+    ("6 meses", 180),
+    ("1 ano", 365),
+    ("2 anos", 730),
+    ("5 anos", 1825),
+    ("Máximo disponível", None),
+]
 
 BUCKET_LABELS = {
     "core": "Base (mais estável)",
@@ -134,7 +149,56 @@ GLOSSARY: list[tuple[str, str]] = [
         "Dados da bolsa (Yahoo)",
         "Tenta buscar informações reais de empresas listadas no Brasil. Pode demorar na primeira vez.",
     ),
+    (
+        "Dinheiro total na conta",
+        "Soma de tudo: o que está livre no caixa + o valor atual das ações. É o “quanto você tem” na conta de treino.",
+    ),
+    (
+        "Dinheiro livre no caixa",
+        "Parte ainda não aplicada em ações. Serve para comprar novas empresas.",
+    ),
+    (
+        "Valor aplicado em ações",
+        "Quanto está investido nas empresas da carteira, pelo preço de hoje (simulado).",
+    ),
+    (
+        "Renda estimada (dividendos)",
+        "Quanto a carteira poderia pagar por mês/ano se as empresas mantiverem o ritmo atual de dividendos. É estimativa, não garantia.",
+    ),
+    (
+        "Crescimento dos dividendos",
+        "Hipótese de que as empresas aumentam o que pagam a cada ano (ex.: 4% a.a.). Serve só para desenhar cenários.",
+    ),
+    (
+        "Reinvestir dividendos",
+        "Em vez de “gastar” a renda, o modelo assume que você compra mais ações com esse dinheiro — e a renda futura pode crescer.",
+    ),
 ]
+
+
+JOURNEY_STEPS: list[tuple[str, str]] = [
+    ("Definir capital", "Quanto você quer treinar"),
+    ("Escolher ações", "Ver sugestões e notas"),
+    ("Montar carteira", "Aplicar ou comprar manualmente"),
+    ("Ver renda e riscos", "Entender o que esperar"),
+]
+
+
+def portfolio_journey_state(
+    *,
+    has_capital: bool,
+    has_positions: bool,
+    viewed_income: bool = False,
+) -> tuple[int, int]:
+    """Retorna (passo_atual, concluído_até) para a barra de jornada."""
+    if not has_capital:
+        return 0, -1
+    if not has_positions:
+        return 2, 0  # capital ok; ainda montando (pular “escolher” se já está na carteira)
+    if not viewed_income:
+        return 3, 2
+    return 3, 3
+
 
 
 def setup_page(

@@ -145,6 +145,60 @@ def render_guide_box(title: str, steps: Sequence[str]) -> None:
     )
 
 
+def render_journey(
+    steps: Sequence[tuple[str, str]],
+    *,
+    current: int = 0,
+    completed_through: int = -1,
+) -> None:
+    """Barra de jornada guiada.
+
+    steps: lista de (título, dica curta)
+    current: índice do passo atual (0-based)
+    completed_through: último índice concluído (inclusive); -1 = nenhum
+    """
+    parts = ['<div class="td-journey">']
+    for i, (title, detail) in enumerate(steps):
+        cls = "td-journey-step"
+        if i <= completed_through:
+            cls += " done"
+        if i == current:
+            cls += " current"
+        status = "Feito" if i <= completed_through else ("Agora" if i == current else f"Passo {i + 1}")
+        parts.append(
+            f"""
+<div class="{cls}">
+  <div class="n">{html.escape(status)}</div>
+  <div class="t">{html.escape(title)}</div>
+  <div class="d">{html.escape(detail)}</div>
+</div>
+"""
+        )
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
+
+
+def render_explain_card(title: str, value: str, body: str) -> None:
+    """Card com número + texto em português claro (ideal para iniciantes)."""
+    st.markdown(
+        f"""
+<div class="td-explain-card">
+  <h4>{html.escape(title)}</h4>
+  <div class="big">{html.escape(value)}</div>
+  <p>{html.escape(body)}</p>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_plain_help(title: str, body: str, *, icon: str = ":material/lightbulb:") -> None:
+    """Caixa leve de orientação (não usa st.info pesado)."""
+    with st.container(border=True):
+        st.markdown(f"**{icon} {title}**")
+        st.markdown(body)
+
+
 def render_disclaimer_bar(
     text: str = (
         "Ferramenta de estudo e treino. Não é recomendação de compra ou venda. "

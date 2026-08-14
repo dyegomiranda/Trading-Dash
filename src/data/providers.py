@@ -78,6 +78,146 @@ def _read_cache(key: str, ttl_hours: int) -> Any | None:
         return None
 
 
+_EMPTY_OHLCV = ("date", "ticker", "open", "high", "low", "close", "adj_close", "volume")
+_OHLCV_FIELDS = {"open", "high", "low", "close", "volume", "adj_close", "adj close", "adjclose"}
+
+
+def _column_label(col: Any) -> str:
+    """Nome de coluna seguro mesmo com MultiIndex (nunca usa .astype no Index)."""
+    if isinstance(col, tuple):
+        # Preferência: parte que parece campo OHLCV
+        for part in col:
+            s = str(part).strip().lower().replace(" ", "_")
+            if s in _OHLCV_FIELDS or (s.startswith("adj") and "close" in s):
+                return str(part)
+        return str(col[-1]) if col else ""
+    return str(col)
+
+
+def _map_ohlcv_frame(df: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
+    """Converte um DataFrame OHLCV (wide) em long padronizado para um ticker."""
+    if df is None or df.empty:
+        return None
+    part = df.copy()
+    if isinstance(part.columns, pd.MultiIndex):
+        part.columns = [_column_label(c) for c in part.columns]
+    else:
+        part.columns = [str(c) for c in part.columns]
+
+    part = part.reset_index()
+    colmap: dict[Any, str] = {}
+    for c in part.columns:
+        cl = str(c).lower().replace(" ", "_")
+        if cl in {"open", "high", "low", "close", "volume"}:
+            colmap[c] = cl
+        elif "adj" in cl and "close" in cl or cl in {"adj_close", "adjclose"}:
+            colmap[c] = "adj_close"
+        elif cl in {"date", "datetime", "index"} or cl.endswith("date"):
+            colmap[c] = "date"
+    part = part.rename(columns=colmap)
+
+    if "date" not in part.columns:
+        # reset_index costuma deixar a data na 1ª coluna
+        first = part.columns[0]
+        if str(first).lower() not in {"open", "high", "low", "close", "volume", "adj_close", "ticker"}:
+            part = part.rename(columns={first: "date"})
+
+    if "close" not in part.columns:
+        return None
+    if "adj_close" not in part.columns:
+        part["adj_close"] = part["close"]
+    for need in ("open", "high", "low"):
+        if need not in part.columns:
+            part[need] = part["close"]
+    if "volume" not in part.columns:
+        part["volume"] = 0
+
+    part["ticker"] = ticker
+    out = part.loc[:, list(_EMPTY_OHLCV)].copy()
+    out["date"] = pd.to_datetime(out["date"], errors="coerce")
+    for c in ("open", "high", "low", "close", "adj_close", "volume"):
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    return out.dropna(subset=["date", "close"])
+
+
+def _yf_download_to_long(
+    raw: pd.DataFrame,
+    tickers_n: list[str],
+    symbols: list[str],
+) -> pd.DataFrame:
+    """Normaliza saída do yf.download (single/multi, MultiIndex ou flat) → long OHLCV."""
+    empty = pd.DataFrame(columns=list(_EMPTY_OHLCV))
+    if raw is None or getattr(raw, "empty", True):
+        return empty
+
+    frames: list[pd.DataFrame] = []
+    t_to_sym = dict(zip(tickers_n, symbols))
+
+    def _resolve_key(candidates: set[str], ticker: str, symbol: str) -> str | None:
+        if symbol in candidates:
+            return symbol
+        if ticker in candidates:
+            return ticker
+        for c in candidates:
+            if normalize_ticker(str(c)) == ticker:
+                return c
+            # ITUB4.SA vs ITUB4
+            if str(c).upper().replace(".SA", "") == ticker.upper():
+                return c
+        return None
+
+    if isinstance(raw.columns, pd.MultiIndex) and raw.columns.nlevels >= 2:
+        level0 = {str(x) for x in raw.columns.get_level_values(0)}
+        level1 = {str(x) for x in raw.columns.get_level_values(1)}
+        # group_by="ticker" → nível 0 = ticker; senão nível 0 = Open/High/...
+        looks_like_fields = any(
+            str(x).lower().replace(" ", "_") in _OHLCV_FIELDS for x in level0
+        )
+        for t in tickers_n:
+            sym = t_to_sym[t]
+            try:
+                if looks_like_fields:
+                    key = _resolve_key(level1, t, sym)
+                    if key is None:
+                        continue
+                    sub = raw.xs(key, axis=1, level=1, drop_level=True)
+                else:
+                    key = _resolve_key(level0, t, sym)
+                    if key is None:
+                        continue
+                    sub = raw[key]
+                    if isinstance(sub, pd.DataFrame) and isinstance(sub.columns, pd.MultiIndex):
+                        sub.columns = [_column_label(c) for c in sub.columns]
+                mapped = _map_ohlcv_frame(sub if isinstance(sub, pd.DataFrame) else sub.to_frame(), t)
+                if mapped is not None and not mapped.empty:
+                    frames.append(mapped)
+            except Exception:
+                continue
+    else:
+        # Colunas flat: 1 ticker, ou download sem MultiIndex
+        if len(tickers_n) == 1:
+            mapped = _map_ohlcv_frame(raw, tickers_n[0])
+            if mapped is not None and not mapped.empty:
+                frames.append(mapped)
+        else:
+            # tenta por símbolo como coluna de 1º nível (raro sem MultiIndex)
+            for t, sym in zip(tickers_n, symbols):
+                if sym in raw.columns or t in raw.columns:
+                    key = sym if sym in raw.columns else t
+                    sub = raw[key]
+                    mapped = _map_ohlcv_frame(
+                        sub if isinstance(sub, pd.DataFrame) else sub.to_frame(name="close"),
+                        t,
+                    )
+                    if mapped is not None and not mapped.empty:
+                        frames.append(mapped)
+
+    if not frames:
+        return empty
+    out = pd.concat(frames, ignore_index=True)
+    return out.dropna(subset=["close"])
+
+
 def _write_cache(key: str, data: Any) -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     path = _cache_path(key)
@@ -524,96 +664,36 @@ class YFinanceDataProvider(DataProvider):
         if cached is not None:
             df = pd.DataFrame(cached)
             if not df.empty:
-                df["date"] = pd.to_datetime(df["date"])
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
             return df
 
         if not symbols:
-            return pd.DataFrame(
-                columns=["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
-            )
+            return pd.DataFrame(columns=list(_EMPTY_OHLCV))
 
-        raw = yf.download(
-            symbols,
-            start=start_s,
-            end=end_s,
-            group_by="ticker",
-            auto_adjust=False,
-            threads=True,
-            progress=False,
-        )
-        frames = []
-        if len(symbols) == 1:
-            sym = symbols[0]
-            t = tickers_n[0]
-            if raw is None or raw.empty:
-                return pd.DataFrame(
-                    columns=["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
-                )
-            part = raw.reset_index()
-            part.columns = [str(c).lower().replace(" ", "_") for c in part.columns]
-            part["ticker"] = t
-            rename = {"adj_close": "adj_close", "date": "date"}
-            if "adj_close" not in part.columns and "adj close" in [c.lower() for c in raw.columns.astype(str)]:
-                pass
-            colmap = {}
-            for c in part.columns:
-                cl = c.lower()
-                if cl in {"open", "high", "low", "close", "volume"}:
-                    colmap[c] = cl
-                elif "adj" in cl:
-                    colmap[c] = "adj_close"
-                elif cl in {"date", "datetime", "index"}:
-                    colmap[c] = "date"
-            part = part.rename(columns=colmap)
-            if "adj_close" not in part.columns:
-                part["adj_close"] = part.get("close")
-            frames.append(part[["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]])
-        else:
-            # MultiIndex columns
-            for t, sym in zip(tickers_n, symbols):
-                try:
-                    if isinstance(raw.columns, pd.MultiIndex):
-                        # yfinance may use ticker or symbol as first level
-                        level0 = raw.columns.get_level_values(0)
-                        key = sym if sym in set(level0) else t
-                        if key not in set(level0):
-                            # try without .SA
-                            candidates = [c for c in set(level0) if normalize_ticker(str(c)) == t]
-                            if not candidates:
-                                continue
-                            key = candidates[0]
-                        sub = raw[key].copy()
-                    else:
-                        continue
-                    sub = sub.reset_index()
-                    sub.columns = [str(c) for c in sub.columns]
-                    colmap = {}
-                    for c in sub.columns:
-                        cl = c.lower().replace(" ", "_")
-                        if cl in {"open", "high", "low", "close", "volume"}:
-                            colmap[c] = cl
-                        elif "adj" in cl:
-                            colmap[c] = "adj_close"
-                        elif cl in {"date", "datetime"}:
-                            colmap[c] = "date"
-                    sub = sub.rename(columns=colmap)
-                    sub["ticker"] = t
-                    if "adj_close" not in sub.columns and "close" in sub.columns:
-                        sub["adj_close"] = sub["close"]
-                    frames.append(
-                        sub[["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]]
-                    )
-                except Exception:
-                    continue
-
-        if not frames:
-            return pd.DataFrame(
-                columns=["date", "ticker", "open", "high", "low", "close", "adj_close", "volume"]
+        try:
+            raw = yf.download(
+                symbols if len(symbols) > 1 else symbols[0],
+                start=start_s,
+                end=end_s,
+                group_by="ticker",
+                auto_adjust=False,
+                threads=True,
+                progress=False,
             )
-        out = pd.concat(frames, ignore_index=True)
-        out["date"] = pd.to_datetime(out["date"])
-        out = out.dropna(subset=["close"])
-        _write_cache(cache_key, out.assign(date=out["date"].astype(str)).to_dict(orient="records"))
+        except Exception:
+            return pd.DataFrame(columns=list(_EMPTY_OHLCV))
+
+        out = _yf_download_to_long(raw, tickers_n, symbols)
+        if out.empty:
+            return pd.DataFrame(columns=list(_EMPTY_OHLCV))
+
+        try:
+            _write_cache(
+                cache_key,
+                out.assign(date=out["date"].astype(str)).to_dict(orient="records"),
+            )
+        except Exception:
+            pass
         return out
 
     def get_dividend_history(

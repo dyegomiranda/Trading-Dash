@@ -212,37 +212,235 @@ def holdings_donut(
     )
 
 
-def income_area(projection: pd.DataFrame) -> go.Figure:
+def income_area(
+    projection: pd.DataFrame,
+    *,
+    title: str = "Dividendos estimados por mês (dinheiro que “entra”)",
+    show_no_contrib: bool = True,
+    monthly: bool = True,
+) -> go.Figure:
+    """Renda de dividendos no tempo.
+
+    Por padrão mostra **por mês** (mais intuitivo para iniciantes).
+    Não confundir com o gráfico de patrimônio (capital acumulado).
+    """
     fig = go.Figure()
+    if projection is None or projection.empty:
+        fig.update_layout(
+            **_base_layout(title=title, height=320, showlegend=False),
+            annotations=[
+                {
+                    "text": "Sem dados de projeção",
+                    "x": 0.5,
+                    "y": 0.5,
+                    "showarrow": False,
+                    "font": {"color": "#94A3B8"},
+                }
+            ],
+        )
+        return fig
+
+    y_col = "projected_monthly_income" if monthly else "projected_annual_income"
+    y_col_no = (
+        "projected_monthly_income_no_contrib"
+        if monthly
+        else "projected_annual_income_no_contrib"
+    )
+    unit = "mês" if monthly else "ano"
+    has_compare = (
+        show_no_contrib
+        and y_col_no in projection.columns
+        and projection[y_col_no].notna().any()
+    )
+    if has_compare:
+        fig.add_trace(
+            go.Scatter(
+                x=projection["year"],
+                y=projection[y_col_no],
+                mode="lines",
+                name="Sem novos aportes (só o que já tem)",
+                line={"color": "#64748B", "width": 2.2, "dash": "dot", "shape": "spline"},
+                hovertemplate=(
+                    "Ano %{x}<br>Sem aportar mais: R$ %{y:,.0f}/"
+                    + unit
+                    + "<extra></extra>"
+                ),
+            )
+        )
     fig.add_trace(
         go.Scatter(
             x=projection["year"],
-            y=projection["projected_annual_income"],
-            mode="lines",
-            line={"color": "#A78BFA", "width": 3, "shape": "spline"},
+            y=projection[y_col],
+            mode="lines+markers",
+            name="Com aportes mensais",
+            line={"color": "#A78BFA", "width": 3.2, "shape": "spline"},
+            marker={"size": 7, "color": "#C4B5FD"},
             fill="tozeroy",
-            fillcolor="rgba(167, 139, 250, 0.18)",
-            hovertemplate="Ano %{x}<br>R$ %{y:,.2f}<extra></extra>",
+            fillcolor="rgba(167, 139, 250, 0.16)",
+            hovertemplate=(
+                "Ano %{x}<br>Com aportes: R$ %{y:,.0f}/" + unit + "<extra></extra>"
+            ),
         )
     )
     fig.update_layout(
         **_base_layout(
-            title="Renda projetada",
-            height=300,
-            showlegend=False,
-            margin={"l": 40, "r": 16, "t": 36, "b": 40},
+            title=title,
+            height=360,
+            showlegend=True,
+            margin={"l": 48, "r": 16, "t": 40, "b": 56},
             xaxis={
-                "title": "Ano",
+                "title": "Anos a partir de agora",
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
                 "dtick": 1,
             },
             yaxis={
-                "title": "",
+                "title": f"Dividendos por {unit} (R$)",
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.28,
+                "xanchor": "center",
+                "x": 0.5,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 11, "color": "#94A3B8"},
+            },
+        )
+    )
+    return fig
+
+
+def income_scenarios_chart(
+    combined: pd.DataFrame,
+    *,
+    title: str = "Renda esperada: 3 cenários (dividendos por mês)",
+) -> go.Figure:
+    """Gráfico amigável com cauteloso / base / animado."""
+    fig = go.Figure()
+    if combined is None or combined.empty:
+        fig.update_layout(**_base_layout(title=title, height=360, showlegend=False))
+        return fig
+
+    colors = {
+        "Cauteloso": "#94A3B8",
+        "Base (mais provável no modelo)": "#A78BFA",
+        "Animado": "#38BDF8",
+    }
+    for scenario, g in combined.groupby("scenario", sort=False):
+        fig.add_trace(
+            go.Scatter(
+                x=g["year"],
+                y=g["projected_monthly_income"],
+                mode="lines+markers",
+                name=str(scenario),
+                line={
+                    "color": colors.get(str(scenario), "#A78BFA"),
+                    "width": 3 if "Base" in str(scenario) else 2.2,
+                    "shape": "spline",
+                },
+                marker={"size": 6},
+                hovertemplate="Ano %{x}<br>%{fullData.name}: R$ %{y:,.0f}/mês<extra></extra>",
+            )
+        )
+    fig.update_layout(
+        **_base_layout(
+            title=title,
+            height=380,
+            showlegend=True,
+            margin={"l": 48, "r": 16, "t": 40, "b": 64},
+            xaxis={
+                "title": "Anos a partir de agora",
+                "showgrid": True,
+                "gridcolor": "rgba(36,48,68,0.55)",
+                "color": "#64748B",
+                "dtick": 1,
+            },
+            yaxis={
+                "title": "Dividendos por mês (R$)",
+                "showgrid": True,
+                "gridcolor": "rgba(36,48,68,0.55)",
+                "color": "#64748B",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.32,
+                "xanchor": "center",
+                "x": 0.5,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 11, "color": "#94A3B8"},
+            },
+        )
+    )
+    return fig
+
+
+def equity_growth_area(
+    projection: pd.DataFrame,
+    *,
+    title: str = "Capital acumulado na carteira (seu dinheiro investido)",
+) -> go.Figure:
+    """Evolução do capital (não é a renda mensal — é o “bolo” que gera dividendos)."""
+    fig = go.Figure()
+    if projection is None or projection.empty or "portfolio_equity_est" not in projection.columns:
+        fig.update_layout(**_base_layout(title=title, height=280, showlegend=False))
+        return fig
+
+    # Barras = visual bem diferente do gráfico de renda (linhas roxas)
+    fig.add_trace(
+        go.Bar(
+            x=projection["year"],
+            y=projection["portfolio_equity_est"],
+            name="Com aportes",
+            marker={"color": "rgba(56, 189, 248, 0.75)", "line": {"width": 0}},
+            hovertemplate="Ano %{x}<br>Capital na carteira: R$ %{y:,.0f}<extra></extra>",
+        )
+    )
+    has_no = "portfolio_equity_no_contrib" in projection.columns
+    if has_no:
+        fig.add_trace(
+            go.Scatter(
+                x=projection["year"],
+                y=projection["portfolio_equity_no_contrib"],
+                mode="lines+markers",
+                name="Sem novos aportes",
+                line={"color": "#FBBF24", "width": 2.4, "dash": "dash"},
+                marker={"size": 6},
+                hovertemplate="Ano %{x}<br>Só capital de hoje: R$ %{y:,.0f}<extra></extra>",
+            )
+        )
+    fig.update_layout(
+        **_base_layout(
+            title=title,
+            height=340,
+            showlegend=True,
+            bargap=0.25,
+            margin={"l": 48, "r": 16, "t": 40, "b": 56},
+            xaxis={
+                "title": "Anos a partir de agora",
+                "showgrid": False,
+                "color": "#64748B",
+                "dtick": 1,
+            },
+            yaxis={
+                "title": "Capital na carteira (R$)",
+                "showgrid": True,
+                "gridcolor": "rgba(36,48,68,0.55)",
+                "color": "#64748B",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.28,
+                "xanchor": "center",
+                "x": 0.5,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 11, "color": "#94A3B8"},
             },
         )
     )

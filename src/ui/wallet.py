@@ -7,34 +7,51 @@ from typing import Sequence
 
 import streamlit as st
 
+# stat: (rótulo, valor) ou (rótulo, valor, dica curta)
+StatItem = tuple[str, str] | tuple[str, str, str]
+
 
 def render_wallet_balance(
     total: str,
     delta: str,
     delta_positive: bool,
-    stats: Sequence[tuple[str, str]],
+    stats: Sequence[StatItem],
     badge: str = "Conta de treino",
+    *,
+    label: str = "Dinheiro total na conta de treino",
+    hint: str | None = None,
+    show_delta_arrow: bool = True,
 ) -> None:
-    """Card principal estilo carteira (saldo em destaque)."""
-    cls = "up" if delta_positive else "down"
-    arrow = "▲" if delta_positive else "▼"
-    stats_html = "".join(
-        f"""
-<div class="td-wallet-stat">
-  <div class="s-label">{html.escape(label)}</div>
-  <div class="s-value">{html.escape(value)}</div>
-</div>
-"""
-        for label, value in stats
+    """Card principal estilo carteira (valor em destaque).
+
+    ``label`` define o que o número grande representa — nunca reutilize o card
+    de patrimônio para renda sem trocar o rótulo.
+    """
+    cls = "up" if delta_positive else ("down" if delta_positive is False else "neutral")
+    arrow = ""
+    if show_delta_arrow and delta:
+        if delta_positive is True:
+            arrow = "▲ "
+        elif delta_positive is False:
+            arrow = "▼ "
+    stats_html = "".join(_stat_html(item) for item in stats)
+    hint_html = (
+        f'<div class="td-wallet-hint">{html.escape(hint)}</div>' if hint else ""
     )
+    delta_html = ""
+    if delta:
+        delta_html = (
+            f'<div class="td-wallet-delta {cls}">{arrow}{html.escape(delta)}</div>'
+        )
     st.markdown(
         f"""
 <div class="td-wallet">
   <div class="td-wallet-top">
     <div>
-      <div class="td-wallet-label">Patrimônio total</div>
+      <div class="td-wallet-label">{html.escape(label)}</div>
       <div class="td-wallet-balance">{html.escape(total)}</div>
-      <div class="td-wallet-delta {cls}">{arrow} {html.escape(delta)}</div>
+      {delta_html}
+      {hint_html}
     </div>
     <div class="td-wallet-badge">{html.escape(badge)}</div>
   </div>
@@ -43,6 +60,22 @@ def render_wallet_balance(
 """,
         unsafe_allow_html=True,
     )
+
+
+def _stat_html(item: StatItem) -> str:
+    if len(item) == 3:
+        label, value, tip = item  # type: ignore[misc]
+        tip_html = f'<div class="s-tip">{html.escape(tip)}</div>'
+    else:
+        label, value = item  # type: ignore[misc]
+        tip_html = ""
+    return f"""
+<div class="td-wallet-stat">
+  <div class="s-label">{html.escape(label)}</div>
+  <div class="s-value">{html.escape(value)}</div>
+  {tip_html}
+</div>
+"""
 
 
 def render_asset_rows(

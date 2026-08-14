@@ -808,6 +808,106 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
   color: #F1F5F9;
 }}
 
+.td-wallet-stat .s-tip {{
+  margin-top: 0.28rem;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: #94A3B8;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}}
+
+.td-wallet-hint {{
+  margin-top: 0.55rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #C4B5FD;
+  max-width: 36rem;
+  opacity: 0.95;
+}}
+
+.td-wallet-delta.neutral {{
+  color: #E2E8F0;
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.25);
+}}
+
+/* ========== Journey / onboarding steps ========== */
+.td-journey {{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0 0 1.1rem 0;
+}}
+@media (max-width: 900px) {{
+  .td-journey {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
+.td-journey-step {{
+  border-radius: 14px;
+  padding: 0.7rem 0.8rem;
+  background: linear-gradient(145deg, rgba(17,24,39,0.92), rgba(15,23,42,0.7));
+  border: 1px solid rgba(167, 139, 250, 0.14);
+}}
+.td-journey-step.done {{
+  border-color: rgba(52, 211, 153, 0.35);
+  background: linear-gradient(145deg, rgba(6, 78, 59, 0.35), rgba(15,23,42,0.75));
+}}
+.td-journey-step.current {{
+  border-color: rgba(167, 139, 250, 0.55);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.2) inset;
+  background: linear-gradient(145deg, rgba(91, 33, 182, 0.35), rgba(15,23,42,0.8));
+}}
+.td-journey-step .n {{
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94A3B8;
+  margin-bottom: 0.25rem;
+}}
+.td-journey-step.done .n {{ color: #6EE7B7; }}
+.td-journey-step.current .n {{ color: #C4B5FD; }}
+.td-journey-step .t {{
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #F1F5F9;
+  line-height: 1.25;
+}}
+.td-journey-step .d {{
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #94A3B8;
+  line-height: 1.3;
+}}
+
+.td-explain-card {{
+  border-radius: 16px;
+  padding: 0.95rem 1.05rem;
+  margin: 0 0 0.85rem 0;
+  background: linear-gradient(145deg, rgba(17,24,39,0.95), rgba(15,23,42,0.78));
+  border: 1px solid rgba(167, 139, 250, 0.16);
+}}
+.td-explain-card h4 {{
+  margin: 0 0 0.35rem 0;
+  font-size: 0.95rem;
+  color: #F8FAFC;
+  font-weight: 700;
+}}
+.td-explain-card p {{
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #94A3B8;
+}}
+.td-explain-card .big {{
+  margin: 0.35rem 0 0.45rem 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+}}
+
 .td-asset-list {{
   display: flex;
   flex-direction: column;
