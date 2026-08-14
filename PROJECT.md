@@ -188,14 +188,15 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [x] **Benchmark** na simulação (Ibovespa + CDI) — `src/data/benchmarks.py` + UI  
 - [ ] Benchmark IDIV (opcional)  
 - [ ] Custos de corretagem, slippage, IR simplificado  
-- [ ] Regras de saída (corte de dividendo, score caindo, rating downgrade)  
+- [x] Regras de saída simples (score, DY, payout, dívida, FCF) — `src/thesis/alerts.py`  
+- [ ] Regras de saída avançadas (histórico de score, rating, eventos CVM)  
 - [ ] Export CSV/PDF do relatório de backtest  
 
 ### Carteira
 - [ ] Editar peso % por ativo de forma visual (sliders)  
 - [ ] Múltiplas carteiras com UI de troca mais clara  
 - [ ] Dividendos creditados no paper “ao vivo” (hoje forte no backtest)  
-- [ ] Alertas quando score de um holding piora  
+- [x] Alertas quando score/fundamentals de holding piora — Dashboard da carteira
 
 ### IA / contexto
 - [ ] Camada de IA (resumo de notícias, narrativa da tese, “por que essa ação?”)  
@@ -251,4 +252,4 @@ git add -A && git commit -m "..." && git push origin main
 - Dono do repo GitHub: **dyegomiranda**  
 - Projeto iniciado a partir de conversa de produto (tese Quality Dividend / Barsi-like refinada) e implementação iterativa em Streamlit.
 
-*Última atualização do handoff: 2026-08-07 (benchmarks + data_source help + deploy docs).*
+*Última atualização do handoff: 2026-08-07 (benchmarks + alerts/exit rules + deploy docs).*

@@ -13,6 +13,7 @@ from src.data.universe import normalize_ticker
 from src.portfolio.income import project_income
 from src.portfolio.paper import PaperPortfolio, load_portfolio, save_portfolio
 from src.services import format_brl, format_pct, prices_dict_from_fundamentals
+from src.thesis.alerts import evaluate_portfolio, exit_rules_summary
 from src.thesis.scoring import recommend_weights, score_universe
 from src.ui.charts import (
     holdings_donut,
@@ -92,6 +93,34 @@ tab_dash, tab_trade, tab_income, tab_more = st.tabs(
     ["Dashboard", "Operar", "Renda", "Mais"]
 )
 
+# Alertas da tese para holdings atuais
+_alerts_df = pd.DataFrame()
+if portfolio.positions:
+    _alerts_df = evaluate_portfolio(
+        list(portfolio.positions.keys()),
+        scored_table if not scored_table.empty else fundamentals,
+    )
+    _crit = (
+        _alerts_df[_alerts_df["severidade"] == "critical"]
+        if not _alerts_df.empty
+        else pd.DataFrame()
+    )
+    _warn = (
+        _alerts_df[_alerts_df["severidade"] == "warning"]
+        if not _alerts_df.empty
+        else pd.DataFrame()
+    )
+    if not _crit.empty:
+        st.error(
+            f"{len(_crit)} alerta(s) crítico(s) na carteira — veja a aba Dashboard.",
+            icon=":material/error:",
+        )
+    elif not _warn.empty:
+        st.warning(
+            f"{len(_warn)} alerta(s) de atenção na carteira — veja a aba Dashboard.",
+            icon=":material/warning:",
+        )
+
 with tab_dash:
     if holdings.empty:
         st.info(
@@ -100,6 +129,24 @@ with tab_dash:
             icon=":material/info:",
         )
     else:
+        # Painel de alertas / regras de saída
+        st.markdown("##### Alertas da tese")
+        if _alerts_df.empty:
+            st.caption("Sem alertas calculados.")
+        else:
+            show_alerts = _alerts_df[_alerts_df["severidade"] != "info"]
+            if show_alerts.empty:
+                st.success(
+                    "Nenhum alerta crítico ou de atenção nos ativos atuais.",
+                    icon=":material/check_circle:",
+                )
+            else:
+                st.dataframe(show_alerts, width="stretch", hide_index=True)
+            with st.expander("Ver todos (inclui “ok”)", icon=":material/list:"):
+                st.dataframe(_alerts_df, width="stretch", hide_index=True)
+            with st.expander("Regras de saída usadas", icon=":material/rule:"):
+                st.markdown(exit_rules_summary())
+
         invested = float(summary.get("invested") or holdings["market_value"].sum())
         sectors = sector_breakdown_from_holdings(
             holdings, scored_table if not scored_table.empty else fundamentals
@@ -460,6 +507,12 @@ with tab_income:
                 )
 
 with tab_more:
+    with st.expander("Regras de saída da tese", icon=":material/rule:", expanded=False):
+        st.markdown(exit_rules_summary())
+        st.caption(
+            "As regras **não** executam vendas automáticas. Use Operar para agir manualmente."
+        )
+
     with st.expander("Tabela completa", icon=":material/table:"):
         if holdings.empty:
             st.caption("Sem posições.")
