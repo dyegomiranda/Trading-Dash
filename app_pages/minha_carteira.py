@@ -34,11 +34,11 @@ with st.sidebar:
     st.markdown("##### Conta")
     portfolio_name = st.text_input("Carteira", value="paper-main", key="pf_name")
     provider = provider_selectbox(key="pf_provider", label="Dados", show_help=True)
-
-render_data_quality_banner(provider)
     if st.button("Atualizar", icon=":material/refresh:", width="stretch", key="pf_refresh"):
         st.cache_data.clear()
         st.rerun()
+
+render_data_quality_banner(provider)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

@@ -27,11 +27,11 @@ render_page_header("Início", "Visão geral · tese Quality Dividend")
 with st.sidebar:
     st.markdown("##### Dados")
     provider = provider_selectbox(key="home_provider", label="Fonte", show_help=True)
-
-render_data_quality_banner(provider)
     if st.button("Atualizar overview", width="stretch", key="home_refresh"):
         st.cache_data.clear()
         st.rerun()
+
+render_data_quality_banner(provider)
 
 
 @st.cache_data(ttl=1800, show_spinner=False)

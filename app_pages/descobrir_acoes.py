@@ -21,8 +21,6 @@ render_page_header("Descubra ações", "Notas da tese + histórico")
 
 with st.sidebar:
     provider = provider_selectbox(key="disc_provider", label="Dados", show_help=True)
-
-render_data_quality_banner(provider)
     min_score = st.slider("Nota mínima", 0, 100, 55, key="disc_min_score")
     top_n = st.slider("Top N", 5, 30, 15, key="disc_top_n")
     strict = st.toggle("Filtros rigorosos", value=False, key="disc_strict")
@@ -33,6 +31,8 @@ render_data_quality_banner(provider)
         key="disc_hist_days",
     )
     run = st.button("Atualizar", type="primary", width="stretch", key="disc_run")
+
+render_data_quality_banner(provider)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

@@ -24,8 +24,6 @@ render_page_header("Teste no passado", "Simulação da tese Quality Dividend")
 with st.sidebar:
     st.markdown("##### Configurar o teste")
     provider = provider_selectbox(key="bt_provider", show_help=True)
-
-render_data_quality_banner(provider)
     start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
     end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
     initial_cash = st.number_input(
@@ -54,6 +52,8 @@ render_data_quality_banner(provider)
         key="bt_univ",
     )
     run = st.button("Rodar simulação", type="primary", width="stretch", key="bt_run")
+
+render_data_quality_banner(provider)
 
 # ── Rodar ──────────────────────────────────────────────────
 if run:
