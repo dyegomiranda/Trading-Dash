@@ -27,8 +27,8 @@ from src.ui.data_source import (
     get_session_macro,
     get_session_provider,
     render_data_quality_banner,
-    render_refresh_control,
 )
+from src.ui.refresh import render_refresh_control
 from src.ui.friendly import PRICE_PERIODS, friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_trust_strip

@@ -58,8 +58,8 @@ from src.ui.data_source import (
     get_session_macro,
     get_session_provider,
     render_data_quality_banner,
-    render_refresh_control,
 )
+from src.ui.refresh import render_refresh_control
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
 from src.ui.refresh import soft_refresh
 from src.ui.shell import page_setup

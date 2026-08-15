@@ -20,8 +20,8 @@ from src.ui.data_source import (
     get_session_macro,
     get_session_provider,
     render_data_quality_banner,
-    render_refresh_control,
 )
+from src.ui.refresh import render_refresh_control
 from src.thesis.scoring import recommend_weights
 from src.ai.coach import narrative_thesis
 from src.ui.charts import holdings_donut

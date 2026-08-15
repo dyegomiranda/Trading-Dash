@@ -124,29 +124,10 @@ def render_global_mode_toggle() -> str:
 
 
 def render_refresh_control(*, key: str, compact: bool = True) -> None:
-    """Botão de recarregar cache, com o que ele faz e um recado depois do clique."""
-    if st.session_state.pop(f"{key}_flash", False):
-        st.toast("Cache limpo. A tela busca números novos agora.", icon=":material/check:")
+    """Reexporta o controle de cache — implementação em ``src.ui.refresh``."""
+    from src.ui.refresh import render_refresh_control as _render
 
-    help_txt = (
-        "Apaga os números guardados e busca de novo na fonte. "
-        "Use se a lista parecer velha ou depois de mudar o modo treino."
-    )
-    clicked = st.button(
-        "Atualizar dados",
-        icon=":material/refresh:",
-        width="stretch",
-        key=key,
-        help=help_txt,
-    )
-    if not compact:
-        st.caption(help_txt)
-    if clicked:
-        from src.ui.refresh import force_refresh_data
-
-        force_refresh_data()
-        st.session_state[f"{key}_flash"] = True
-        st.rerun()
+    _render(key=key, compact=compact)
 
 
 def provider_selectbox(
