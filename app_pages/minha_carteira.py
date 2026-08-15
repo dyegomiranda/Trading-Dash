@@ -736,8 +736,8 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
             st.caption("Monte a carteira primeiro com o botão da tese acima.")
         else:
             _sl_defaults = {
-                str(r["ticker"]): float(r.get("weight") or 0) * 100.0
-                for r in holdings.itertuples()
+                str(r["ticker"]): float(r["weight"] or 0) * 100.0
+                for _, r in holdings.iterrows()
             }
             _sl_tickers = list(_sl_defaults.keys())
             _n = max(1, len(_sl_tickers))
