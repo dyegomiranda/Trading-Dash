@@ -15,26 +15,42 @@ from src.portfolio.paper import PaperPortfolio
 from src.thesis.scoring import recommend_weights, score_universe
 from src.utils import utcnow_date
 
-RebalanceFreq = Literal["M", "Q"]
+RebalanceFreq = Literal["M", "Q", "A"]
 
 
 @dataclass
 class BacktestCosts:
     """Modelo de custos da simulação (simples, honesto).
 
-    - ``fee_bps``: corretagem/emolumentos em pontos-base (1% = 100 bps).
-    - ``slippage_bps``: impacto de execução (compra sobe, venda desce).
-    - ``tax_rate``: retenção de IR sobre dividendos (0 = isento).
-    Todos são opcionais e default a 0 — comportamento par com o MV preexistente.
+    Defaults 0 no dataclass (testes). A UI usa ``conservative_costs()``.
     """
 
     fee_bps: float = 0.0
     slippage_bps: float = 0.0
     tax_rate: float = 0.0
+    jcp_share: float = 0.0
+    capital_gains_rate: float = 0.0
 
     @property
     def enabled(self) -> bool:
-        return self.fee_bps > 0 or self.slippage_bps > 0 or self.tax_rate > 0
+        return (
+            self.fee_bps > 0
+            or self.slippage_bps > 0
+            or self.tax_rate > 0
+            or self.jcp_share > 0
+            or self.capital_gains_rate > 0
+        )
+
+
+def conservative_costs() -> BacktestCosts:
+    """Defaults da Fase A: giro não é de graça; IR no ganho; JCP explícito."""
+    return BacktestCosts(
+        fee_bps=15.0,
+        slippage_bps=10.0,
+        tax_rate=0.0,
+        jcp_share=0.25,
+        capital_gains_rate=0.15,
+    )
 
 
 @dataclass
@@ -78,7 +94,7 @@ class BacktestResult:
 
 def _month_ends(dates: pd.DatetimeIndex, freq: RebalanceFreq) -> list[pd.Timestamp]:
     s = pd.Series(1, index=dates.sort_values())
-    rule = "ME" if freq == "M" else "QE"
+    rule = {"M": "ME", "Q": "QE", "A": "YE"}.get(freq, "QE")
     ends = s.resample(rule).last().dropna().index
     # garante que o fim caia em dia com pregão
     out = []
@@ -212,23 +228,59 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     equity_rows = []
     trade_rows = []
     div_rows = []
-    n_pit = 0  # rebalances com fundamentos point-in-time
-    n_snap = 0  # rebalances caindo para snapshot atual
+    n_pit = 0
+    n_snap = 0
+    last_px: dict[str, float] = {}
+    from src.data.asset_type import dividend_tax_rate
 
     for day in all_days:
         day = pd.Timestamp(day).normalize()
-        # preços do dia
         day_prices = close.loc[day].dropna().to_dict()
+        last_px.update({t: float(p) for t, p in day_prices.items() if p and p > 0})
 
-        # dividendos do dia
+        for t in list(portfolio.positions):
+            if t in day_prices:
+                continue
+            px = last_px.get(t)
+            if not px:
+                continue
+            pos = portfolio.positions[t]
+            try:
+                tr = portfolio.sell(
+                    t,
+                    pos.shares,
+                    px,
+                    note="delistagem",
+                    ts=day.isoformat(),
+                    fee_bps=config.costs.fee_bps,
+                    slippage_bps=config.costs.slippage_bps,
+                    capital_gains_rate=config.costs.capital_gains_rate,
+                )
+            except ValueError:
+                continue
+            trade_rows.append(
+                {
+                    "date": day,
+                    "side": tr.side,
+                    "ticker": tr.ticker,
+                    "shares": tr.shares,
+                    "price": tr.price,
+                    "amount": tr.amount,
+                    "note": tr.note,
+                }
+            )
+            notes.append(f"{day.date()}: saída por falta de preço ({t}) — delistagem/illiquidez.")
+
         day_divs = divs[divs["date"] == day] if not divs.empty else divs
         for _, r in day_divs.iterrows():
+            ticker = str(r["ticker"])
+            jcp_tax = dividend_tax_rate(ticker, jcp_share=config.costs.jcp_share)
             ev = portfolio.credit_dividend(
-                r["ticker"],
+                ticker,
                 float(r["amount"]),
                 ts=day.isoformat(),
                 note="div-historico",
-                tax_rate=config.costs.tax_rate,
+                tax_rate=max(float(config.costs.tax_rate or 0.0), jcp_tax),
             )
             if ev:
                 div_rows.append(
@@ -277,6 +329,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 ts=day.isoformat(),
                 fee_bps=config.costs.fee_bps,
                 slippage_bps=config.costs.slippage_bps,
+                capital_gains_rate=config.costs.capital_gains_rate,
             )
             for tr in trades:
                 trade_rows.append(
@@ -325,6 +378,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "cost_fee_bps": config.costs.fee_bps,
         "cost_slippage_bps": config.costs.slippage_bps,
         "cost_tax_rate": config.costs.tax_rate,
+        "cost_jcp_share": config.costs.jcp_share,
+        "cost_capital_gains_rate": config.costs.capital_gains_rate,
         "top_n": config.top_n,
         "rebalance": config.rebalance,
         "provider": provider.name,
@@ -402,8 +457,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     if config.costs.enabled:
         notes.append(
             f"CUSTOS: fee {config.costs.fee_bps:.0f} bps, slippage "
-            f"{config.costs.slippage_bps:.0f} bps, IR retido {config.costs.tax_rate:.0%} "
-            "sobre dividendos aplicados nas ordens do rebalance."
+            f"{config.costs.slippage_bps:.0f} bps, JCP {config.costs.jcp_share:.0%} "
+            f"do provento a 15%, IR ganho {config.costs.capital_gains_rate:.0%} na venda."
         )
 
     last_prices = close.iloc[-1].dropna().to_dict()

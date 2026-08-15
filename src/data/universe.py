@@ -24,16 +24,20 @@ def get_universe(
     *,
     resolve_renames: bool = True,
     mode: str = "full",
+    include_historical: bool = False,
 ) -> list[str]:
     """Retorna universo de tickers (sem .SA).
 
     mode:
       - full: lista ampla B3_UNIVERSE
       - core: B3_CORE_SCAN (líquidos, scan rápido)
+    include_historical: soma tickers que saíram/renomearam (ensaio no passado).
     """
-    from src.config import B3_CORE_SCAN
+    from src.config import B3_CORE_SCAN, B3_HISTORICAL_EXTRA
 
     items = list(B3_CORE_SCAN if mode == "core" else B3_UNIVERSE)
+    if include_historical:
+        items.extend(B3_HISTORICAL_EXTRA)
     if extra:
         items.extend(extra)
     seen: set[str] = set()
@@ -46,5 +50,10 @@ def get_universe(
     if resolve_renames:
         from src.data.reference import active_universe
 
-        out = active_universe(out)
+        live = active_universe(out)
+        if include_historical:
+            extras = [t for t in out if t not in live]
+            out = live + extras
+        else:
+            out = live
     return out

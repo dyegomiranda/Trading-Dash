@@ -11,6 +11,8 @@ from src.portfolio.paper import PaperPortfolio
 # Teto realista para % de dividendo em projeção de longo prazo (tese quality).
 # DY de mercado não sobe para sempre; acima disso vira cenário de fantasia.
 DEFAULT_MAX_YIELD = 0.10
+# Yield recente costuma reverter — não projetar o TTM cheio.
+DEFAULT_YIELD_HAIRCUT = 0.25
 
 
 def suggest_monthly_contribution(monthly_net_income: float) -> dict[str, Any]:
@@ -159,6 +161,7 @@ def project_income(
     max_yield: float = DEFAULT_MAX_YIELD,
     starting_principal_override: float | None = None,
     yield_override: float | None = None,
+    yield_haircut: float | None = None,
 ) -> dict[str, Any]:
     """Projeta renda anual com aportes mensais e opcional reinvestimento.
 
@@ -198,8 +201,13 @@ def project_income(
     else:
         raw_yield = 0.0
 
-    starting_yield = min(raw_yield, max_yield)
+    haircut = DEFAULT_YIELD_HAIRCUT if yield_haircut is None else max(0.0, min(0.8, float(yield_haircut)))
+    if yield_override is None:
+        starting_yield = min(raw_yield * (1.0 - haircut), max_yield)
+    else:
+        starting_yield = min(raw_yield, max_yield)
     yield_was_capped = raw_yield > max_yield + 1e-9
+    yield_was_cut = yield_override is None and haircut > 0 and raw_yield > 0
 
     # Renda “hoje” escala se o usuário mudou o capital da simulação vs carteira
     if portfolio_principal > 0 and starting_principal_override is not None:

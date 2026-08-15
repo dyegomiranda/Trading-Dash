@@ -176,6 +176,7 @@ class PaperPortfolio:
         *,
         fee_bps: float = 0.0,
         slippage_bps: float = 0.0,
+        capital_gains_rate: float = 0.0,
     ) -> Trade:
         ticker = normalize_ticker(ticker)
         pos = self.positions.get(ticker)
@@ -186,10 +187,17 @@ class PaperPortfolio:
         exec_price = price * (1.0 - slippage_bps / 10_000.0)
         amount = shares * exec_price
         fee = amount * fee_bps / 10_000.0
-        self.cash += amount - fee
+        gain = (exec_price - pos.avg_price) * shares
+        cg_tax = max(0.0, gain) * float(capital_gains_rate or 0.0)
+        self.cash += amount - fee - cg_tax
         pos.shares -= shares
         if pos.shares <= 1e-9:
             del self.positions[ticker]
+        extra = []
+        if fee:
+            extra.append(f"fee {fee:.2f}")
+        if cg_tax:
+            extra.append(f"IR ganho {cg_tax:.2f}")
         trade = Trade(
             id=str(uuid4()),
             ts=ts or utcnow_iso(),
@@ -198,7 +206,7 @@ class PaperPortfolio:
             shares=shares,
             price=exec_price,
             amount=amount,
-            note=note if not fee else f"{note} (fee {fee:.2f})",
+            note=f"{note} ({', '.join(extra)})" if extra else note,
         )
         self.trades.append(trade)
         self._touch()
@@ -298,6 +306,7 @@ class PaperPortfolio:
         *,
         fee_bps: float = 0.0,
         slippage_bps: float = 0.0,
+        capital_gains_rate: float = 0.0,
     ) -> list[Trade]:
         """Rebalanceia para pesos alvo usando valor total (caixa + posições)."""
         buckets = buckets or {}
@@ -322,6 +331,7 @@ class PaperPortfolio:
                             ts=ts,
                             fee_bps=fee_bps,
                             slippage_bps=slippage_bps,
+                            capital_gains_rate=capital_gains_rate,
                         )
                     )
 
@@ -377,6 +387,7 @@ class PaperPortfolio:
                                 ts=ts,
                                 fee_bps=fee_bps,
                                 slippage_bps=slippage_bps,
+                                capital_gains_rate=capital_gains_rate,
                             )
                         )
         return trades

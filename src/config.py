@@ -373,6 +373,30 @@ B3_UNIVERSE: list[str] = [
 ]
 
 
+# Nomes que saíram ou mudaram de ticker — entram no ensaio histórico
+# para não fingir que só existiu quem está listado hoje.
+B3_HISTORICAL_EXTRA: list[str] = [
+    "ELET3",
+    "ELET6",
+    "LAME3",
+    "LAME4",
+    "BTOW3",
+    "VVAR3",
+    "HGTX3",
+    "SMLS3",
+    "LINX3",
+    "BIDI11",
+    "BIDI4",
+    "IRBR3",
+    "OIBR3",
+    "OIBR4",
+    "GNDI3",
+    "PARD3",
+    "TESA3",
+    "CNTO3",
+]
+
+
 def get_settings() -> Settings:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
