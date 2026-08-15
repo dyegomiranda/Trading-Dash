@@ -84,6 +84,38 @@ BUCKET_LABELS = {
     "satellite": "Complemento (um pouco mais arriscado)",
 }
 
+# Códigos de alerta (src/thesis/alerts.py) → o que o iniciante entende.
+# Cobrem os códigos atuais; qualquer código novo aparece como está (dev a vê).
+ALERT_CODE_LABELS: dict[str, str] = {
+    "ok": "Tudo certo",
+    "sem_dados": "Sem dados agora",
+    "score_muito_baixo": "Nota muito baixa",
+    "score_abaixo_minimo": "Nota abaixo do mínimo",
+    "score_caindo": "Nota caindo",
+    "score_subindo": "Nota subindo",
+    "sem_dividendo": "Sem dividendo",
+    "dy_muito_alto": "DY muito alto",
+    "payout_alto": "Payout alto",
+    "alavancagem_alta": "Endividamento alto",
+    "roe_fraco": "ROE fraco",
+    "fcf_negativo": "Caixa livre negativo",
+    "dados_incompletos": "Dados incompletos",
+}
+
+# Gravidade do alerta → rótulo simples
+SEVERITY_LABELS: dict[str, str] = {
+    "info": "Informativo",
+    "warning": "Atenção",
+    "critical": "Crítico",
+}
+
+# Ação sugerida do alerta → verbo claro
+ACTION_LABELS: dict[str, str] = {
+    "monitorar": "Acompanhar",
+    "reduzir": "Reduzir",
+    "sair": "Sair",
+}
+
 GLOSSARY: list[tuple[str, str]] = [
     (
         "Ação",
@@ -221,6 +253,19 @@ def friendly_dataframe(df: pd.DataFrame, extra_map: dict[str, str] | None = None
     if "side" in out.columns:
         out["side"] = out["side"].map(
             lambda x: "Compra" if str(x) == "buy" else ("Venda" if str(x) == "sell" else x)
+        )
+    if "codigo" in out.columns:
+        # Alertas de tese: código técnico → nome legível para iniciante
+        out["codigo"] = out["codigo"].map(
+            lambda x: ALERT_CODE_LABELS.get(str(x), str(x))
+        )
+    if "severidade" in out.columns:
+        out["severidade"] = out["severidade"].map(
+            lambda x: SEVERITY_LABELS.get(str(x), str(x))
+        )
+    if "acao_sugerida" in out.columns:
+        out["acao_sugerida"] = out["acao_sugerida"].map(
+            lambda x: ACTION_LABELS.get(str(x), str(x))
         )
     labels = {**COLUMN_LABELS, **(extra_map or {})}
     rename = {c: labels[c] for c in out.columns if c in labels}

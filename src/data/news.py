@@ -89,8 +89,14 @@ def _fetch_yfinance_news(tickers: list[str], limit: int = 8) -> list[dict[str, A
 
     for t in tickers[:8]:
         try:
+            from src.data.yf_retry import fetch_with_retry
+
             tk = yf.Ticker(to_yf_symbol(t))
-            news = getattr(tk, "news", None) or []
+            news = fetch_with_retry(
+                lambda: (getattr(tk, "news", None) or []),
+                what=f"notícias {t}",
+                max_attempts=2,
+            )
             for n in news[:3]:
                 if not isinstance(n, dict):
                     continue

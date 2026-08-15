@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import html
-from typing import Sequence
 
 import streamlit as st
 
@@ -1011,5 +1009,4 @@ footer {{ visibility: hidden; }}
 
 def apply_theme() -> None:
     """Injeta o visual dark fintech. Seguro chamar em toda página."""
-    import streamlit as st
     st.markdown(_CSS, unsafe_allow_html=True)

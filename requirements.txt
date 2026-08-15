@@ -1,6 +1,12 @@
-streamlit>=1.32.0
-pandas>=2.1.0
-numpy>=1.26.0
+# Dependências do app (rails modernos mas compatíveis com o ambiente testado).
+#
+# Faixas: reflexo do que rodou na suíte (Python 3.12–3.14).
+#   pandas 3.x introduziu quebras vs 2.x → teto <3.1 para consistência.
+#   numpy 2.x → teto <3.0.
+# O lock exato (reprodutibilidade) fica em requirements.lock.
+streamlit>=1.32.0,<2.0
+pandas>=2.1.0,<3.1
+numpy>=1.26.0,<3.0
 yfinance>=0.2.40
 plotly>=5.18.0
 requests>=2.31.0

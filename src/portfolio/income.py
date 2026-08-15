@@ -155,7 +155,7 @@ def project_income(
     years: int = 10,
     assumed_div_growth: float = 0.02,
     monthly_contribution: float = 0.0,
-    fallback_yield: float = 0.06,
+    fallback_yield: float | None = None,
     max_yield: float = DEFAULT_MAX_YIELD,
     starting_principal_override: float | None = None,
     yield_override: float | None = None,
@@ -193,8 +193,10 @@ def project_income(
         raw_yield = max(0.0, float(yield_override))
     elif equity_pos > 0 and annual > 0:
         raw_yield = annual / equity_pos
-    else:
+    elif fallback_yield is not None:
         raw_yield = max(0.0, float(fallback_yield))
+    else:
+        raw_yield = 0.0
 
     starting_yield = min(raw_yield, max_yield)
     yield_was_capped = raw_yield > max_yield + 1e-9
@@ -320,7 +322,7 @@ def project_income_scenarios(
     reinvest: bool = True,
     starting_principal: float | None = None,
     base_yield: float | None = None,
-    fallback_yield: float = 0.06,
+    fallback_yield: float | None = None,
     max_yield: float = DEFAULT_MAX_YIELD,
 ) -> dict[str, Any]:
     """Três cenários amigáveis: cauteloso, base e animado (ainda com teto realista).
@@ -340,7 +342,9 @@ def project_income_scenarios(
         starting_principal_override=starting_principal,
         yield_override=base_yield,
     )
-    y0 = float(base.get("starting_yield") or fallback_yield)
+    y0 = float(base.get("starting_yield") or 0.0)
+    if y0 <= 0 and fallback_yield is not None:
+        y0 = float(fallback_yield)
 
     cauteloso = project_income(
         portfolio,

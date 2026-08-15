@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import io
 import zipfile
-from datetime import datetime
-from typing import Any
 
 import pandas as pd
 
 from src.portfolio.dividends_live import dividends_frame
 from src.portfolio.paper import PaperPortfolio
 from src.services import format_brl, format_pct
+from src.utils import utcnow_iso
 
 
 def holdings_export_df(
@@ -91,7 +90,7 @@ def summary_export_df(
             {"campo": "n_empresas", "valor": s["n_positions"]},
             {"campo": "n_ordens", "valor": s["n_trades"]},
             {"campo": "atualizado_em", "valor": s["updated_at"]},
-            {"campo": "exportado_em", "valor": datetime.utcnow().isoformat()},
+            {"campo": "exportado_em", "valor": utcnow_iso()},
         ]
     )
 
@@ -124,7 +123,7 @@ def portfolio_to_csv_bundle(
                 "- ordens.csv — compras e vendas\n"
                 "- dividendos.csv — dividendos já creditados em caixa\n\n"
                 "Isto é dinheiro de treino (paper). Não é extrato de corretora.\n"
-            ).encode("utf-8"),
+            ).encode(),
         )
     return buf.getvalue()
 

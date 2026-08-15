@@ -35,16 +35,89 @@ def _row_val(row: pd.Series, key: str, default: Any = None) -> Any:
     return _unwrap(row[key])
 
 
+# Queda de nota (0–100) que acende alerta de deterioração na tese.
+SCORE_DROP_WARN = 10.0
+
+
+def score_trajectory(
+    ticker: str,
+    fundamentals_by_date: dict[str, pd.DataFrame] | None,
+) -> tuple[list[float], list[str]]:
+    """Séries de score_total do ticker ao longo dos snapshots (point-in-time).
+
+    Retorna (scores, datas) em ordem cronológica, só com valores presentes.
+    Útil para alertas de deterioração: correlação com a regra de saída que usa
+    histórico de score, em vez de apenas o snapshot atual.
+    """
+    if not fundamentals_by_date:
+        return [], []
+    scores: list[float] = []
+    dates: list[str] = []
+    for key, df in sorted(fundamentals_by_date.items(), key=lambda kv: (pd.Timestamp(kv[0]), kv[0])):
+        if df is None or df.empty or "ticker" not in df.columns:
+            continue
+        if "score_total" not in df.columns:
+            continue
+        sub = df[df["ticker"].astype(str).str.upper() == ticker.upper()]
+        if sub.empty:
+            continue
+        val = _safe(_row_val(sub.iloc[0], "score_total"), None)
+        if val is not None:
+            scores.append(float(val))
+            dates.append(str(key))
+    return scores, dates
+
+
 def evaluate_holding(
     ticker: str,
     row: pd.Series | None,
     *,
     settings: Settings | None = None,
+    score_history: list[float] | None = None,
 ) -> list[HoldingAlert]:
-    """Avalia um ativo da carteira contra regras simples da tese."""
+    """Avalia um ativo da carteira contra regras simples da tese.
+
+    ``score_history``: série cronológica de score_total do mesmo ativo
+    (ex.: de snapshots point-in-time). Quando presente, adiciona alerta de
+    **deterioração** se a nota caiu de forma relevante nos últimos períodos.
+    """
     settings = settings or get_settings()
     t = str(ticker).upper()
     alerts: list[HoldingAlert] = []
+
+    if score_history is not None:
+        h = [v for v in score_history if v is not None]
+        if len(h) >= 3:
+            prev = h[-2]
+            cur = h[-1]
+            persist = h[-3] - h[-1]
+            drop = prev - cur
+            if persist >= SCORE_DROP_WARN and drop > 0:
+                alerts.append(
+                    HoldingAlert(
+                        ticker=t,
+                        severity="warning",
+                        code="score_caindo",
+                        message=(
+                            f"Nota caiu **{persist:.0f} pts** (de {h[-3]:.0f} para {cur:.0f}) "
+                            "em pelo menos 3 observações do app — não é dado CVM. Revisar."
+                        ),
+                        action="monitorar",
+                    )
+                )
+            elif persist <= -SCORE_DROP_WARN and drop < 0:
+                alerts.append(
+                    HoldingAlert(
+                        ticker=t,
+                        severity="info",
+                        code="score_subindo",
+                        message=(
+                            f"Nota subiu **{-drop:.0f} pts** (de {prev:.0f} para {cur:.0f}) "
+                            "nos últimos dados. Tendência positiva."
+                        ),
+                        action="monitorar",
+                    )
+                )
 
     if row is None:
         alerts.append(
@@ -160,6 +233,20 @@ def evaluate_holding(
             )
         )
 
+    if roe is None or dy is None or debt is None:
+        alerts.append(
+            HoldingAlert(
+                ticker=t,
+                severity="warning",
+                code="dados_incompletos",
+                message=(
+                    "Faltam dados da tese (ROE, dividendo ou dívida). "
+                    "Não dá para dizer que está 'dentro das regras'."
+                ),
+                action="monitorar",
+            )
+        )
+
     if bucket and bucket not in ("core", "satellite"):
         pass
 
@@ -182,8 +269,13 @@ def evaluate_portfolio(
     scored: pd.DataFrame,
     *,
     settings: Settings | None = None,
+    fundamentals_by_date: dict[str, pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
-    """Gera tabela de alertas para todos os holdings."""
+    """Gera tabela de alertas para todos os holdings.
+
+    ``fundamentals_by_date`` (snapshots point-in-time) habilita o alerta de
+    **histórico de score** — nota caindo de forma relevante entre períodos.
+    """
     settings = settings or get_settings()
     if scored is None or scored.empty:
         scored = pd.DataFrame()
@@ -198,7 +290,10 @@ def evaluate_portfolio(
     rows: list[dict[str, str]] = []
     for t in tickers:
         key = str(t).upper()
-        for alert in evaluate_holding(key, by_ticker.get(key), settings=settings):
+        hist, _ = score_trajectory(key, fundamentals_by_date)
+        for alert in evaluate_holding(
+            key, by_ticker.get(key), settings=settings, score_history=hist or None
+        ):
             # não poluir com "ok" se houver muitos ativos — mantém ok só se for o único tipo
             rows.append(alert.as_dict())
 

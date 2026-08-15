@@ -77,3 +77,25 @@ def test_override_principal_independent_of_portfolio():
     assert abs(r["starting_principal"] - 3_000) < 1e-6
     # Renda escala com capital menor
     assert r["final_annual_income"] < 5_000
+
+
+def test_reinvest_snowball_beats_withdrawing():
+    """Reinvestir dividendos deve acumular MAIS capital que sacar (juros compostos)."""
+    pf = PaperPortfolio.create(name="t", cash=10_000)
+    fund = pd.DataFrame([{"ticker": "ITUB4", "dividend_yield": 0.06}])
+    prices = {"ITUB4": 30.0}
+    pf.buy("ITUB4", 100, 30.0)
+
+    reinvest = project_income(
+        pf, fund, prices=prices, reinvest=True, years=10,
+        monthly_contribution=500, fallback_yield=0.06,
+    )
+    withdraw = project_income(
+        pf, fund, prices=prices, reinvest=False, years=10,
+        monthly_contribution=500, fallback_yield=0.06,
+    )
+    eq_reinvest = float(reinvest["projection"]["portfolio_equity_est"].iloc[-1])
+    eq_withdraw = float(withdraw["projection"]["portfolio_equity_est"].iloc[-1])
+    assert eq_reinvest > eq_withdraw * 1.05  # bem maior no fim
+    # aportes são os mesmos; a diferença vem SÓ do reinvestimento
+    assert reinvest["total_contributed_end"] == withdraw["total_contributed_end"]

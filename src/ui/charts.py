@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 
 import pandas as pd
 import plotly.express as px
@@ -108,6 +109,56 @@ def donut_allocation(
             showlegend=True,
             annotations=annotations,
         )
+    )
+    return fig
+
+
+def thesis_radar(
+    quality: float | None,
+    dividends: float | None,
+    health: float | None,
+    valuation: float | None,
+    *,
+    title: str = "Pilares da tese (0–100)",
+    height: int = 320,
+) -> go.Figure:
+    """Radar dos 4 pilares — None vira 0 no desenho, mas o rótulo marca 'sem dado'."""
+
+    def _pt(val: float | None, label: str) -> tuple[float, str]:
+        if val is None or (isinstance(val, float) and val != val):
+            return 0.0, f"{label}\n(sem dado)"
+        return float(val), f"{label}\n{float(val):.0f}"
+
+    vals, labs = zip(
+        _pt(quality, "Qualidade"),
+        _pt(dividends, "Dividendos"),
+        _pt(health, "Saúde"),
+        _pt(valuation, "Preço"),
+        _pt(quality, "Qualidade"),  # fecha o polígono
+    )
+    fig = go.Figure(
+        go.Scatterpolar(
+            r=list(vals),
+            theta=list(labs),
+            fill="toself",
+            name="Nota",
+            line={"color": "#A78BFA", "width": 2},
+            fillcolor="rgba(167, 139, 250, 0.28)",
+            hovertemplate="%{theta}: %{r:.0f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        **_base_layout(title=title, height=height, showlegend=False),
+        polar={
+            "bgcolor": "rgba(0,0,0,0)",
+            "radialaxis": {
+                "visible": True,
+                "range": [0, 100],
+                "color": "#64748B",
+                "gridcolor": "rgba(36,48,68,0.65)",
+            },
+            "angularaxis": {"color": "#94A3B8", "gridcolor": "rgba(36,48,68,0.45)"},
+        },
     )
     return fig
 
@@ -370,6 +421,97 @@ def income_scenarios_chart(
                 "orientation": "h",
                 "yanchor": "bottom",
                 "y": -0.32,
+                "xanchor": "center",
+                "x": 0.5,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 11, "color": "#94A3B8"},
+            },
+        )
+    )
+    return fig
+
+
+def snowball_chart(
+    with_reinvest: pd.DataFrame,
+    without_reinvest: pd.DataFrame,
+    *,
+    title: str = "Bola de neve: reinvestir dividendos vs sacar",
+) -> go.Figure:
+    """Compara o capital no tempo reinvestindo os dividendos vs sacando-os.
+
+    ``with_reinvest`` é a projeção base (reinvest=True); ``without_reinvest``
+    é a mesma simulação com reinvest=False. A diferença entre as duas curvas
+    no último ano = ganho aproximado do efeito “bola de neve”.
+    """
+    fig = go.Figure()
+    base = with_reinvest if with_reinvest is not None and not getattr(with_reinvest, "empty", True) else pd.DataFrame()
+    other = without_reinvest if without_reinvest is not None and not getattr(without_reinvest, "empty", True) else pd.DataFrame()
+    if base.empty:
+        fig.update_layout(**_base_layout(title=title, height=340, showlegend=False))
+        return fig
+
+    if not other.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=other["year"],
+                y=other["portfolio_equity_est"],
+                mode="lines+markers",
+                name="Sem reinvestir (sacar dividendos)",
+                line={"color": "#94A3B8", "width": 2.4, "dash": "dot"},
+                marker={"size": 6},
+                hovertemplate="Ano %{x}<br>Sacando: R$ %{y:,.0f}<extra></extra>",
+            )
+        )
+    fig.add_trace(
+        go.Scatter(
+            x=base["year"],
+            y=base["portfolio_equity_est"],
+            mode="lines+markers",
+            name="Reinvestindo os dividendos",
+            line={"color": "#34D399", "width": 3.0, "shape": "spline"},
+            marker={"size": 7},
+            fill="tonexty" if not other.empty else "tozeroy",
+            fillcolor="rgba(52, 211, 153, 0.14)",
+            hovertemplate="Ano %{x}<br>Reinvestindo: R$ %{y:,.0f}<extra></extra>",
+        )
+    )
+    # anota o ganho do reinvestimento no último ano
+    if not other.empty and len(base) == len(other):
+        end_diff = float(base["portfolio_equity_est"].iloc[-1] - other["portfolio_equity_est"].iloc[-1])
+        fig.add_annotation(
+            x=base["year"].iloc[-1],
+            y=base["portfolio_equity_est"].iloc[-1],
+            text=f"+R$ {end_diff:,.0f} reinvestindo".replace(",", "."),
+            showarrow=True,
+            arrowhead=2,
+            arrowcolor="#34D399",
+            font={"color": "#34D399", "size": 12},
+            ax=0,
+            ay=-40,
+        )
+    fig.update_layout(
+        **_base_layout(
+            title=title,
+            height=340,
+            showlegend=True,
+            margin={"l": 48, "r": 16, "t": 40, "b": 56},
+            xaxis={
+                "title": "Anos a partir de agora",
+                "showgrid": True,
+                "gridcolor": "rgba(36,48,68,0.55)",
+                "color": "#64748B",
+                "dtick": 1,
+            },
+            yaxis={
+                "title": "Capital na carteira (R$)",
+                "showgrid": True,
+                "gridcolor": "rgba(36,48,68,0.55)",
+                "color": "#64748B",
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": -0.28,
                 "xanchor": "center",
                 "x": 0.5,
                 "bgcolor": "rgba(0,0,0,0)",

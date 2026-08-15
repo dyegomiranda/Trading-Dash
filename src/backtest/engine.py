@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Literal
 
 import numpy as np
@@ -14,8 +13,28 @@ from src.data.providers import DataProvider
 from src.data.universe import normalize_ticker
 from src.portfolio.paper import PaperPortfolio
 from src.thesis.scoring import recommend_weights, score_universe
+from src.utils import utcnow_date
 
 RebalanceFreq = Literal["M", "Q"]
+
+
+@dataclass
+class BacktestCosts:
+    """Modelo de custos da simulação (simples, honesto).
+
+    - ``fee_bps``: corretagem/emolumentos em pontos-base (1% = 100 bps).
+    - ``slippage_bps``: impacto de execução (compra sobe, venda desce).
+    - ``tax_rate``: retenção de IR sobre dividendos (0 = isento).
+    Todos são opcionais e default a 0 — comportamento par com o MV preexistente.
+    """
+
+    fee_bps: float = 0.0
+    slippage_bps: float = 0.0
+    tax_rate: float = 0.0
+
+    @property
+    def enabled(self) -> bool:
+        return self.fee_bps > 0 or self.slippage_bps > 0 or self.tax_rate > 0
 
 
 @dataclass
@@ -30,10 +49,19 @@ class BacktestConfig:
     satellite_weight: float = 0.30
     max_position_pct: float = 0.10
     universe: list[str] | None = None
-    # No modo demo/live sem fundamentals históricos pontuais,
-    # usamos o snapshot atual + preços históricos (limitação documentada).
+    # Fundamentos ponto-a-ponto: mapeia data (YYYY-MM-DD) → DataFrame de
+    # fundamentos VÁLIDOS naquela data. Quando fornecido, o score em cada
+    # rebalance usa O snapshot hábil à época (sem look-ahead). Quando vazio,
+    # usa o snapshot atual (limitação documentada no app) e acende a nota.
+    fundamentals_by_date: dict[str, pd.DataFrame] = field(
+        default_factory=dict
+    )
     use_point_in_time_fundamentals: bool = False
     include_benchmarks: bool = True
+    include_idiv: bool = False
+    costs: BacktestCosts = field(default_factory=BacktestCosts)
+    # Inclinação do dia do rebalance (histórico). Default None = sem tilt de hoje.
+    macro_tilt: dict[str, float] | None = None
 
 
 @dataclass
@@ -96,11 +124,44 @@ def _cagr(equity: pd.Series) -> float:
     return float((end / start) ** (1 / years) - 1)
 
 
+def _resolve_fundamentals(
+    config: BacktestConfig,
+    day: pd.Timestamp,
+    fallback: pd.DataFrame,
+) -> tuple[pd.DataFrame, bool]:
+    """Escolhe o snapshot de fundamentos válido no dia (point-in-time).
+
+    Retorna (fundamentals, ponto_a_ponto):
+    - Se ``fundamentals_by_date`` tiver snapshot para o mês/trimestre do dia,
+      usa ESSE (ponto a ponto real, sem look-ahead).
+    - Caso contrário devolve o snapshot atual (fallback) com flag False,
+      para o relatório avisar que usou dados "de hoje".
+    """
+    if not config.fundamentals_by_date:
+        return fallback, False
+    # chave mais antiga <= dia (sem olhar para o futuro)
+    day_s = pd.Timestamp(day).normalize()
+    candidates = []
+    for k, df in config.fundamentals_by_date.items():
+        try:
+            k_ts = pd.Timestamp(k)
+        except Exception:
+            continue
+        if k_ts <= day_s:
+            candidates.append((k_ts, k))
+    if not candidates:
+        return fallback, False
+    candidates.sort(key=lambda x: x[0])
+    _, key = candidates[-1]
+    return config.fundamentals_by_date[key], True
+
+
 def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResult:
     notes = [
         "Backtest usa preços e dividendos históricos do provedor selecionado.",
-        "Fundamentals: no MVP o score usa o snapshot atual (ou demo fixo) em cada rebalance — "
-        "não é point-in-time contábil completo. Serve para validar o fluxo da tese e o motor.",
+        "Fundamentals: o score em cada rebalance usa o snapshot de dados mais recente "
+        "disponível até aquela data (point-in-time) quando fornecido via "
+        "fundamentals_by_date; sem ele, recai no snapshot atual (limitação do MVP).",
     ]
 
     fundamentals = provider.get_fundamentals(config.universe)
@@ -117,7 +178,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         scored_base = scored_base[scored_base["ticker"].isin(tickers)]
 
     start = config.start
-    end = config.end or datetime.utcnow().strftime("%Y-%m-%d")
+    end = config.end or utcnow_date()
     prices = provider.get_price_history(tickers, start=start, end=end)
     divs = provider.get_dividend_history(tickers, start=start, end=end)
 
@@ -130,7 +191,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
 
     # pivot close
     close = prices.pivot_table(index="date", columns="ticker", values="close", aggfunc="last")
-    close = close.sort_index().ffill()
+    close = close.sort_index().ffill(limit=10)
     all_days = close.index
 
     if divs is not None and not divs.empty:
@@ -151,6 +212,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     equity_rows = []
     trade_rows = []
     div_rows = []
+    n_pit = 0  # rebalances com fundamentos point-in-time
+    n_snap = 0  # rebalances caindo para snapshot atual
 
     for day in all_days:
         day = pd.Timestamp(day).normalize()
@@ -165,6 +228,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 float(r["amount"]),
                 ts=day.isoformat(),
                 note="div-historico",
+                tax_rate=config.costs.tax_rate,
             )
             if ev:
                 div_rows.append(
@@ -177,22 +241,31 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 )
 
         if day in rebalance_set:
-            # score do universo (snapshot) — filtrado
-            scored = score_universe(fundamentals, min_score=config.min_score)
-            # só tickers com preço no dia
+            # fundamentos válidos no dia (point-in-time) ou snapshot atual
+            fund_day, is_pit = _resolve_fundamentals(config, day, fundamentals)
+            if is_pit:
+                n_pit += 1
+            else:
+                n_snap += 1
+            scored = score_universe(
+                fund_day, min_score=config.min_score, strict_filters=True
+            )
             tradable = scored.filtered[
                 scored.filtered["ticker"].isin(day_prices.keys())
             ].copy()
             if tradable.empty:
-                # relaxa: usa scored geral
-                tradable = scored.scored[scored.scored["ticker"].isin(day_prices.keys())]
-                tradable = tradable.head(config.top_n)
+                notes.append(
+                    f"{day.date()}: ninguém passou no filtro da tese — "
+                    "mantive a carteira anterior (sem relaxar o filtro)."
+                )
+                continue
             picks = recommend_weights(
                 tradable,
                 top_n=config.top_n,
                 core_weight=config.core_weight,
                 satellite_weight=config.satellite_weight,
                 max_position_pct=config.max_position_pct,
+                macro_tilt=config.macro_tilt,
             )
             weights = dict(zip(picks["ticker"], picks["target_weight"]))
             buckets = dict(zip(picks["ticker"], picks.get("bucket", "core")))
@@ -202,6 +275,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 buckets=buckets,
                 note=f"rebalance-{day.date()}",
                 ts=day.isoformat(),
+                fee_bps=config.costs.fee_bps,
+                slippage_bps=config.costs.slippage_bps,
             )
             for tr in trades:
                 trade_rows.append(
@@ -243,6 +318,13 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "dividends_total": float(sum(r["amount"] for r in div_rows)),
         "n_trades": len(trade_rows),
         "n_rebalances": len(rebalance_days),
+        "n_rebalances_pit": n_pit,
+        "n_rebalances_snapshot": n_snap,
+        "use_point_in_time": bool(config.fundamentals_by_date) and n_pit > 0,
+        "costs_enabled": config.costs.enabled,
+        "cost_fee_bps": config.costs.fee_bps,
+        "cost_slippage_bps": config.costs.slippage_bps,
+        "cost_tax_rate": config.costs.tax_rate,
         "top_n": config.top_n,
         "rebalance": config.rebalance,
         "provider": provider.name,
@@ -257,6 +339,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 provider=provider,
                 start=start,
                 end=end,
+                include_idiv=config.include_idiv,
             )
             bm_df = bm_df.set_index("date")
             bm_df["portfolio"] = eq.reindex(bm_df.index).ffill()
@@ -281,6 +364,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
 
             ibov_ret = _series_return("ibovespa")
             cdi_ret = _series_return("cdi")
+            idiv_ret = _series_return("idiv")
             metrics["ibov_return"] = ibov_ret
             metrics["cdi_return"] = cdi_ret
             metrics["ibov_cagr"] = _series_cagr("ibovespa")
@@ -289,13 +373,38 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 metrics["excess_vs_ibov"] = total_ret - ibov_ret
             if cdi_ret is not None:
                 metrics["excess_vs_cdi"] = total_ret - cdi_ret
+            if idiv_ret is not None:
+                metrics["idiv_return"] = idiv_ret
+                metrics["idiv_cagr"] = _series_cagr("idiv")
+                metrics["excess_vs_idiv"] = total_ret - idiv_ret
 
             notes.append(
                 f"Benchmarks: Ibovespa ({bm_meta.get('ibov_source')}), "
-                f"CDI ({bm_meta.get('cdi_source')})."
+                f"CDI ({bm_meta.get('cdi_source')}), "
+                f"IDIV ({bm_meta.get('idiv_source') or 'desativado'})."
             )
         except Exception as e:
             notes.append(f"Benchmarks indisponíveis neste run: {e}")
+
+    if config.fundamentals_by_date and n_pit > 0:
+        notes.append(
+            f"UPDATE: {n_pit} rebalances usaram fundamentos point-in-time "
+            f"(histórico fornecido); {n_snap} caíram para o snapshot atual "
+            f"por falta de snapshot até aquela data."
+        )
+    elif not config.fundamentals_by_date:
+        notes.append(
+            "LIMITE: score usou o snapshot ATUAL em todos os rebalances "
+            "(sem histórico point-in-time). Resultados validam o fluxo, não "
+            "o desempenho contábil histórico."
+        )
+
+    if config.costs.enabled:
+        notes.append(
+            f"CUSTOS: fee {config.costs.fee_bps:.0f} bps, slippage "
+            f"{config.costs.slippage_bps:.0f} bps, IR retido {config.costs.tax_rate:.0%} "
+            "sobre dividendos aplicados nas ordens do rebalance."
+        )
 
     last_prices = close.iloc[-1].dropna().to_dict()
     holdings = portfolio.holdings_frame(last_prices)

@@ -1,0 +1,25 @@
+# Configuração do ruff — lint para Testes e src.
+# Ignora regras de estilo pedante e regras de "blind-except" que são
+# intencionais em apps Streamlit (funções de UI que devem degradar
+# graciosamente, nunca derrubar a página).
+extend-exclude = [
+    ".venv",
+    "data",
+    "app_pages",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "I",   # isort
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",    # linhas longas (README/comentários PT)
+    "I001",    # ordenação de imports (auto-fix em CI separado)
+    "SIM102",  # collapsible-if (legibilidade em código de negócio)
+    "SIM108",  # if-else-block → ternário (opcional)
+    "SIM118",  # in-dict-keys (chama .keys() em loop pequeno é ok)
+]

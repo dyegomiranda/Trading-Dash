@@ -6,12 +6,14 @@ import streamlit as st
 
 from src.config import SCORE_WEIGHTS, THESIS_LABEL, THESIS_VERSION, get_settings
 from src.ui.components import (
+    render_core_sectors_card,
     render_journey,
     render_page_header,
     render_plain_help,
     render_section_label,
 )
 from src.ui.friendly import GLOSSARY, JOURNEY_STEPS
+from src.ui.onboarding import render_onboarding_reset_button
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note
 
@@ -31,15 +33,18 @@ render_plain_help(
     f"""
 1. **Início** — entenda o panorama e o dinheiro da conta de treino  
 2. **Descubra ações** — veja notas, setores e o gráfico de preço (1 mês → máximo)  
-3. **Minha carteira → Montar carteira** — defina o capital e clique em *Montar carteira com a tese*  
+3. **Minha carteira** — defina o capital e clique em **Montar carteira com a tese**  
 4. **Minha carteira → Renda esperada** — veja renda mensal/anual estimada, vantagens e riscos  
-5. **Teste no passado** (opcional) — “e se eu tivesse seguido a ideia desde tal data?”  
+5. **Teste no passado** (opcional) — ensaio do motor com o retrato de hoje, não o balanço de 2022  
 
 **Meta da tese:** cerca de **{s.core_weight:.0%}** em empresas mais estáveis (base) e  
 **{s.satellite_weight:.0%}** em um complemento um pouco mais flexível — visando **renda com qualidade**,  
 não o maior dividendo a qualquer custo.
 """,
 )
+
+render_core_sectors_card()
+render_onboarding_reset_button()
 
 render_section_label("A estratégia em uma frase")
 with st.container(border=True):

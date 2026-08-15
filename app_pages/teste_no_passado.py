@@ -7,8 +7,13 @@ from datetime import date
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.backtest.engine import BacktestConfig, run_backtest
-from src.data.providers import get_provider
+from src.backtest.engine import BacktestConfig, BacktestCosts, run_backtest
+from src.backtest.export import (
+    backtest_to_csv_bundle,
+    backtest_to_html,
+    equity_curve_csv,
+)
+from src.data.providers import get_provider, is_realtime_provider
 from src.data.universe import get_universe
 from src.services import format_brl, format_pct
 from src.ui.charts import holdings_donut
@@ -18,12 +23,15 @@ from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 
 page_setup()
-render_page_header("Teste no passado", "Simulação da tese Quality Dividend")
+render_page_header(
+    "Teste no passado",
+    "Ensaio do motor com o retrato de hoje — não é desempenho contábil histórico",
+)
 
 # ── Controles ──────────────────────────────────────────────
 with st.sidebar:
     st.markdown("##### Configurar o teste")
-    provider = provider_selectbox(key="bt_provider", show_help=True)
+    provider = provider_selectbox(show_help=True)
     start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
     end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
     initial_cash = st.number_input(
@@ -51,6 +59,37 @@ with st.sidebar:
         ),
         key="bt_univ",
     )
+    with st.expander("Benchmarks", icon=":material/query_stats:"):
+        include_idiv = st.checkbox(
+            "Comparar também com o IDIV (ETF IDIV.SA)",
+            value=True,
+            help=(
+                "IDIV = índice de dividendos da B3. Mostra a comparação mais próxima "
+                "da tese (empresas que pagam dividendos). Se a fonte não tiver o "
+                "índice, aparece como “—”."
+            ),
+            key="bt_idiv",
+        )
+    with st.expander("Custos", icon=":material/price_change:"):
+        enable_costs = st.checkbox(
+            "Aplicar custos na simulação", value=True, key="bt_costs_on"
+        )
+        fee_bps = st.slider(
+            "Corretagem (bps)", 0, 100, 15, step=5,
+            help="15 bps ≈ 0,15% por ordem. Giro não é de graça.",
+            key="bt_fee", disabled=not enable_costs,
+        )
+        slippage_bps = st.slider(
+            "Slippage (bps)", 0, 100, 10, step=5,
+            help="Impacto de execução: compra fica um pouco mais cara, venda mais barata.",
+            key="bt_slip", disabled=not enable_costs,
+        )
+        tax_rate = st.slider(
+            "IR sobre proventos (%)", 0, 30, 0, step=5,
+            help="Dividendos de ação e rendimento de FII PF são isentos na fonte. "
+            "Use >0 só se quiser modelar JCP (15%).",
+            key="bt_ir", disabled=not enable_costs,
+        )
     run = st.button("Rodar simulação", type="primary", width="stretch", key="bt_run")
 
 render_data_quality_banner(provider)
@@ -63,7 +102,7 @@ if run:
         universe = get_universe()
         if universe_mode == "sample":
             universe = universe[:40]
-        if provider == "yfinance" and universe_mode == "full":
+        if is_realtime_provider(provider) and universe_mode == "full":
             st.warning(
                 "Universo amplo + bolsa real pode levar vários minutos. "
                 "Prefira amostra rápida na primeira vez."
@@ -76,6 +115,16 @@ if run:
             rebalance=rebalance,  # type: ignore[arg-type]
             min_score=float(min_score),
             universe=universe,
+            include_idiv=include_idiv,
+            costs=(
+                BacktestCosts(
+                    fee_bps=float(fee_bps),
+                    slippage_bps=float(slippage_bps),
+                    tax_rate=float(tax_rate) / 100.0,
+                )
+                if enable_costs
+                else BacktestCosts()
+            ),
         )
         with st.spinner("Viajando no tempo… montando a carteira dia a dia."):
             try:
@@ -95,8 +144,9 @@ if not result:
         """
 Esta página responde a uma pergunta simples:
 
-> **“E se eu tivesse seguido as sugestões desta tese desde uma data no passado?”**
+> **“Como o motor de hoje se comportaria sobre preços e dividendos passados?”**
 
+Isso **não** é “eu segui a tese em 2022”: o score usa o retrato fundamental **atual**.
 Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
 """
     )
@@ -176,7 +226,8 @@ Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
 - **Não é recomendação de investimento** e não garante resultado futuro.
 - Preços/dividendos históricos vêm da fonte escolhida; o **score fundamental** no MVP
   ainda **não** reconstrói o balanço de cada empresa mês a mês no passado.
-- Não modela corretagem, imposto, slippage nem liquidez.
+- Custos (corretagem e slippage) vêm **ligados** por padrão (~15+10 bps). IR de dividendo
+  começa em 0% (isento para PF).
 - Performance passada **não** garante performance futura.
 """
         )
@@ -210,6 +261,28 @@ with st.container(border=True):
         f"Reajustes: {m.get('n_rebalances', '—')} · ordens: {m.get('n_trades', '—')} · "
         f"fonte: {m.get('provider', '—')}"
     )
+    pit = m.get("use_point_in_time")
+    if pit:
+        st.info(
+            f"✅ Fundamentos point-in-time: {m.get('n_rebalances_pit', 0)} reajustes "
+            f"usaram o histórico disponível até a data. "
+            f"{m.get('n_rebalances_snapshot', 0)} reajustes caíram para o retrato atual.",
+            icon=":material/verified:",
+        )
+    else:
+        st.warning(
+            "⚠️ O score usou o **retrato atual** dos fundamentos em todos os reajustes "
+            "(sem histórico ponto-a-ponto). Os números validam o **fluxo** da tese, "
+            "não o desempenho contábil exato de cada período.",
+            icon=":material/info:",
+        )
+    if m.get("costs_enabled"):
+        st.info(
+            f"💰 Custos aplicados — corretagem {m.get('cost_fee_bps', 0):.0f} bps, "
+            f"slippage {m.get('cost_slippage_bps', 0):.0f} bps, "
+            f"IR retido {m.get('cost_tax_rate', 0):.0%} sobre dividendos.",
+            icon=":material/payments:",
+        )
 
 render_kpi_row(
     [
@@ -224,41 +297,60 @@ render_kpi_row(
 # KPIs vs benchmarks
 ibov_r = m.get("ibov_return")
 cdi_r = m.get("cdi_return")
-if ibov_r is not None or cdi_r is not None:
+idiv_r = m.get("idiv_return")
+if ibov_r is not None or cdi_r is not None or idiv_r is not None:
     xs_ibov = m.get("excess_vs_ibov")
     xs_cdi = m.get("excess_vs_cdi")
-    render_kpi_row(
-        [
-            (
-                "Ibovespa (mesmo período)",
-                format_pct(ibov_r) if ibov_r is not None else "—",
-                None,
-                None,
-            ),
-            (
-                "CDI (mesmo período)",
-                format_pct(cdi_r) if cdi_r is not None else "—",
-                None,
-                None,
-            ),
-            (
-                "Vs Ibovespa",
-                format_pct(xs_ibov) if xs_ibov is not None else "—",
-                "acima" if (xs_ibov or 0) >= 0 else "abaixo",
-                "up" if (xs_ibov or 0) >= 0 else "down",
-            ),
+    xs_idiv = m.get("excess_vs_idiv")
+    row: list[tuple] = [
+        (
+            "Ibovespa (mesmo período)",
+            format_pct(ibov_r) if ibov_r is not None else "—",
+            None,
+            None,
+        ),
+        (
+            "CDI (mesmo período)",
+            format_pct(cdi_r) if cdi_r is not None else "—",
+            None,
+            None,
+        ),
+        (
+            "IDIV (mesmo período)",
+            format_pct(idiv_r) if idiv_r is not None else "—",
+            None,
+            None,
+        ),
+        (
+            "Vs Ibovespa",
+            format_pct(xs_ibov) if xs_ibov is not None else "—",
+            "acima" if (xs_ibov or 0) >= 0 else "abaixo",
+            "up" if (xs_ibov or 0) >= 0 else "down",
+        ),
+    ]
+    if len(row) < 5:
+        row.append(
             (
                 "Vs CDI",
                 format_pct(xs_cdi) if xs_cdi is not None else "—",
                 "acima" if (xs_cdi or 0) >= 0 else "abaixo",
                 "up" if (xs_cdi or 0) >= 0 else "down",
-            ),
-        ]
+            )
+        )
+    row.append(
+        (
+            "Vs IDIV",
+            format_pct(xs_idiv) if xs_idiv is not None else "—",
+            "acima" if (xs_idiv or 0) >= 0 else "abaixo",
+            "up" if (xs_idiv or 0) >= 0 else "down",
+        )
     )
+    render_kpi_row(row)
     bm_meta = m.get("benchmark_meta") or {}
     st.caption(
         f"Fontes dos benchmarks · Ibovespa: {bm_meta.get('ibov_source', '—')} · "
-        f"CDI: {bm_meta.get('cdi_source', '—')}"
+        f"CDI: {bm_meta.get('cdi_source', '—')} · "
+        f"IDIV: {bm_meta.get('idiv_source', '—')}"
     )
 
 # Curva com benchmarks
@@ -298,13 +390,24 @@ if bm is not None and not getattr(bm, "empty", True):
                 hovertemplate="%{x|%d/%m/%Y}<br>CDI R$ %{y:,.2f}<extra></extra>",
             )
         )
+    if "idiv" in bm.columns and bm["idiv"].notna().any():
+        fig.add_trace(
+            go.Scatter(
+                x=bm["date"],
+                y=bm["idiv"],
+                mode="lines",
+                name="IDIV",
+                line={"color": "#FBBF24", "width": 2, "dash": "dash", "shape": "spline"},
+                hovertemplate="%{x|%d/%m/%Y}<br>IDIV R$ %{y:,.2f}<extra></extra>",
+            )
+        )
 fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     height=400,
     margin={"l": 40, "r": 16, "t": 40, "b": 40},
     title={
-        "text": "Patrimônio: tese × Ibovespa × CDI",
+        "text": "Patrimônio: tese × benchmarks",
         "font": {"size": 14, "color": "#CBD5E1"},
     },
     font={"color": "#94A3B8", "family": "Inter, sans-serif"},
@@ -375,9 +478,46 @@ with st.expander("Ordens e dividendos do período", icon=":material/receipt_long
 
 with st.expander("Lembrar das limitações", icon=":material/info:"):
     st.caption(
-        "Ferramenta de estudo. Score fundamental do MVP não é point-in-time completo. "
-        "Não inclui custos nem impostos. Não é recomendação de investimento."
+        "Ferramenta de estudo. Score fundamental não é point-in-time contábil. "
+        "Custos de corretagem/slippage podem estar ligados. Não é recomendação de investimento."
     )
+
+# ── Exportar relatório ──────────────────────────────────────
+st.markdown("##### Exportar relatório")
+with st.container(border=True):
+    st.caption(
+        "Baixe os números para estudar em planilha ou gere uma página imprimível "
+        "(salve como PDF pelo navegador)."
+    )
+    x1, x2, x3 = st.columns(3)
+    with x1:
+        st.download_button(
+            "Pacote completo (ZIP)",
+            data=backtest_to_csv_bundle(result),
+            file_name=f"backtest-{m['start']}-a-{m['end']}.zip",
+            mime="application/zip",
+            type="primary",
+            width="stretch",
+            key="bt_dl_zip",
+        )
+    with x2:
+        st.download_button(
+            "Curva de patrimônio (CSV)",
+            data=equity_curve_csv(result),
+            file_name=f"backtest-patrimonio-{m['start']}-a-{m['end']}.csv",
+            mime="text/csv",
+            width="stretch",
+            key="bt_dl_csv",
+        )
+    with x3:
+        st.download_button(
+            "Relatório (HTML → PDF)",
+            data=backtest_to_html(result),
+            file_name=f"backtest-relatorio-{m['start']}-a-{m['end']}.html",
+            mime="text/html",
+            width="stretch",
+            key="bt_dl_html",
+        )
 
 if st.button("Limpar resultado e ver o guia de novo", key="bt_clear"):
     st.session_state.pop("backtest_result", None)

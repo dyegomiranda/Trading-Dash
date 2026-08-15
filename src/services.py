@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
 
 from src.config import get_settings
-from src.data.providers import ProviderName, get_provider
+from src.data.providers import ProviderName, get_provider, is_realtime_provider
 from src.data.universe import get_universe
+from src.thesis.macro import macro_tilt_from_settings
 from src.thesis.scoring import ScoreResult, recommend_weights, score_universe
+from src.utils import utcnow
 
 
 def load_scored_universe(
     provider_name: ProviderName = "demo",
     min_score: float | None = None,
-    strict_filters: bool = False,
+    strict_filters: bool = True,
     tickers: list[str] | None = None,
     *,
     universe_mode: str = "auto",
@@ -33,7 +34,7 @@ def load_scored_universe(
     else:
         mode = universe_mode
         if mode == "auto":
-            mode = "core" if provider_name == "yfinance" else "full"
+            mode = "core" if is_realtime_provider(provider_name) else "full"
         universe = get_universe(mode=mode)
     fundamentals = provider.get_fundamentals(universe)
     settings = get_settings()
@@ -52,11 +53,12 @@ def build_recommendations(
     settings = get_settings()
     top_n = top_n or settings.default_top_n
     return recommend_weights(
-        scored.filtered if not scored.filtered.empty else scored.scored,
+        scored.filtered,
         top_n=top_n,
         core_weight=settings.core_weight,
         satellite_weight=settings.satellite_weight,
         max_position_pct=settings.max_position_pct,
+        macro_tilt=macro_tilt_from_settings(settings),
     )
 
 
@@ -73,15 +75,21 @@ def prices_dict_from_fundamentals(fundamentals: pd.DataFrame) -> dict[str, float
 
 
 def format_pct(x: float | None, decimals: int = 1) -> str:
+    """Percentual no locale ativo — delega ao hook de formatação."""
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return "—"
-    return f"{x * 100:.{decimals}f}%"
+    from src.format_hooks import format_pct_hook
+
+    return format_pct_hook(x, decimals)
 
 
 def format_brl(x: float | None) -> str:
+    """Moeda no locale ativo — delega ao hook de formatação."""
     if x is None or (isinstance(x, float) and pd.isna(x)):
         return "—"
-    return f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    from src.format_hooks import format_brl_hook
+
+    return format_brl_hook(x)
 
 
 def thesis_summary() -> dict[str, Any]:
@@ -96,5 +104,5 @@ def thesis_summary() -> dict[str, Any]:
         "satellite_weight": s.satellite_weight,
         "preferred_dy": f"{s.preferred_dy_min:.0%}–{s.preferred_dy_max:.0%}",
         "min_score": s.rebalance_min_score,
-        "as_of": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "as_of": utcnow().strftime("%Y-%m-%d %H:%M UTC"),
     }

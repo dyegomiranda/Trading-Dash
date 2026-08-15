@@ -73,14 +73,14 @@ Se algo estiver incompleto, a nota da empresa perde força — de propósito.
         elif step == 2:
             st.markdown(
                 """
-**Caminho recomendado (4 cliques mentais)**
+**Caminho recomendado**
 
-1. **Descubra ações** — veja notas e gráficos  
-2. **Minha carteira → Montar carteira** — defina capital e clique em **Montar carteira com a tese**  
-3. **Receber dividendos da bolsa** — veja renda caindo no caixa (real ou estimativa do mês)  
-4. **Renda esperada** — aportes + 3 cenários (cauteloso / base / animado)
+1. Fique no **Modo treino** nesta primeira visita (já está ligado)  
+2. **Descubra ações** — notas, radar dos 4 pilares e o porquê de cada nome  
+3. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil de treino)  
+4. **Renda esperada** — 3 cenários, sem mágica
 
-Depois, se quiser: **Teste no passado** e o **Guia do iniciante**.
+Depois, se quiser: **Teste no passado** (ensaio com o retrato de hoje) e o **Guia**.
 """
             )
         else:
@@ -89,10 +89,10 @@ Depois, se quiser: **Teste no passado** e o **Guia do iniciante**.
 **Checklist rápido**
 
 - [ ] Entendi que é **treino** até eu validar fora do app  
-- [ ] Vou começar por **Descubra ações** ou **Montar carteira com a tese**  
-- [ ] Vou olhar a **Renda esperada** com aportes mensais  
+- [ ] Vou começar no **Modo treino** e só depois pedir Bolsa real  
+- [ ] O botão que monta o livro é **Montar carteira com a tese**
 
-Quando quiser, reabra este guia no menu **Guia do iniciante**.
+Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
 """
             )
             st.success(
@@ -111,9 +111,15 @@ Quando quiser, reabra este guia no menu **Guia do iniciante**.
                 st.session_state["onboarding_step"] = step + 1
                 st.rerun()
         else:
-            if st.button("Começar a usar", type="primary", width="stretch", key="ob_done"):
+            if st.button(
+                "Começar no modo treino",
+                type="primary",
+                width="stretch",
+                key="ob_done",
+            ):
                 mark_onboarding_done()
                 st.session_state["onboarding_step"] = 0
+                st.session_state["data_provider"] = "demo"
                 st.rerun()
     with c3:
         if st.button("Pular tour", width="stretch", key="ob_skip"):

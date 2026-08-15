@@ -12,6 +12,10 @@ data/cache/*
 !data/cache/.gitkeep
 data/portfolio/*.json
 !data/portfolio/.gitkeep
+data/logs/*.jsonl
+!data/logs/.gitkeep
+data/scores/*.json
+!data/scores/.gitkeep
 *.log
 .DS_Store
 .agents/

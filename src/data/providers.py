@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import time
@@ -13,10 +14,19 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
-from src.config import CACHE_DIR, CORE_SECTORS, get_settings
+from src.config import CACHE_DIR, get_settings
 from src.data.universe import get_universe, normalize_ticker, to_yf_symbol
+from src.utils import utcnow, utcnow_date
 
-ProviderName = Literal["demo", "yfinance"]
+ProviderName = Literal["demo", "yfinance", "brapi"]
+
+# Fontes de mercado real (usam scan core rápido, têm banner de dados reais,
+# não mostram aviso "modo treino"). Demo fica de fora.
+REALTIME_PROVIDERS: frozenset[str] = frozenset({"yfinance", "brapi"})
+
+
+def is_realtime_provider(name: str) -> bool:
+    return name in REALTIME_PROVIDERS
 
 
 class DataProvider(ABC):
@@ -47,7 +57,7 @@ class DataProvider(ABC):
         """Dividendos: date, ticker, amount."""
 
     def get_latest_prices(self, tickers: list[str]) -> pd.Series:
-        end = datetime.utcnow()
+        end = utcnow()
         start = end - timedelta(days=14)
         hist = self.get_price_history(tickers, start=start, end=end)
         if hist.empty:
@@ -227,6 +237,27 @@ def _write_cache(key: str, data: Any) -> None:
     )
 
 
+def clear_disk_cache() -> int:
+    """Apaga o cache em disco (``data/cache/*.json``). Best effort, nunca falha.
+
+    Retorna quantos arquivos foram removidos. Usado pelo refresh "forçado"
+    (atualizar dados de mercado ignora o TTL do disco e busca de novo).
+    """
+    removed = 0
+    try:
+        if not CACHE_DIR.exists():
+            return 0
+        for p in CACHE_DIR.glob("*.json"):
+            try:
+                p.unlink()
+                removed += 1
+            except OSError:
+                pass
+    except Exception:
+        return removed
+    return removed
+
+
 class DemoDataProvider(DataProvider):
     """Mercado sintético determinístico para testes offline e backtest."""
 
@@ -259,23 +290,21 @@ class DemoDataProvider(DataProvider):
             industry = meta.get("industry")
             name = meta.get("name") or t
             # qualidade um pouco maior se setor está no core da tese
-            is_core = sector in CORE_SECTORS
-            quality_boost = 0.06 if is_core else 0.0
-            roe = float(np.clip(rng.normal(0.16 + quality_boost, 0.07), -0.05, 0.45))
-            roic = float(np.clip(roe - rng.uniform(0, 0.04), -0.05, 0.40))
-            net_margin = float(np.clip(rng.normal(0.12 if is_core else 0.06, 0.05), -0.1, 0.35))
+            roe = float(np.clip(rng.normal(0.16, 0.07), -0.05, 0.45))
+            roic = float(np.clip(roe - rng.uniform(0.01, 0.04), -0.05, 0.40))
+            net_margin = float(np.clip(rng.normal(0.09, 0.05), -0.1, 0.35))
             ebitda_margin = float(np.clip(net_margin + rng.uniform(0.03, 0.12), 0, 0.5))
-            dy = float(np.clip(rng.normal(0.065 if is_core else 0.04, 0.025), 0.0, 0.18))
+            dy = float(np.clip(rng.normal(0.06, 0.025), 0.0, 0.18))
             payout = float(np.clip(rng.normal(0.55, 0.15), 0.05, 0.95))
-            debt = float(np.clip(rng.normal(1.5 if is_core else 2.8, 1.0), 0, 8))
-            pe = float(np.clip(rng.normal(10 if is_core else 14, 5), 3, 40))
+            debt = float(np.clip(rng.normal(1.8, 1.0), 0, 8))
+            pe = float(np.clip(rng.normal(12, 5), 3, 40))
             pb = float(np.clip(rng.normal(1.6, 0.8), 0.3, 6))
             ev_ebitda = float(np.clip(rng.normal(7.5, 3), 2, 25))
             rev_cagr = float(np.clip(rng.normal(0.06, 0.08), -0.2, 0.35))
             earn_cagr = float(np.clip(rng.normal(0.05, 0.1), -0.3, 0.4))
             fcf_yield = float(np.clip(rng.normal(0.06, 0.04), -0.05, 0.2))
-            div_growth = float(np.clip(rng.normal(0.05 if is_core else 0.01, 0.06), -0.3, 0.3))
-            years_div = int(np.clip(rng.integers(1, 15) + (3 if is_core else 0), 0, 20))
+            div_growth = float(np.clip(rng.normal(0.03, 0.06), -0.3, 0.3))
+            years_div = int(np.clip(rng.integers(2, 16), 0, 20))
             price = float(np.clip(rng.uniform(8, 80), 1, 200))
             rows.append(
                 {
@@ -308,7 +337,7 @@ class DemoDataProvider(DataProvider):
                     "years_paying_dividend": years_div,
                     "fcf_positive": fcf_yield > 0,
                     "currency": "BRL",
-                    "as_of": datetime.utcnow().date().isoformat(),
+                    "as_of": utcnow_date(),
                     "source": "demo_synthetic_metrics+b3_reference_meta",
                     "data_quality": "synthetic_fundamentals",
                     "meta_source": meta.get("source") or "reference",
@@ -333,17 +362,20 @@ class DemoDataProvider(DataProvider):
         rng = self._rng_for(ticker)
         fund = self._fundamentals.loc[ticker] if ticker in self._fundamentals.index else None
         base = float(fund["price"]) if fund is not None else 20.0
-        quality = float(fund["roe"]) if fund is not None else 0.1
+        dy = float(fund["dividend_yield"]) if fund is not None else 0.0
         days = pd.bdate_range(start, end)
         if len(days) == 0:
             return pd.DataFrame()
-        mu = 0.08 + quality * 0.15  # drift anual
-        vol = 0.22 - min(quality, 0.25) * 0.3
+        mu = 0.06
+        vol = 0.22
         dt = 1 / 252
         shocks = rng.normal((mu - 0.5 * vol**2) * dt, vol * np.sqrt(dt), size=len(days))
-        # Começa com ruído histórico para não ancorar só no preço atual
         path = base * np.exp(np.cumsum(shocks[::-1])[::-1])
         path = path / path[-1] * base
+        if dy > 0:
+            for i, day in enumerate(days):
+                if (day.month, day.day) in ((5, 15), (11, 15)):
+                    path[i:] = np.maximum(path[i:] - float(path[i]) * dy / 2.0, 0.5)
         df = pd.DataFrame(
             {
                 "date": days,
@@ -366,7 +398,7 @@ class DemoDataProvider(DataProvider):
         end: str | datetime | None = None,
     ) -> pd.DataFrame:
         start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end or datetime.utcnow())
+        end_ts = pd.Timestamp(end or utcnow())
         frames = []
         for t in tickers:
             nt = normalize_ticker(t)
@@ -386,7 +418,7 @@ class DemoDataProvider(DataProvider):
         end: str | datetime | None = None,
     ) -> pd.DataFrame:
         start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end or datetime.utcnow())
+        end_ts = pd.Timestamp(end or utcnow())
         rows = []
         for t in tickers:
             nt = normalize_ticker(t)
@@ -407,10 +439,11 @@ class DemoDataProvider(DataProvider):
                                 "date": d,
                                 "ticker": nt,
                                 "amount": annual / 2,
+                                "ex_date": d,
                             }
                         )
         if not rows:
-            return pd.DataFrame(columns=["date", "ticker", "amount"])
+            return pd.DataFrame(columns=["date", "ticker", "amount", "ex_date"])
         return pd.DataFrame(rows)
 
 
@@ -455,9 +488,16 @@ class YFinanceDataProvider(DataProvider):
             rest = [t for t in tickers_resolved if t not in set(ordered)]
             tickers_resolved = (ordered + rest)[:max_n]
 
+        from src.data.ttl import ttl_for
+        from src.monitoring import coverage_event, timed
+
         cache_key = f"yf_fund_v4:{','.join(sorted(tickers_resolved))}"
-        cached = _read_cache(cache_key, self.settings.cache_ttl_hours)
+        cached = _read_cache(cache_key, ttl_for("fundamentals", self.settings))
         if cached is not None:
+            with contextlib.suppress(Exception):
+                from src.monitoring import cache_hit
+
+                cache_hit("fetch_fundamentals", n_tickers=len(tickers_resolved))
             return pd.DataFrame(cached)
 
         workers = int(getattr(self.settings, "yfinance_workers", 8) or 8)
@@ -483,7 +523,11 @@ class YFinanceDataProvider(DataProvider):
 
                 info: dict[str, Any] = {}
                 try:
-                    info = tk.info or {}
+                    from src.data.yf_retry import fetch_with_retry
+
+                    info = fetch_with_retry(
+                        lambda: (tk.info or {}), what=f"info {sym}", max_attempts=2
+                    )
                 except Exception:
                     info = {}
 
@@ -565,7 +609,7 @@ class YFinanceDataProvider(DataProvider):
                         )
                     ),
                     "currency": info.get("currency") or "BRL",
-                    "as_of": datetime.utcnow().date().isoformat(),
+                    "as_of": utcnow_date(),
                     "source": "yfinance",
                     "data_quality": quality,
                     "meta_source": (
@@ -579,19 +623,20 @@ class YFinanceDataProvider(DataProvider):
         rows: list[dict[str, Any]] = []
         # deadline global para não travar a UI (ex.: 40s)
         global_timeout = min(45.0, max(12.0, len(tickers_resolved) * t_timeout / max(workers, 1) + 8))
-        with ThreadPoolExecutor(max_workers=max(2, workers)) as pool:
-            futs = {pool.submit(_fetch_one, t): t for t in tickers_resolved}
-            try:
-                for fut in as_completed(futs, timeout=global_timeout):
-                    try:
-                        row = fut.result(timeout=0.1)
-                    except Exception:
-                        row = None
-                    if row:
-                        rows.append(row)
-            except Exception:
-                # TimeoutError de as_completed — segue com o que já veio
-                pass
+        with timed("fetch_fundamentals", cache_hit=False, n_tickers=len(tickers_resolved)):
+            with ThreadPoolExecutor(max_workers=max(2, workers)) as pool:
+                futs = {pool.submit(_fetch_one, t): t for t in tickers_resolved}
+                try:
+                    for fut in as_completed(futs, timeout=global_timeout):
+                        try:
+                            row = fut.result(timeout=0.1)
+                        except Exception:
+                            row = None
+                        if row:
+                            rows.append(row)
+                except Exception:
+                    # TimeoutError de as_completed — segue com o que já veio
+                    pass
 
         # se Yahoo falhou quase tudo, ainda devolve meta+preço vazio a partir do cadastro
         # (melhor que travar / tela em branco)
@@ -631,7 +676,7 @@ class YFinanceDataProvider(DataProvider):
                     "years_paying_dividend": None,
                     "fcf_positive": None,
                     "currency": "BRL",
-                    "as_of": datetime.utcnow().date().isoformat(),
+                    "as_of": utcnow_date(),
                     "source": "yfinance",
                     "data_quality": "unavailable",
                     "meta_source": meta.get("source") or "reference",
@@ -644,6 +689,11 @@ class YFinanceDataProvider(DataProvider):
             # só cacheia se pelo menos 1 preço veio
             if (df["price"].fillna(0) > 0).any():
                 _write_cache(cache_key, df.to_dict(orient="records"))
+            # observabilidade: cobertura do snapshot (preços/DY/ROE)
+            from src.data.quality import coverage_summary
+
+            with contextlib.suppress(Exception):
+                coverage_event("fundamentals", coverage_summary(df))
         return df
 
 
@@ -655,31 +705,45 @@ class YFinanceDataProvider(DataProvider):
     ) -> pd.DataFrame:
         import yfinance as yf
 
+        from src.data.ttl import ttl_for
+
         tickers_n = [normalize_ticker(t) for t in tickers]
         symbols = [to_yf_symbol(t) for t in tickers_n]
         start_s = pd.Timestamp(start).strftime("%Y-%m-%d")
-        end_s = pd.Timestamp(end or datetime.utcnow()).strftime("%Y-%m-%d")
+        end_s = pd.Timestamp(end or utcnow()).strftime("%Y-%m-%d")
         cache_key = f"yf_px:{','.join(symbols)}:{start_s}:{end_s}"
-        cached = _read_cache(cache_key, self.settings.cache_ttl_hours)
+        cached = _read_cache(cache_key, ttl_for("prices", self.settings))
         if cached is not None:
             df = pd.DataFrame(cached)
             if not df.empty:
                 df["date"] = pd.to_datetime(df["date"], errors="coerce")
+            with contextlib.suppress(Exception):
+                from src.monitoring import cache_hit
+
+                cache_hit("fetch_prices", n_tickers=len(symbols))
             return df
 
         if not symbols:
             return pd.DataFrame(columns=list(_EMPTY_OHLCV))
 
+        from src.monitoring import timed
+
         try:
-            raw = yf.download(
-                symbols if len(symbols) > 1 else symbols[0],
-                start=start_s,
-                end=end_s,
-                group_by="ticker",
-                auto_adjust=False,
-                threads=True,
-                progress=False,
-            )
+            with timed("fetch_prices", cache_hit=False, n_tickers=len(symbols)):
+                from src.data.yf_retry import fetch_with_retry
+
+                raw = fetch_with_retry(
+                    lambda: yf.download(
+                        symbols if len(symbols) > 1 else symbols[0],
+                        start=start_s,
+                        end=end_s,
+                        group_by="ticker",
+                        auto_adjust=False,
+                        threads=True,
+                        progress=False,
+                    ),
+                    what=f"preços {len(symbols)} tickers",
+                )
         except Exception:
             return pd.DataFrame(columns=list(_EMPTY_OHLCV))
 
@@ -687,13 +751,11 @@ class YFinanceDataProvider(DataProvider):
         if out.empty:
             return pd.DataFrame(columns=list(_EMPTY_OHLCV))
 
-        try:
+        with contextlib.suppress(Exception):
             _write_cache(
                 cache_key,
                 out.assign(date=out["date"].astype(str)).to_dict(orient="records"),
             )
-        except Exception:
-            pass
         return out
 
     def get_dividend_history(
@@ -704,31 +766,51 @@ class YFinanceDataProvider(DataProvider):
     ) -> pd.DataFrame:
         import yfinance as yf
 
+        from src.data.yf_retry import fetch_with_retry
+        from src.monitoring import timed
+
         start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end or datetime.utcnow())
+        end_ts = pd.Timestamp(end or utcnow())
         rows = []
-        for t in tickers:
-            nt = normalize_ticker(t)
-            sym = to_yf_symbol(nt)
-            try:
-                tk = yf.Ticker(sym)
-                divs = tk.dividends
-                if divs is None or len(divs) == 0:
+        with timed("fetch_dividends", cache_hit=False, n_tickers=len(tickers)):
+            for t in tickers:
+                nt = normalize_ticker(t)
+                sym = to_yf_symbol(nt)
+                try:
+                    tk = yf.Ticker(sym)
+                    divs = fetch_with_retry(
+                        lambda: tk.dividends, what=f"dividendos {sym}"
+                    )
+                    if divs is None or len(divs) == 0:
+                        continue
+                    s = divs.copy()
+                    s.index = pd.to_datetime(s.index).tz_localize(None)
+                    mask = (s.index >= start_ts) & (s.index <= end_ts)
+                    s = s.loc[mask]
+                    for dt, amt in s.items():
+                        # O índice do Yahoo PARA dividendos é a data-ex
+                        # (quem tinha ação até esse dia tem direito ao provento).
+                        d_ex = pd.Timestamp(dt)
+                        rows.append(
+                            {
+                                "date": d_ex,
+                                "ticker": nt,
+                                "amount": float(amt),
+                                "ex_date": d_ex,
+                            }
+                        )
+                except Exception:
                     continue
-                s = divs.copy()
-                s.index = pd.to_datetime(s.index).tz_localize(None)
-                mask = (s.index >= start_ts) & (s.index <= end_ts)
-                s = s.loc[mask]
-                for dt, amt in s.items():
-                    rows.append({"date": pd.Timestamp(dt), "ticker": nt, "amount": float(amt)})
-            except Exception:
-                continue
         if not rows:
-            return pd.DataFrame(columns=["date", "ticker", "amount"])
+            return pd.DataFrame(columns=["date", "ticker", "amount", "ex_date"])
         return pd.DataFrame(rows)
 
 
 def get_provider(name: ProviderName = "demo") -> DataProvider:
+    if name == "brapi":
+        from src.data.providers_brapi import BrapiDataProvider
+
+        return BrapiDataProvider()
     if name == "yfinance":
         return YFinanceDataProvider()
     return DemoDataProvider()

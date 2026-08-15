@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
+
+from src.utils import utcnow
 
 # Campos importantes para a tese (quanto mais preenchidos, melhor a nota de confiança)
 _KEY_FIELDS = (
@@ -151,7 +152,7 @@ def coverage_summary(df: pd.DataFrame) -> dict[str, Any]:
             "avg_completeness": 0.0,
             "trust_label": "Sem dados",
             "trust_level": "fraca",
-            "as_of": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+            "as_of": utcnow().strftime("%Y-%m-%d %H:%M UTC"),
         }
 
     work = df
@@ -211,5 +212,5 @@ def coverage_summary(df: pd.DataFrame) -> dict[str, Any]:
         "avg_completeness": avg_comp,
         "trust_label": trust_label,
         "trust_level": trust_level,
-        "as_of": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "as_of": utcnow().strftime("%Y-%m-%d %H:%M UTC"),
     }

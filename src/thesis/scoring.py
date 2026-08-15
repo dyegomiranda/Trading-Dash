@@ -17,6 +17,7 @@ from src.config import (
     get_settings,
 )
 from src.data.quality import enrich_fundamentals_quality, row_completeness
+from src.thesis.macro import apply_sector_tilt
 
 # Colunas produzidas pelo motor (nunca devem ser entrada de rescore)
 _SCORE_OUTPUT_COLS = (
@@ -109,10 +110,12 @@ def _series(df: pd.DataFrame, col: str) -> pd.Series:
     return block
 
 
-def score_quality(row: pd.Series) -> float:
-    """0–100: ROE/ROIC, margens, FCF."""
+def score_quality(row: pd.Series) -> float | None:
+    """0–100: ROE/ROIC, margens, FCF. None se não há input — não inventa 50."""
     roe = _safe(_row_get(row, "roe"))
-    roic = _safe(_row_get(row, "roic"), roe)
+    roic = _safe(_row_get(row, "roic"))
+    if roic is not None and roe is not None and abs(roic - roe) < 1e-12:
+        roic = None  # Yahoo/brapi copiam ROE→ROIC; não contar duas vezes
     net_margin = _safe(_row_get(row, "net_margin"))
     ebitda_m = _safe(_row_get(row, "ebitda_margin"))
     fcf_pos = _row_get(row, "fcf_positive")
@@ -131,10 +134,10 @@ def score_quality(row: pd.Series) -> float:
     elif fcf_pos is False:
         parts.append(25.0)
 
-    return float(np.mean(parts)) if parts else 50.0
+    return float(np.mean(parts)) if parts else None
 
 
-def score_dividends(row: pd.Series, settings: Settings) -> float:
+def score_dividends(row: pd.Series, settings: Settings) -> float | None:
     """0–100: DY sustentável, payout, histórico. Penaliza armadilha de yield alto."""
     dy = _safe(_row_get(row, "dividend_yield"))
     payout = _safe(_row_get(row, "payout"))
@@ -166,7 +169,9 @@ def score_dividends(row: pd.Series, settings: Settings) -> float:
     if years is not None:
         parts.append(_clip01(years / 10.0) * 100)
 
-    base = float(np.mean(parts)) if parts else 45.0
+    if not parts:
+        return None
+    base = float(np.mean(parts))
 
     # Armadilha de yield: DY alto + sinais fracos de sustentabilidade
     trap = float(getattr(settings, "high_yield_trap", 0.14) or 0.14)
@@ -183,7 +188,7 @@ def score_dividends(row: pd.Series, settings: Settings) -> float:
     return base
 
 
-def score_financial_health(row: pd.Series, settings: Settings) -> float:
+def score_financial_health(row: pd.Series, settings: Settings) -> float | None:
     debt = _safe(_row_get(row, "net_debt_ebitda"))
     de = _safe(_row_get(row, "debt_equity"))
     cr = _safe(_row_get(row, "current_ratio"))
@@ -205,10 +210,10 @@ def score_financial_health(row: pd.Series, settings: Settings) -> float:
     if fcf_y is not None:
         parts.append(_clip01((fcf_y + 0.02) / 0.12) * 100)
 
-    return float(np.mean(parts)) if parts else 50.0
+    return float(np.mean(parts)) if parts else None
 
 
-def score_valuation(row: pd.Series) -> float:
+def score_valuation(row: pd.Series) -> float | None:
     pe = _safe(_row_get(row, "pe"))
     pb = _safe(_row_get(row, "pb"))
     ev = _safe(_row_get(row, "ev_ebitda"))
@@ -237,7 +242,23 @@ def score_valuation(row: pd.Series) -> float:
     if peg is not None and peg > 0:
         parts.append(_clip01(1.5 / max(peg, 0.3)) * 80)
 
-    return float(np.mean(parts)) if parts else 50.0
+    return float(np.mean(parts)) if parts else None
+
+
+def is_suggestion_eligible(row: pd.Series, settings: Settings | None = None) -> bool:
+    """Sugestão da tese exige ROE + DY + (payout ou FCF conhecido)."""
+    del settings
+    roe = _safe(_row_get(row, "roe"))
+    dy = _safe(_row_get(row, "dividend_yield"))
+    payout = _safe(_row_get(row, "payout"))
+    fcf = _row_get(row, "fcf_positive")
+    if roe is None or dy is None or dy <= 0:
+        return False
+    return not (payout is None and fcf is None)
+
+
+def _round_or_none(val: float | None) -> float | None:
+    return None if val is None else round(float(val), 2)
 
 
 def composite_score(row: pd.Series, settings: Settings | None = None) -> dict[str, float]:
@@ -246,31 +267,43 @@ def composite_score(row: pd.Series, settings: Settings | None = None) -> dict[st
     d = score_dividends(row, settings)
     h = score_financial_health(row, settings)
     v = score_valuation(row)
-    total = (
-        q * SCORE_WEIGHTS["quality"]
-        + d * SCORE_WEIGHTS["dividends"]
-        + h * SCORE_WEIGHTS["financial_health"]
-        + v * SCORE_WEIGHTS["valuation"]
-    )
-    # Dados muito incompletos → nota menos confiante (não inventa qualidade)
+
+    weighted = 0.0
+    wsum = 0.0
+    for val, key in (
+        (q, "quality"),
+        (d, "dividends"),
+        (h, "financial_health"),
+        (v, "valuation"),
+    ):
+        if val is not None:
+            w = float(SCORE_WEIGHTS[key])
+            weighted += val * w
+            wsum += w
+    total = (weighted / wsum) if wsum > 0 else 0.0
+
+    missing_pillars = sum(1 for x in (q, d, h, v) if x is None)
+    if missing_pillars:
+        total *= max(0.40, 1.0 - 0.14 * missing_pillars)
+
     completeness = row_completeness(row)
     if completeness < 0.45:
-        total *= 0.75 + 0.25 * (completeness / 0.45)
+        total *= 0.55 + 0.45 * (completeness / 0.45)
     elif completeness < 0.65:
-        total *= 0.88 + 0.12 * ((completeness - 0.45) / 0.20)
+        total *= 0.75 + 0.25 * ((completeness - 0.45) / 0.20)
 
-    # Sem preço válido não deve aparecer como “ótima sugestão”
     price = _safe(_row_get(row, "price"))
     if price is None or price <= 0:
         total = min(total, 40.0)
 
     return {
-        "score_quality": round(q, 2),
-        "score_dividends": round(d, 2),
-        "score_financial_health": round(h, 2),
-        "score_valuation": round(v, 2),
+        "score_quality": _round_or_none(q),
+        "score_dividends": _round_or_none(d),
+        "score_financial_health": _round_or_none(h),
+        "score_valuation": _round_or_none(v),
         "score_total": round(float(total), 2),
         "data_completeness": round(completeness * 100, 1),
+        "eligible": is_suggestion_eligible(row, settings),
     }
 
 
@@ -290,7 +323,7 @@ def apply_filters(
     settings: Settings | None = None,
     min_score: float | None = None,
     require_dividend: bool = True,
-    strict: bool = False,
+    strict: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Filtra universo amplo. Retorna (aprovados, rejeitados com motivo)."""
     settings = settings or get_settings()
@@ -316,18 +349,23 @@ def apply_filters(
             why.append("sem preço")
         if require_dividend and (dy is None or dy <= 0):
             why.append("sem dividendo")
-        if strict and roe is not None and roe < settings.min_roe:
+        if strict and not is_suggestion_eligible(row, settings):
+            why.append("dados incompletos para a tese (falta ROE, DY ou payout/FCF)")
+        if strict and roe is None:
+            why.append("sem ROE")
+        elif strict and roe is not None and roe < settings.min_roe:
             why.append(f"ROE<{settings.min_roe:.0%}")
-        if strict and debt is not None and debt > settings.max_net_debt_ebitda:
+        if strict and debt is None:
+            why.append("sem dado de dívida")
+        elif strict and debt is not None and debt > settings.max_net_debt_ebitda:
             why.append("alavancagem alta")
         if strict and payout is not None and payout > settings.max_payout:
             why.append("payout alto")
         if score < min_score:
             why.append(f"score<{min_score}")
-        # Armadilha de yield no filtro rigoroso
         trap = float(getattr(settings, "high_yield_trap", 0.14) or 0.14)
         if strict and dy is not None and dy >= trap:
-            if payout is not None and payout > settings.max_payout:
+            if payout is None or payout > settings.max_payout:
                 why.append("possível armadilha de dividendo alto")
         reasons.append("; ".join(why) if why else "")
 
@@ -342,12 +380,17 @@ def score_universe(
     fundamentals: pd.DataFrame,
     settings: Settings | None = None,
     min_score: float | None = None,
-    strict_filters: bool = False,
+    strict_filters: bool = True,
 ) -> ScoreResult:
     settings = settings or get_settings()
     if fundamentals is None or fundamentals.empty:
         empty = fundamentals.copy() if fundamentals is not None else pd.DataFrame()
         return ScoreResult(empty, empty.copy(), empty.copy(), {"count": 0})
+
+    # Fronteira única de schema: normaliza o contrato antes de pontuar
+    from src.data.schemas import coerce_fundamentals
+
+    fundamentals = coerce_fundamentals(fundamentals, op="score_input")
 
     # Base limpa: sem scores antigos e sem colunas duplicadas
     base = _strip_score_columns(fundamentals).reset_index(drop=True)
@@ -407,9 +450,15 @@ def recommend_weights(
     satellite_weight: float = 0.30,
     max_position_pct: float = 0.10,
     max_sector_pct: float | None = None,
+    macro_tilt: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     """Distribui pesos core/satélite entre top N, com teto por ação e por setor.
 
+    ``macro_tilt`` (opcional): vetor de multiplicador por setor vindo do regime
+    macro (``src.thesis.macro.sector_tilt``). É aplicado sobre os pesos já
+    distribuídos (antes do teto por ação/setor) e re-normalizado para somar 1.0 —
+    não cria nem exclui posições; apenas reorienta a carteira modelo conforme o
+    ciclo (ex.: mais utilities/staples em juros altos).
     Mantém a montagem automática da tese amigável, mas evita concentração excessiva
     (mais realista e mais segura para iniciantes).
     """
@@ -430,9 +479,14 @@ def recommend_weights(
 
     if "score_total" in work.columns:
         work = work.sort_values(by="score_total", ascending=False, kind="mergesort")
-    # Evita muitas do mesmo setor no top (diversificação na seleção)
+    if "eligible" in work.columns:
+        eligible = work[work["eligible"] == True]  # noqa: E712
+        if not eligible.empty:
+            work = eligible
+
+    # Teto de nomes por setor (~3 em uma lista de 15) — mais próximo de um livro iniciante
     if "sector" in work.columns and max_sector_pct > 0:
-        max_per_sector = max(2, int(np.ceil(top_n * max_sector_pct * 1.5)))
+        max_per_sector = max(2, int(np.ceil(top_n * 0.20)))
         selected_idx: list[int] = []
         sector_count: dict[str, int] = {}
         for idx, row in work.iterrows():
@@ -453,12 +507,13 @@ def recommend_weights(
     if "bucket" not in picks.columns:
         picks["bucket"] = "satellite"
     if "score_total" not in picks.columns:
-        picks["score_total"] = 50.0
+        picks["score_total"] = np.nan
     if "ticker" not in picks.columns:
         raise ValueError("DataFrame de ranking precisa da coluna 'ticker'.")
 
     bucket = _series(picks, "bucket")
-    score_total = pd.to_numeric(_series(picks, "score_total"), errors="coerce").fillna(50.0)
+    score_total = pd.to_numeric(_series(picks, "score_total"), errors="coerce")
+    score_total = score_total.where(score_total.notna() & (score_total > 0), 1.0)
     ticker = _series(picks, "ticker").astype(str)
 
     core_mask = bucket.eq("core")
@@ -484,6 +539,11 @@ def recommend_weights(
 
     picks = picks.copy()
     picks["target_weight"] = ticker.map(weights).fillna(0.0).astype(float)
+
+    # Inclinação macro: reorienta os pesos por setor (renormaliza; não cria nem
+    # exclui posições). Aplica antes dos tetos para o tilt não ser anulado.
+    if macro_tilt:
+        picks = apply_sector_tilt(picks, macro_tilt, sector_col="sector")
 
     # Itera: teto por ação + teto por setor + renormaliza para baixo se preciso
     for _ in range(12):

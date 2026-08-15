@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import html
-from typing import Sequence
+from collections.abc import Sequence
 
 import streamlit as st
 
@@ -257,4 +257,24 @@ def style_plotly_fig(fig):
     fig.update_layout(**plotly_layout(title_font=dict(size=15, color=COLORS["text"])))
     fig.update_traces(marker_line_width=0)
     return fig
+
+
+def render_core_sectors_card() -> None:
+    """Setores da base da tese, em português — o que o iniciante precisa ver."""
+    with st.container(border=True):
+        st.markdown("##### Base da tese (~70%)")
+        st.markdown(
+            """
+A carteira **base** privilegia negócios mais previsíveis no Brasil:
+
+- **Energia e saneamento** (utilities) — tarifas e caixa mais estáveis  
+- **Bancos e seguros** — lucro recorrente, histórico de dividendo  
+- **Telecom** — receita de assinatura  
+- **Consumo básico** (alimentos, higiene) — demanda pouco cíclica  
+
+O **complemento** (~30%) pode ter indústria, materiais, energia de commodity
+e outros — com teto por ação e por setor. Isso não é uma lista BESST fechada;
+é o recorte que o app usa para “renda com qualidade”.
+"""
+        )
 

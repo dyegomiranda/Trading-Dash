@@ -2,25 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import pandas as pd
 
 from src.data.providers import DemoDataProvider
 from src.portfolio.dividends_live import dividends_frame, sync_paper_dividends
 from src.portfolio.export import portfolio_to_csv_bundle, holdings_export_df
 from src.portfolio.paper import PaperPortfolio
+from src.utils import utcnow
 
 
 def test_shares_at_from_trades():
     pf = PaperPortfolio.create(name="div-test", cash=50_000)
-    t0 = (datetime.utcnow() - timedelta(days=30)).isoformat()
-    t1 = (datetime.utcnow() - timedelta(days=10)).isoformat()
+    t0 = (utcnow() - timedelta(days=30)).isoformat()
+    t1 = (utcnow() - timedelta(days=10)).isoformat()
     pf.buy("ITUB4", 100, 30.0, ts=t0)
     pf.sell("ITUB4", 40, 32.0, ts=t1)
-    mid = datetime.utcnow() - timedelta(days=20)
+    mid = utcnow() - timedelta(days=20)
     assert abs(pf.shares_at("ITUB4", mid) - 100) < 1e-6
-    assert abs(pf.shares_at("ITUB4", datetime.utcnow()) - 60) < 1e-6
+    assert abs(pf.shares_at("ITUB4", utcnow()) - 60) < 1e-6
 
 
 def test_credit_dividend_dedup():
@@ -37,7 +37,7 @@ def test_credit_dividend_dedup():
 def test_sync_demo_dividends():
     pf = PaperPortfolio.create(name="div-demo", cash=100_000)
     # compra no passado distante para pegar divs simulados do demo
-    past = (datetime.utcnow() - timedelta(days=400)).isoformat()
+    past = (utcnow() - timedelta(days=400)).isoformat()
     pf.buy("ITUB4", 200, 25.0, ts=past)
     cash_before = pf.cash
     prov = DemoDataProvider()
@@ -63,7 +63,7 @@ def test_export_zip_nonempty():
     blob = portfolio_to_csv_bundle(pf, {"VALE3": 62.0})
     assert isinstance(blob, (bytes, bytearray))
     assert len(blob) > 100
-    assert b"posicoes.csv" in blob or b"PK" == blob[:2]  # zip magic
+    assert b"posicoes.csv" in blob or blob[:2] == b"PK"  # zip magic
     hold = holdings_export_df(pf, {"VALE3": 62.0})
     assert not hold.empty
     assert "ticker" in hold.columns

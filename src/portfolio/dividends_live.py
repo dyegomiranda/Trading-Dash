@@ -7,9 +7,11 @@ from typing import Any
 
 import pandas as pd
 
+from src.data.asset_type import asset_kind, dividend_tax_rate
 from src.data.providers import DataProvider, get_provider
 from src.data.universe import normalize_ticker
 from src.portfolio.paper import DividendEvent, PaperPortfolio
+from src.utils import utcnow
 
 
 def _as_naive_ts(value: Any) -> pd.Timestamp:
@@ -27,7 +29,7 @@ def _lookback_start(portfolio: PaperPortfolio, max_days: int = 540) -> pd.Timest
 
     A busca é larga; o crédito ainda só ocorre se havia posição na data.
     """
-    floor = _as_naive_ts(datetime.utcnow()) - timedelta(days=int(max_days))
+    floor = _as_naive_ts(utcnow()) - timedelta(days=int(max_days))
     return floor.normalize()
 
 
@@ -56,7 +58,7 @@ def credit_estimated_monthly(
     e ainda não houve data-ex real. Identificador único por mês: ``EST|YYYY-MM``.
     """
     prices = prices or {}
-    now = as_of or datetime.utcnow()
+    now = as_of or utcnow()
     month_key = pd.Timestamp(now).strftime("%Y-%m")
     ex_date = f"EST|{month_key}"
     # reutiliza chave ticker|ex_date — usamos ticker sintético PORTFOLIO
@@ -121,13 +123,18 @@ def sync_paper_dividends(
     max_days: int = 540,
     fundamentals: pd.DataFrame | None = None,
     prices: dict[str, float] | None = None,
-    allow_monthly_estimate: bool = True,
+    allow_monthly_estimate: bool = False,
+    jcp_share: float = 0.0,
 ) -> dict[str, Any]:
     """Busca dividendos e credita em caixa os ainda não registrados.
 
     1) **Pagamentos reais** da fonte (Yahoo/demo), se você já tinha ações na data
     2) Se nada foi creditado e ``allow_monthly_estimate``, credita **estimativa do mês**
        com base no % de dividendo atual das posições (claro no extrato)
+
+    ``jcp_share`` modela JCP (fração do provento sujeita a IR). Default 0 =
+    dividendos de AÇÃO isentos; 0.5 modela metade como JCP retido a 15%.
+    FII sempre isento (regra do asset_type).
     """
     if isinstance(provider, str):
         prov = get_provider(provider)  # type: ignore[arg-type]
@@ -154,12 +161,13 @@ def sync_paper_dividends(
         "end": None,
         "estimated": False,
         "message": "Carteira sem ações/ordens — monte a carteira primeiro.",
+        "asset_kinds": {},
     }
     if not tickers:
         return empty_result
 
     start = _lookback_start(portfolio, max_days=max_days)
-    end_ts = _as_naive_ts(end or datetime.utcnow())
+    end_ts = _as_naive_ts(end or utcnow())
 
     credited: list[DividendEvent] = []
     skipped_dup = 0
@@ -184,7 +192,18 @@ def sync_paper_dividends(
             try:
                 ticker = normalize_ticker(str(row["ticker"]))
                 dt = _as_naive_ts(row["date"])
-                day = dt.strftime("%Y-%m-%d")
+
+                # Data-ex real quando a fonte fornece (`ex_date`); o que
+                # decide o direito é a posição NA DATA-EX, não no pagamento.
+                ex_value = row.get("ex_date") if "ex_date" in row.index else None
+                ex_ts = (
+                    _as_naive_ts(ex_value)
+                    if ex_value is not None
+                    and not (isinstance(ex_value, float) and pd.isna(ex_value))
+                    and not pd.isna(ex_value)
+                    else dt
+                )
+                day = ex_ts.strftime("%Y-%m-%d")
                 per_share = float(row["amount"])
                 if per_share <= 0:
                     continue
@@ -194,26 +213,35 @@ def sync_paper_dividends(
                     skipped_dup += 1
                     continue
 
-                qty = portfolio.shares_at(ticker, dt)
-                # Se a 1ª compra foi DEPOIS do dividendo, zero (correto).
+                qty = portfolio.shares_at(ticker, ex_ts - pd.Timedelta(microseconds=1))
+                # Na B3, tem direito quem tinha ação no fechamento do dia ANTERIOR
+                # à data-ex. Portanto consideramos a posição até o fim do dia antes
+                # do ex (ex_ts - 1µs): compra no próprio dia da data-ex não recebe.
                 # Se não há trades (só posição legada), usa posição atual se div >= created.
                 if qty <= 1e-12 and not portfolio.trades and ticker in portfolio.positions:
                     created = _as_naive_ts(portfolio.created_at)
-                    if dt.normalize() >= created.normalize():
+                    if ex_ts.normalize() >= created.normalize():
                         qty = float(portfolio.positions[ticker].shares)
 
                 if qty <= 1e-12:
                     skipped_shares += 1
                     continue
 
+                event_ts = row.get("payment_date") if "payment_date" in row.index else None
+                if event_ts is None or (isinstance(event_ts, float) and pd.isna(event_ts)) or pd.isna(event_ts):
+                    event_ts = ex_ts
+
                 ev = portfolio.credit_dividend(
                     ticker,
                     per_share,
-                    ts=dt.isoformat(),
+                    ts=_as_naive_ts(event_ts).isoformat(),
                     note=f"sync-{provider_name}",
                     shares=qty,
                     ex_date=day,
                     skip_if_duplicate=True,
+                    tax_rate=dividend_tax_rate(
+                        ticker, jcp_share=jcp_share
+                    ),
                 )
                 if ev is None:
                     skipped_dup += 1
@@ -237,6 +265,8 @@ def sync_paper_dividends(
             credited.append(ev_est)
             total_brl += float(ev_est.amount)
             estimated = True
+
+    asset_kinds: dict[str, str] = {t: asset_kind(t) for t in tickers}
 
     def _brl(x: float) -> str:
         return f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -284,6 +314,8 @@ def sync_paper_dividends(
         "estimated": estimated,
         "hist_rows": 0 if hist is None or hist.empty else int(len(hist)),
         "message": msg,
+        "asset_kinds": asset_kinds,
+        "jcp_share": jcp_share,
     }
 
 

@@ -47,26 +47,39 @@ Para ativar o venv no fish: `source .venv/bin/activate.fish`.
 
 ### Deploy no Streamlit Community Cloud (para o amigo testar sem instalar)
 
+**Antes de publicar**, rode o pre-flight local (mesmo “contrato” que o Cloud executa:
+`pip install -r requirements.txt` + `streamlit run app.py`, sem rede):
+
+```bash
+python deploy/preflight.py
+# deve terminar com "TUDO OK — pronto para deploy."
+```
+
+Passos no painel:
+
 1. Repo no GitHub: `https://github.com/dyegomiranda/Trading-Dash`  
 2. Acesse [share.streamlit.io](https://share.streamlit.io) e faça login com GitHub  
 3. **New app** → selecione o repo → branch `main`  
 4. **Main file path:** `app.py`  
-5. Deploy  
+5. **Secrets** (opcional): no painel **Settings → Secrets**, adicione
+   `BRAPI_TOKEN=...` (dados B3) e/ou `XAI_API_KEY=...` (coach com IA).
+   Tudo funciona sem elas; a fonte padrão é Yahoo.  
+6. Deploy  
 
-O app usa `requirements.txt` na raiz. Cache e carteiras paper ficam no servidor (efêmeros no free tier).
+**O que esperar do free tier:** cache e carteiras paper (`data/cache`, `data/portfolio`)
+são **ephemeral** — reiniciam a cada cold start/rebuild. A cobertura de dados
+(cadastro B3) é versionada no git e **sobrevive** ao deploy. Se quiser persistência
+real, é preciso um host com disco (ex.: render/fly.io + volume, ou Docker + bind mount).
 
 ---
 
 ## Uso rápido (iniciante)
 
-1. **Início** — veja o overview e as notícias.  
-2. **Descubra ações** — Modo treino → **Atualizar** → explore o ranking e o histórico.  
-3. **Minha carteira → Operar**  
-   - ajuste o **capital** se quiser  
-   - **Aplicar sugestões da tese** (feedback com as ordens)  
-   - ou aloque **manualmente** por ação  
-4. **Teste no passado** — leia o guia na tela → Modo treino + amostra rápida → **Rodar simulação**.  
-5. Dúvidas de vocabulário: **Guia do iniciante**.
+1. **Início** — tour curto; a primeira visita já entra no **Modo treino**.  
+2. **Descubra ações** — notas, radar dos 4 pilares e o porquê de cada nome.  
+3. **Minha carteira** — ajuste o capital se quiser e clique em **Montar carteira com a tese**.  
+4. **Renda esperada** — 3 cenários (sem inventar yield se a carteira estiver vazia).  
+5. **Teste no passado** (opcional) — ensaio do motor com o retrato de hoje, não o balanço de 2022.
 
 ---
 
@@ -77,6 +90,23 @@ O app usa `requirements.txt` na raiz. Cache e carteiras paper ficam no servidor 
 - empresas sólidas (lucro e caixa consistentes)  
 - dividendos **sustentáveis** (não “high yield trap”)  
 - carteira **base** (~70%) + **complemento** (~30%)  
+
+### Regime macro (opcional)
+
+O app pode reorientar os pesos sugeridos conforme o ciclo de juros reais (Selic − IPCA 12m),
+usando dados públicos do **Banco Central (SGS)**:
+
+- **Desligado** (padrão) — comportamento atual, sem inclinação setorial.
+- **Automático** — classifica Selic real em *expansivo / cauteloso / restritivo* e aplica
+  inclinação setorial correspondente (mais defensivas em juros altos; mais crescimento em
+  juros baixos).
+- **Manual** — escolha direta: juros altos, juros baixos ou neutro.
+
+A inclinação é **transparente e reversível**: multiplica o peso de cada setor (range ±~15%),
+renormaliza para somar 100% e respeita os tetos por ação/setor — nunca cria nem exclui
+posições. Configure em **Regime macro** na barra lateral (vale na lista e em Montar carteira)
+ou via `MACRO_OVERRIDE` no `.env` (`off` | `auto` | `expansionary` | `cautious` | `restrictive`).
+A série usada é a **meta Selic (SGS 432)**, em % a.a.
 
 ---
 
@@ -96,9 +126,9 @@ Para arquitetura, bugs já resolvidos e **backlog do que falta**, veja **[PROJEC
 
 ## Limitações do MVP
 
-- Simulação usa preços/dividendos históricos, mas o **score fundamental** ainda não é point-in-time contábil completo.  
-- Não modela corretagem, impostos nem slippage.  
-- Fontes gratuitas podem falhar ou demorar.
+- Simulação usa preços/dividendos históricos, mas o **score fundamental** ainda não é point-in-time contábil.  
+- Custos de corretagem/slippage vêm ligados por padrão no ensaio; IR de dividendo começa em 0% (isento PF).  
+- Fontes gratuitas podem falhar ou demorar. brapi.dev é experimental (sem ROE/dívida no plano grátis).
 
 ---
 

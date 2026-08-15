@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import time
@@ -14,6 +15,7 @@ import pandas as pd
 
 from src.config import CACHE_DIR, get_settings
 from src.data.providers import DataProvider
+from src.utils import utcnow
 
 
 def _cache_path(key: str):
@@ -42,32 +44,51 @@ def _write_cache(key: str, data: Any) -> None:
     )
 
 
-def fetch_ibovespa_close(
+def fetch_index_close(
+    symbol: str,
+    cache_prefix: str,
     start: str | datetime,
     end: str | datetime | None = None,
 ) -> pd.Series:
-    """Preço de fechamento do Ibovespa (^BVSP) via yfinance."""
+    """Preço de fechamento de um índice (yfinance) com cache em disco.
+
+    Ex.: Ibovespa ``^BVSP`` (``ibov``) ou IDIV ``^IDIV`` (``idiv``).
+    Devolve Series vazia se a fonte falhar (o chamador decide o fallback).
+    """
     start_s = pd.Timestamp(start).strftime("%Y-%m-%d")
-    end_s = pd.Timestamp(end or datetime.utcnow()).strftime("%Y-%m-%d")
-    cache_key = f"ibov:{start_s}:{end_s}"
+    end_s = pd.Timestamp(end or utcnow()).strftime("%Y-%m-%d")
+    from src.data.ttl import ttl_for
+
+    cache_key = f"{cache_prefix}:{start_s}:{end_s}"
     settings = get_settings()
-    cached = _read_cache(cache_key, settings.cache_ttl_hours)
+    cached = _read_cache(cache_key, ttl_for("benchmark", settings))
     if cached is not None:
         s = pd.Series(cached)
         s.index = pd.to_datetime(s.index)
+        with contextlib.suppress(Exception):
+            from src.monitoring import cache_hit
+
+            cache_hit(f"fetch_index:{cache_prefix}", symbol=symbol)
         return s.sort_index()
 
     try:
         import yfinance as yf
 
-        raw = yf.download(
-            "^BVSP",
-            start=start_s,
-            end=end_s,
-            auto_adjust=False,
-            progress=False,
-            threads=False,
-        )
+        from src.data.yf_retry import fetch_with_retry
+        from src.monitoring import timed
+
+        with timed(f"fetch_index:{cache_prefix}", cache_hit=False, symbol=symbol):
+            raw = fetch_with_retry(
+                lambda: yf.download(
+                    symbol,
+                    start=start_s,
+                    end=end_s,
+                    auto_adjust=False,
+                    progress=False,
+                    threads=False,
+                ),
+                what=f"índice {symbol}",
+            )
         if raw is None or raw.empty:
             return pd.Series(dtype=float)
         if isinstance(raw.columns, pd.MultiIndex):
@@ -86,6 +107,22 @@ def fetch_ibovespa_close(
         return pd.Series(dtype=float)
 
 
+def fetch_ibovespa_close(
+    start: str | datetime,
+    end: str | datetime | None = None,
+) -> pd.Series:
+    """Preço de fechamento do Ibovespa (^BVSP) via yfinance."""
+    return fetch_index_close("^BVSP", "ibov", start, end)
+
+
+def fetch_idiv_close(
+    start: str | datetime,
+    end: str | datetime | None = None,
+) -> pd.Series:
+    """Preço de fechamento do IDIV (ETF IDIV.SA no Yahoo) — se houver."""
+    return fetch_index_close("IDIV.SA", "idiv", start, end)
+
+
 def fetch_cdi_daily_factors(
     start: str | datetime,
     end: str | datetime | None = None,
@@ -95,10 +132,12 @@ def fetch_cdi_daily_factors(
     Retorna Series index=data, value=fator diário (1 + taxa/100).
     """
     start_ts = pd.Timestamp(start).normalize()
-    end_ts = pd.Timestamp(end or datetime.utcnow()).normalize()
+    end_ts = pd.Timestamp(end or utcnow()).normalize()
+    from src.data.ttl import ttl_for
+
     cache_key = f"cdi:{start_ts.date()}:{end_ts.date()}"
     settings = get_settings()
-    cached = _read_cache(cache_key, settings.cache_ttl_hours)
+    cached = _read_cache(cache_key, ttl_for("benchmark", settings))
     if cached is not None:
         s = pd.Series(cached)
         s.index = pd.to_datetime(s.index)
@@ -111,9 +150,12 @@ def fetch_cdi_daily_factors(
         f"&dataFinal={end_ts.strftime('%d/%m/%Y')}"
     )
     try:
-        req = Request(url, headers={"User-Agent": "TradingDash/0.1"})
-        with urlopen(req, timeout=20) as resp:
-            rows = json.loads(resp.read().decode("utf-8"))
+        from src.monitoring import timed
+
+        with timed("fetch_cdi", cache_hit=False):
+            req = Request(url, headers={"User-Agent": "TradingDash/0.1"})
+            with urlopen(req, timeout=20) as resp:
+                rows = json.loads(resp.read().decode("utf-8"))
         dates = []
         factors = []
         for row in rows:
@@ -163,12 +205,18 @@ def build_benchmark_curves(
     provider: DataProvider,
     start: str,
     end: str,
+    *,
+    include_idiv: bool = False,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Alinha benchmarks aos dias da carteira e normaliza para initial_cash.
 
+    ``include_idiv`` adiciona o IDIV (índice de dividendos) quando a fonte tiver
+    a série; se não tiver, a coluna sai vazia e o relatório mostra "—".
+
     Returns
     -------
-    curves : DataFrame com colunas date, portfolio (preenchido depois), ibovespa, cdi
+    curves : DataFrame com colunas date, portfolio (preenchido depois),
+             ibovespa, cdi e (opcionalmente) idiv
     meta : métricas auxiliares / flags
     """
     dates = pd.DatetimeIndex(equity_dates).normalize().unique().sort_values()
@@ -177,6 +225,8 @@ def build_benchmark_curves(
         "cdi_source": None,
         "ibov_available": False,
         "cdi_available": False,
+        "idiv_source": None,
+        "idiv_available": False,
     }
 
     # --- Ibovespa ---
@@ -229,11 +279,36 @@ def build_benchmark_curves(
     if len(cdi) and abs(float(cdi.iloc[0]) - initial_cash) > 1:
         cdi = initial_cash * (cdi / float(cdi.iloc[0]))
 
+    # --- IDIV (opcional, índice de dividendos) ---
+    idiv = pd.Series(dtype=float)
+    if include_idiv:
+        if provider.name == "demo":
+            idiv = demo_ibovespa_like(dates, seed=11)  # série "tipo índice de dividendos"
+            meta["idiv_source"] = "demo"
+            meta["idiv_available"] = len(idiv) > 0
+        else:
+            raw = fetch_idiv_close(start, end)
+            if raw.empty:
+                meta["idiv_source"] = None
+                meta["idiv_available"] = False
+            else:
+                raw = raw.reindex(dates).ffill().bfill()
+                if raw.isna().all() or float(raw.iloc[0]) <= 0:
+                    meta["idiv_source"] = None
+                    meta["idiv_available"] = False
+                else:
+                    idiv = initial_cash * (raw / float(raw.iloc[0]))
+                    meta["idiv_source"] = "yfinance:^IDIV"
+                    meta["idiv_available"] = True
+        if len(idiv) and abs(float(idiv.iloc[0]) - initial_cash) > 1:
+            idiv = initial_cash * (idiv / float(idiv.iloc[0]))
+
     out = pd.DataFrame(
         {
             "date": dates,
             "ibovespa": ibov.reindex(dates).to_numpy() if len(ibov) else np.nan,
             "cdi": cdi.reindex(dates).to_numpy() if len(cdi) else np.nan,
+            "idiv": idiv.reindex(dates).to_numpy() if len(idiv) else np.nan,
         }
     )
     return out, meta

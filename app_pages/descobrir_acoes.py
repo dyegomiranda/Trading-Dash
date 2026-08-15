@@ -2,21 +2,34 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import streamlit as st
 
-from src.config import THESIS_VERSION, get_settings
-from src.data.providers import get_provider
+from src.config import THESIS_LABEL, THESIS_VERSION, get_settings
+from src.data.providers import get_provider, is_realtime_provider
 from src.data.quality import coverage_summary, enrich_fundamentals_quality
 from src.services import format_pct, load_scored_universe
+from src.thesis.macro import macro_header_info, macro_tilt_from_override
+from src.thesis.narrative import build_portfolio_summary, build_stock_narrative
 from src.thesis.scoring import apply_filters, recommend_weights
-from src.ui.charts import holdings_donut, price_history_chart, score_bars
-from src.ui.components import render_kpi_row, render_page_header, render_plain_help
-from src.ui.data_source import provider_selectbox, render_data_quality_banner
+from src.ui.charts import holdings_donut, price_history_chart, score_bars, thesis_radar
+from src.ui.components import (
+    render_core_sectors_card,
+    render_kpi_row,
+    render_page_header,
+    render_plain_help,
+)
+from src.ui.data_source import (
+    APPLY_THESIS_LABEL,
+    macro_selectbox,
+    provider_selectbox,
+    render_data_quality_banner,
+)
 from src.ui.friendly import PRICE_PERIODS, friendly_dataframe, render_glossary_expander
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_trust_strip
+from src.utils import utcnow
 
 page_setup()
 render_page_header(
@@ -26,7 +39,7 @@ render_page_header(
 
 with st.sidebar:
     st.markdown("##### Filtros")
-    provider = provider_selectbox(key="disc_provider", label="Fonte de dados", show_help=True)
+    provider = provider_selectbox(label="Fonte de dados", show_help=True)
     min_score = st.slider(
         "Nota mínima do app",
         0,
@@ -42,12 +55,14 @@ with st.sidebar:
         15,
         key="disc_top_n",
     )
-    strict = st.toggle(
-        "Filtros mais rigorosos",
+    loose = st.toggle(
+        "Mostrar mais empresas (filtro frouxo)",
         value=False,
-        key="disc_strict",
-        help="Exige mais qualidade e sustentabilidade dos dividendos.",
+        key="disc_loose",
+        help="Desligado: filtro da tese (ROE, dívida, payout, yield sustentável). "
+        "Ligado: só exige preço, dividendo e nota mínima.",
     )
+    strict = not loose
     period_labels = [p[0] for p in PRICE_PERIODS]
     period_choice = st.selectbox(
         "Período do gráfico de preço",
@@ -58,7 +73,15 @@ with st.sidebar:
     )
     hist_days = dict(PRICE_PERIODS).get(period_choice)
     run = st.button("Atualizar lista", type="primary", width="stretch", key="disc_run")
+    if run:
+        # refresh real: ignora TTL do cache em memória E do disco
+        from src.ui.refresh import force_refresh_data
+
+        force_refresh_data()
     render_glossary_expander()
+
+    macro_choice = macro_selectbox()
+    _macro_tilt = macro_tilt_from_override(macro_choice)
 
 render_data_quality_banner(provider)
 
@@ -67,7 +90,7 @@ render_plain_help(
     f"""
 1. Olhe as **notas** (0–100): quanto maior, melhor encaixe na tese de renda com qualidade (v{THESIS_VERSION})
 2. Veja o **gráfico de preço** em vários períodos (1 mês → máximo disponível)
-3. Quando achar razoável, vá em **Minha carteira** e clique em *Montar carteira com a tese*
+3. Quando achar razoável, vá em **Minha carteira** e clique em **Montar carteira com a tese**
 
 **Dica:** “Quanto paga de dividendo” alto demais pode ser armadilha — a nota do app tenta equilibrar isso  
 e marca a **qualidade dos dados** de cada empresa.
@@ -87,7 +110,7 @@ def _cached_score(provider: str, min_score: float, strict: bool):
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _price_hist(provider: str, ticker: str, days: int | None):
-    end = datetime.utcnow()
+    end = utcnow()
     if days is None:
         # ~20 anos ou o que a fonte tiver
         start = end - timedelta(days=365 * 20)
@@ -97,6 +120,10 @@ def _price_hist(provider: str, ticker: str, days: int | None):
     hist = prov.get_price_history([ticker], start=start, end=end)
     if hist is None or hist.empty:
         return hist
+    # Fronteira de schema: garante OHLCV longo tipado antes de plotar
+    from src.data.schemas import coerce_ohlcv
+
+    hist = coerce_ohlcv(hist, op="price_history_ui")
     return hist[hist["ticker"] == ticker].copy() if "ticker" in hist.columns else hist
 
 
@@ -109,7 +136,7 @@ if need_load:
     try:
         with st.spinner(
             "Calculando ranking… (Bolsa real: até ~30s na 1ª carga; depois usa cache)"
-            if provider == "yfinance"
+            if is_realtime_provider(provider)
             else "Calculando ranking de treino…"
         ):
             scored = _cached_score(provider, float(min_score), strict)
@@ -135,18 +162,37 @@ if "quality_level" not in scored_df.columns:
 cov = coverage_summary(scored_df)
 render_trust_strip(provider=provider, coverage=cov)
 
+# Card do regime macro: mostra Selic/IPCA reais e o sentido da inclinação.
+if _macro_tilt is not None:
+    mh = macro_header_info(macro_choice)
+    with st.expander(mh["label"], expanded=False, icon=":material/timeline:"):
+        st.caption(mh["detail"] or "Regime macro neutro nesta configuração.")
+        st.caption(
+            "A inclinação setorial reorienta os pesos sugeridos (mais defensivas "
+            "em juros altos; mais crescimento em juros baixos) sem criar nem excluir "
+            "posições. Ajuste em **Regime macro** na barra lateral."
+        )
+
 filtered, rejected = apply_filters(
     scored_df, min_score=float(min_score), strict=strict
 )
 settings = get_settings()
-recs = recommend_weights(
-    filtered if not filtered.empty else scored_df,
-    top_n=top_n,
-    core_weight=settings.core_weight,
-    satellite_weight=settings.satellite_weight,
-    max_position_pct=settings.max_position_pct,
-    max_sector_pct=settings.max_sector_pct,
-)
+if filtered.empty:
+    st.warning(
+        "Ninguém passou no filtro da tese. A tabela de recusados está abaixo — "
+        "não montamos sugestão com o universo sem filtro."
+    )
+    recs = filtered.copy()
+else:
+    recs = recommend_weights(
+        filtered,
+        top_n=top_n,
+        core_weight=settings.core_weight,
+        satellite_weight=settings.satellite_weight,
+        max_position_pct=settings.max_position_pct,
+        max_sector_pct=settings.max_sector_pct,
+        macro_tilt=_macro_tilt,
+    )
 
 render_kpi_row(
     [
@@ -161,6 +207,41 @@ render_kpi_row(
         ),
     ]
 )
+
+# Narrativa em português claro do que a lista representa (sem LLM).
+if not recs.empty:
+    _thesis_summary = build_portfolio_summary(
+        recs,
+        thesis_label=THESIS_LABEL,
+        thesis_version=THESIS_VERSION,
+    )
+    with st.container(border=True):
+        st.markdown(f"*{_thesis_summary}*")
+    render_core_sectors_card()
+    def _mean(col: str):
+        if col not in recs.columns:
+            return None
+        s = recs[col]
+        s = s[s.notna()] if hasattr(s, "notna") else s
+        try:
+            import pandas as _pd
+
+            num = _pd.to_numeric(recs[col], errors="coerce").dropna()
+            return float(num.mean()) if not num.empty else None
+        except Exception:
+            return None
+
+    st.plotly_chart(
+        thesis_radar(
+            _mean("score_quality"),
+            _mean("score_dividends"),
+            _mean("score_financial_health"),
+            _mean("score_valuation"),
+            title="Média dos pilares desta lista",
+        ),
+        width="stretch",
+        config={"displayModeBar": False},
+    )
 
 if recs.empty:
     st.warning("Nenhuma ação passou. Baixe a **nota mínima** na barra lateral.")
@@ -248,6 +329,14 @@ else:
                     f"({chg:+.1%} no total do gráfico — passado ≠ futuro)."
                 )
 
+        # "Por que essa ação?" — narrativa da tese em PT claro, sem LLM.
+        with st.expander(f"Por que essa ação? — {pick}", icon=":material/lightbulb:"):
+            _row_n = scored_df[scored_df["ticker"] == pick]
+            if _row_n.empty:
+                st.caption("Sem dados detalhados para essa empresa no momento.")
+            else:
+                st.markdown(build_stock_narrative(_row_n.iloc[0]))
+
     top3 = tickers[:3]
     if len(top3) > 1:
         st.markdown("##### Comparativo rápido (top 3 da lista)")
@@ -280,6 +369,8 @@ else:
             view[col] = view[col].map(
                 lambda x: format_pct(x, 1) if x == x and x is not None else "—"
             )
+    if "data_completeness_pct" not in view.columns and "data_completeness" in view.columns:
+        view["data_completeness_pct"] = view["data_completeness"]
     keep = [
         c
         for c in [
@@ -290,6 +381,7 @@ else:
             "score_total",
             "quality_label",
             "data_completeness_pct",
+            "data_completeness",
             "dividend_yield",
             "roe",
             "target_weight",
@@ -311,11 +403,21 @@ else:
     )
 
     st.info(
-        "Próximo passo: abra **Minha carteira** → **Montar carteira** → "
-        "**Montar carteira com a tese** (montagem automática com diversificação).",
+        f"Próximo passo: abra **Minha carteira** e clique em **{APPLY_THESIS_LABEL}**.",
         icon=":material/arrow_forward:",
     )
     render_friendly_safety_note()
+
+if rejected is not None and not rejected.empty and "reject_reason" in rejected.columns:
+    with st.expander(f"Quem ficou de fora ({len(rejected)})", icon=":material/filter_alt:"):
+        show_r = rejected.copy()
+        cols = [c for c in ("ticker", "name", "score_total", "reject_reason") if c in show_r.columns]
+        st.dataframe(
+            friendly_dataframe(show_r[cols], extra_map={"reject_reason": "Motivo"}),
+            width="stretch",
+            hide_index=True,
+            height=280,
+        )
 
 st.session_state["last_recs"] = recs
 st.session_state["last_filtered"] = filtered

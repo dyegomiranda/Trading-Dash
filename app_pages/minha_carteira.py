@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from src.config import THESIS_VERSION, get_settings
-from src.data.providers import get_provider
+from src.data.providers import get_provider, is_realtime_provider
 from src.data.quality import coverage_summary, enrich_fundamentals_quality
 from src.data.universe import normalize_ticker
 from src.portfolio.dividends_live import dividends_frame, sync_paper_dividends
@@ -23,9 +23,20 @@ from src.portfolio.income import (
     project_income_scenarios,
     suggest_monthly_contribution,
 )
-from src.portfolio.paper import PaperPortfolio, load_portfolio, save_portfolio
+from src.portfolio.score_history import (
+    record_scores,
+    score_history,
+)
+from src.portfolio.paper import (
+    PaperPortfolio,
+    delete_portfolio,
+    list_portfolios,
+    load_portfolio,
+    save_portfolio,
+)
 from src.services import format_brl, format_pct, prices_dict_from_fundamentals
 from src.thesis.alerts import evaluate_portfolio, exit_rules_summary
+from src.thesis.macro import macro_tilt_from_override
 from src.thesis.scoring import recommend_weights, score_universe
 from src.ui.charts import (
     equity_growth_area,
@@ -34,6 +45,7 @@ from src.ui.charts import (
     income_scenarios_chart,
     sector_bars,
     sector_breakdown_from_holdings,
+    snowball_chart,
 )
 from src.ui.components import (
     render_explain_card,
@@ -41,8 +53,14 @@ from src.ui.components import (
     render_page_header,
     render_plain_help,
 )
-from src.ui.data_source import provider_selectbox, render_data_quality_banner
+from src.ui.data_source import (
+    APPLY_THESIS_LABEL,
+    get_session_macro,
+    provider_selectbox,
+    render_data_quality_banner,
+)
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe, render_glossary_expander
+from src.ui.refresh import force_refresh_data, soft_refresh
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_premises_box, render_trust_strip
 from src.ui.wallet import render_asset_rows, render_wallet_balance
@@ -55,10 +73,71 @@ render_page_header(
 
 with st.sidebar:
     st.markdown("##### Conta de treino")
-    portfolio_name = st.text_input("Nome da carteira", value="paper-main", key="pf_name")
-    provider = provider_selectbox(key="pf_provider", label="Fonte de dados", show_help=True)
+
+    # ── Múltiplas carteiras: seletor + criar/apagar ──
+    _saved = list_portfolios()
+    if not _saved:
+        _saved = ["paper-main"]
+    portfolio_name = st.selectbox(
+        "Carteira ativa",
+        options=_saved,
+        key="pf_select",
+        help="Troque entre suas carteiras de treino (cada uma com caixa e posições próprios).",
+    )
+    if portfolio_name != st.session_state.get("pf_active_name"):
+        st.session_state["pf_active_name"] = portfolio_name
+
+    _crt, _mk, _del = st.columns([3, 1, 1])
+    with _crt:
+        new_name = st.text_input(
+            "Criar nova carteira",
+            placeholder="ex.: aposentadoria-2030",
+            key="pf_new_name",
+            help="Nova carteira de treino (vazia, com capital inicial).",
+        )
+    with _mk:
+        _do_create = st.button("Criar", key="pf_create", width="stretch")
+    if _do_create:
+        clean = "".join(c for c in (new_name or "").strip() if c.isalnum() or c in "-_")
+        if not clean:
+            st.caption("Digite um nome (letras, números, - ou _).")
+        elif clean in _saved:
+            st.caption("Já existe uma carteira com esse nome.")
+        else:
+            save_portfolio(PaperPortfolio.create(name=clean))
+            st.session_state["pf_active_name"] = clean
+            st.session_state["pf_select"] = clean
+            st.rerun()
+    with _del:
+        _can_del = st.button(
+            "Apagar",
+            type="secondary",
+            key="pf_del",
+            disabled=portfolio_name == "paper-main",
+            help="Apaga a carteira selecionada (a padrão 'paper-main' é protegida).",
+        )
+    _confirm_key = f"pf_del_confirm_{portfolio_name}"
+    if _can_del:
+        if st.session_state.get(_confirm_key, False):
+            try:
+                delete_portfolio(portfolio_name)
+                st.session_state["pf_active_name"] = "paper-main"
+                st.session_state["pf_select"] = "paper-main"
+                st.session_state.pop(_confirm_key, None)
+                st.info(f"Carteira **{portfolio_name}** apagada.")
+                st.rerun()
+            except ValueError as e:
+                st.warning(str(e))
+        else:
+            st.session_state[_confirm_key] = True
+            st.caption(f"Clique em **Apagar** de novo para apagar **{portfolio_name}** de vez.")
+    else:
+        # usuário desistiu / mudou a seleção → zera a intenção pendente
+        st.session_state.pop(_confirm_key, None)
+
+    provider = provider_selectbox(label="Fonte de dados", show_help=True)
     if st.button("Atualizar dados", icon=":material/refresh:", width="stretch", key="pf_refresh"):
-        st.cache_data.clear()
+        force_refresh_data()
         st.rerun()
     render_glossary_expander()
 
@@ -69,7 +148,7 @@ render_data_quality_banner(provider)
 def _raw_fundamentals(provider: str):
     from src.data.universe import get_universe
 
-    mode = "core" if provider == "yfinance" else "full"
+    mode = "core" if is_realtime_provider(provider) else "full"
     return get_provider(provider).get_fundamentals(get_universe(mode=mode))  # type: ignore[arg-type]
 
 
@@ -87,7 +166,7 @@ coverage: dict = {}
 try:
     with st.spinner(
         "Carregando cotações… (1ª vez na Bolsa real: ~15–30s; depois cache)"
-        if provider == "yfinance"
+        if is_realtime_provider(provider)
         else "Carregando dados de treino…"
     ):
         fundamentals = _raw_fundamentals(provider)
@@ -184,9 +263,33 @@ render_wallet_balance(
 # Alertas resumidos no topo
 _alerts_df = pd.DataFrame()
 if portfolio.positions:
+    # registra a nota observada hoje (ledger local para histórico de score)
+    try:
+        _hist_src = scored_table if not scored_table.empty else fundamentals
+        if not _hist_src.empty and "score_total" in _hist_src.columns:
+            record_scores(_hist_src)
+    except Exception:
+        pass
+    # constrói o ledger de snapshots (database que só o app enxerga) para o
+    # alerta de histórico de score: cada dia observado vira um "snapshot"
+    _snapshots_by_date: dict[str, pd.DataFrame] = {}
+    try:
+        for _t_pos in portfolio.positions:
+            _obs = score_history(_t_pos)
+            for _o in _obs:
+                _snapshots_by_date.setdefault(_o.date, {})[_t_pos] = _o.score
+        _snapshots_by_date = {
+            k: pd.DataFrame(
+                [{"ticker": tk, "score_total": sc} for tk, sc in v.items()]
+            )
+            for k, v in _snapshots_by_date.items()
+        }
+    except Exception:
+        _snapshots_by_date = {}
     _alerts_df = evaluate_portfolio(
         list(portfolio.positions.keys()),
         scored_table if not scored_table.empty else fundamentals,
+        fundamentals_by_date=_snapshots_by_date or None,
     )
     _crit = (
         _alerts_df[_alerts_df["severidade"] == "critical"]
@@ -325,12 +428,18 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
 
         st.markdown("##### Dividendos na conta de treino")
         st.caption(
-            "Busca pagamentos reais na fonte. Se a compra for recente e ainda não houve data-ex, "
-            "credita uma **estimativa do mês** (baseada no % de dividendo) para você ver a renda "
-            "na conta de treino — isso aparece como “Carteira (estimado)”."
+            "Busca pagamentos reais na fonte, só se você tinha a ação **antes da data-ex**. "
+            "Não creditamos estimativa no caixa — renda projetada fica em **Renda esperada**."
         )
         d1, d2 = st.columns([1, 1.4])
         with d1:
+            model_jcp = st.checkbox(
+                "Modelar JCP (IR 15%)",
+                value=False,
+                key="pf_model_jcp",
+                help="Se marcado, 50% dos proventos de ações são tratados como JCP "
+                "sujeitos a 15% de IR na fonte (conservador). Custa um pouco menos no caixa.",
+            )
             if st.button(
                 "Receber dividendos da bolsa",
                 type="primary",
@@ -339,15 +448,23 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                 key="pf_sync_div_overview",
             ):
                 with st.spinner("Buscando dividendos das suas ações…"):
-                    result = sync_paper_dividends(portfolio, provider, fundamentals=scored_table if not scored_table.empty else fundamentals, prices=prices)
+                    result = sync_paper_dividends(
+                        portfolio,
+                        provider,
+                        fundamentals=scored_table if not scored_table.empty else fundamentals,
+                        prices=prices,
+                        jcp_share=0.5 if st.session_state.get("pf_model_jcp") else 0.0,
+                        allow_monthly_estimate=False,
+                    )
                     save_portfolio(portfolio)
                     n = int(result.get("credited") or 0)
                     total = float(result.get("total_brl") or 0)
                     if n > 0:
                         st.session_state["pf_flash"] = {
                             "kind": "success",
-                            "msg": (
-                                f"Dividendos creditados: {n} pagamento(s) · "
+                            "msg": result.get("message")
+                            or (
+                                f"Dividendos reais creditados: {n} pagamento(s) · "
                                 f"{format_brl(total)} no caixa."
                             ),
                         }
@@ -355,7 +472,7 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                         st.session_state["pf_flash"] = {
                             "kind": "warning",
                             "msg": result.get("message")
-                            or "Nenhum dividendo novo para creditar no período.",
+                            or "Nenhum dividendo com data-ex no período em que você já tinha a ação.",
                         }
                     st.rerun()
         with d2:
@@ -392,6 +509,10 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
 
 
         st.markdown("##### Pontos de atenção da tese")
+        st.caption(
+            "Queda/alta de nota usa o que **este app observou** nos dias em que você abriu "
+            "o programa (pelo menos 3 leituras) — não é histórico CVM."
+        )
         if _alerts_df.empty:
             st.caption("Ainda não há alertas calculados para estas posições.")
         else:
@@ -505,14 +626,14 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                 "Para sugestões com cara de mercado, mude para **Bolsa real**.",
                 icon=":material/school:",
             )
-        if coverage.get("trust_level") == "fraca" and provider == "yfinance":
+        if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
             st.warning(
                 "Cobertura de dados fraca agora. A montagem automática ainda funciona, "
                 "mas confira as empresas depois em **Descubra ações**.",
                 icon=":material/info:",
             )
         if st.button(
-            "Montar carteira com a tese",
+            APPLY_THESIS_LABEL,
             type="primary",
             width="stretch",
             key="pf_apply",
@@ -521,12 +642,12 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
             with st.spinner("Escolhendo empresas e executando ordens de treino…"):
                 try:
                     raw = _raw_fundamentals(provider)
-                    scored = score_universe(raw, min_score=settings.rebalance_min_score)
-                    base = (
-                        scored.filtered
-                        if not scored.filtered.empty
-                        else scored.scored
+                    scored = score_universe(
+                        raw,
+                        min_score=settings.rebalance_min_score,
+                        strict_filters=True,
                     )
+                    base = scored.filtered
                     if base.columns.duplicated().any():
                         base = base.loc[:, ~base.columns.duplicated(keep="last")]
                     recs = recommend_weights(
@@ -536,13 +657,16 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         satellite_weight=settings.satellite_weight,
                         max_position_pct=settings.max_position_pct,
                         max_sector_pct=settings.max_sector_pct,
+                        macro_tilt=macro_tilt_from_override(get_session_macro()),
                     )
                     if recs.empty:
                         st.session_state["pf_flash"] = {
                             "kind": "warning",
                             "msg": (
-                                "Nenhuma ação passou nos filtros. "
-                                "Tente Modo treino ou baixe a nota em Descubra ações."
+                                "Nenhuma ação passou no filtro da tese "
+                                "(ROE, dívida, payout, DY). "
+                                "Não montei o livro com o universo sem filtro. "
+                                "Tente Modo treino ou o filtro frouxo em Descubra ações."
                             ),
                         }
                         st.rerun()
@@ -567,6 +691,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         weights, px, buckets=buckets, note="sugestoes"
                     )
                     save_portfolio(portfolio)
+                    st.session_state["pf_w_sig"] = None
                     after = portfolio.summary(px)
                     details = [
                         {
@@ -598,7 +723,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                             ),
                             "details": details,
                         }
-                    st.cache_data.clear()
+                    soft_refresh()
                     st.rerun()
                 except Exception as e:
                     st.session_state["pf_flash"] = {
@@ -606,6 +731,120 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         "msg": f"Não foi possível montar a carteira: {e}",
                     }
                     st.rerun()
+
+    st.markdown("##### Ajuste fino · pesos-alvo por ação (%)")
+    with st.container(border=True):
+        st.caption(
+            "Arraste o **% do patrimônio** que cada empresa deve ter na conta de treino. "
+            "Se os pesos somarem menos de 100%, o restante fica **em caixa** (dinheiro livre); "
+            "marque “normalizar” para dividir tudo em ações."
+        )
+        if holdings.empty:
+            st.caption("Monte a carteira primeiro com o botão da tese acima.")
+        else:
+            _sl_defaults = {
+                str(r["ticker"]): float(r.get("weight") or 0) * 100.0
+                for r in holdings.itertuples()
+            }
+            _sl_tickers = list(_sl_defaults.keys())
+            _n = max(1, len(_sl_tickers))
+            _eq = round(100.0 / _n, 1)
+            _sig = tuple(_sl_tickers)
+            if st.session_state.get("pf_w_sig") != _sig:
+                for _old in list(st.session_state.keys()):
+                    if (
+                        isinstance(_old, str)
+                        and _old.startswith("pf_w_")
+                        and _old not in {"pf_w_sig"}
+                        and _old[5:] not in _sl_tickers
+                    ):
+                        st.session_state.pop(_old, None)
+                for _t in _sl_tickers:
+                    st.session_state[f"pf_w_{_t}"] = _sl_defaults[_t]
+                st.session_state["pf_w_sig"] = _sig
+
+            st.caption(
+                f"Depois de arrastar, clique em **Aplicar**. "
+                f"Distribuir igualmente deixa cada empresa com ~{_eq}%."
+            )
+
+            with st.form("pf_weights_form"):
+                for _t in _sl_tickers:
+                    st.slider(
+                        f"{_t} — peso-alvo (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=1.0,
+                        key=f"pf_w_{_t}",
+                    )
+                norm = st.checkbox(
+                    "Normalizar para 100% antes de aplicar",
+                    value=False,
+                    key="pf_weights_norm",
+                    help="Escala os pesos para somarem exatamente 100% (deixa o caixa livre "
+                    "quase zerado). Desligado: o que sobrar fica em dinheiro.",
+                )
+                _applied = st.form_submit_button(
+                    "Aplicar pesos na conta de treino",
+                    type="primary",
+                    icon=":material/balance:",
+                )
+                if _applied:
+                    _weights = {
+                        _t: float(st.session_state.get(f"pf_w_{_t}", 0.0)) / 100.0
+                        for _t in _sl_tickers
+                    }
+                    _weights = {k: v for k, v in _weights.items() if v > 0}
+                    if not _weights:
+                        st.session_state["pf_flash"] = {
+                            "kind": "warning",
+                            "msg": "Defina ao menos um peso maior que 0% para aplicar.",
+                        }
+                        st.rerun()
+                    if norm:
+                        _s = sum(_weights.values())
+                        if _s > 0:
+                            _weights = {k: v / _s for k, v in _weights.items()}
+                    _px_w = prices or prices_dict_from_fundamentals(
+                        scored_table if not scored_table.empty else fundamentals
+                    )
+                    _missing = [t for t in _weights if not _px_w.get(t)]
+                    if _missing:
+                        st.warning(
+                            f"Sem preço para: {', '.join(_missing[:6])}. "
+                            "Esses pesos serão ignorados."
+                        )
+                        for _t in _missing:
+                            _weights.pop(_t, None)
+                    try:
+                        _wtrades = portfolio.rebalance_to_weights(
+                            _weights, _px_w, note="pesos-manuais"
+                        )
+                        save_portfolio(portfolio)
+                        _wsum = round(sum(_weights.values()) * 100.0, 1)
+                        if _wtrades:
+                            st.session_state["pf_flash"] = {
+                                "kind": "success",
+                                "msg": (
+                                    f"Pesos aplicados: {len(_wtrades)} ordem(ns) · "
+                                    f"{_wsum:.1f}% do patrimônio alocado em ações."
+                                ),
+                            }
+                        else:
+                            st.session_state["pf_flash"] = {
+                                "kind": "info",
+                                "msg": (
+                                    "Carteira já estava dentro dos pesos definidos — "
+                                    "nenhuma ordem nova."
+                                ),
+                            }
+                        st.rerun()
+                    except Exception as e:
+                        st.session_state["pf_flash"] = {
+                            "kind": "error",
+                            "msg": f"Não foi possível aplicar os pesos: {e}",
+                        }
+                        st.rerun()
 
     st.markdown("##### Passo 3 · Compra ou venda manual (opcional)")
     with st.container(border=True):
@@ -672,7 +911,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
 if section == "income":
     st.session_state["pf_viewed_income"] = True
     settings_income = get_settings()
-    fallback_dy = (settings_income.preferred_dy_min + settings_income.preferred_dy_max) / 2.0
+    fallback_dy = None
 
     render_plain_help(
         "O que esta simulação faz (e o que não faz)",
@@ -689,9 +928,8 @@ que você definir abaixo.
 
     if not has_positions:
         st.warning(
-            "Sua carteira ainda não tem ações. O cenário usa a taxa de dividendo típica da tese "
-            f"(~{fallback_dy:.0%}) e o capital/caixa atual. "
-            "Vá em **Montar carteira** para usar os % reais das suas empresas.",
+            "Sua carteira ainda não tem ações. Sem yield inventado: "
+            "monte o livro com **Montar carteira com a tese** para projetar renda de verdade.",
             icon=":material/info:",
         )
 
@@ -831,7 +1069,26 @@ que você definir abaixo.
         fallback_yield=fallback_dy,
         max_yield=float(settings_income.projection_max_yield),
     )
+    sem_reinvest = project_income(
+        portfolio,
+        scored_table if not scored_table.empty else fundamentals,
+        prices=prices,
+        reinvest=False,
+        years=years,
+        monthly_contribution=float(monthly_contrib),
+        assumed_div_growth=0.02,
+        fallback_yield=fallback_dy,
+        max_yield=float(settings_income.projection_max_yield),
+        starting_principal_override=float(sim_capital),
+        yield_override=None,
+    )
     proj = scenarios["base"]
+    if float(proj.get("starting_yield") or 0) <= 0:
+        st.info(
+            "Sem taxa de dividendo nas posições (ou carteira vazia). "
+            "A projeção fica em zero até haver DY real nas ações.",
+            icon=":material/percent:",
+        )
     annual = float(proj.get("annual_income_now") or 0.0)
     monthly = float(proj.get("monthly_income_now") or annual / 12.0)
     start_yield = float(proj.get("starting_yield") or 0.0)
@@ -997,6 +1254,41 @@ que você definir abaixo.
                     config={"displayModeBar": False},
                 )
 
+            _proj_no_reinv = sem_reinvest.get("projection")
+            _proj_reinv = projection
+            if (
+                _proj_reinv is not None
+                and not getattr(_proj_reinv, "empty", True)
+                and _proj_no_reinv is not None
+                and not getattr(_proj_no_reinv, "empty", True)
+            ):
+                with st.container(border=True):
+                    st.markdown("##### Bola de neve do reinvestimento")
+                    st.caption(
+                        "Mesmo cenário base e mesmos aportes: verde reinveste os dividendos; "
+                        "cinza pontilhado **saca** os dividendos. A distância entre as curvas "
+                        "é o ganho aproximado de reinvestir (efeito juros compostos)."
+                    )
+                    st.plotly_chart(
+                        snowball_chart(
+                            _proj_reinv,
+                            _proj_no_reinv,
+                            title="Capital: reinvestir dividendos vs sacar",
+                        ),
+                        width="stretch",
+                        config={"displayModeBar": False},
+                    )
+                    _snow_diff = float(
+                        _proj_reinv["portfolio_equity_est"].iloc[-1]
+                        - _proj_no_reinv["portfolio_equity_est"].iloc[-1]
+                    )
+                    st.success(
+                        f"Reinvestindo os dividendos, no ano {years} o capital fica "
+                        f"**{format_brl(_snow_diff)} maior** do que sacar — sem contar "
+                        "o efeito de novos aportes.",
+                        icon=":material/snowing:",
+                    )
+
     by_ticker = proj.get("by_ticker")
     if by_ticker is not None and not getattr(by_ticker, "empty", True):
         bt = by_ticker.copy()
@@ -1113,7 +1405,13 @@ if section == "more":
             key="pf_sync_div_more",
         ):
             with st.spinner("Buscando e creditando dividendos…"):
-                result = sync_paper_dividends(portfolio, provider, fundamentals=scored_table if not scored_table.empty else fundamentals, prices=prices)
+                result = sync_paper_dividends(
+                        portfolio,
+                        provider,
+                        fundamentals=scored_table if not scored_table.empty else fundamentals,
+                        prices=prices,
+                        jcp_share=0.5 if st.session_state.get("pf_model_jcp") else 0.0,
+                    )
                 save_portfolio(portfolio)
                 n = int(result.get("credited") or 0)
                 total = float(result.get("total_brl") or 0)

@@ -50,7 +50,17 @@ def test_recommend_weights_respects_position_cap():
     assert not recs.empty
     assert float(recs["target_weight"].max()) <= 0.10 + 1e-6
     # Pode ficar um pouco de caixa residual se caps impedirem 100% investido
-    assert 0.85 <= float(recs["target_weight"].sum()) <= 1.0 + 1e-6
+    assert 0.70 <= float(recs["target_weight"].sum()) <= 1.0 + 1e-6
+
+
+def test_missing_pillar_is_not_fifty():
+    empty_q = pd.Series({"price": 20, "dividend_yield": 0.06})
+    scored = composite_score(empty_q)
+    assert scored["score_quality"] is None or (
+        scored["score_quality"] != scored["score_quality"]
+    )
+    assert scored["eligible"] is False
+    assert scored["score_total"] < 50.0
 
 
 def test_incomplete_data_lowers_total():

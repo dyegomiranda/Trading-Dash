@@ -11,11 +11,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 PORTFOLIO_DIR = DATA_DIR / "portfolio"
+SCORE_HISTORY_DIR = DATA_DIR / "scores"
 
 
 # Versão da tese — grava em carteiras/projeções para reprodutibilidade
 THESIS_ID = "quality_dividend"
-THESIS_VERSION = "1.3.0"
+THESIS_VERSION = "1.4.0"
 THESIS_LABEL = "Quality Dividend (renda com qualidade)"
 
 
@@ -29,7 +30,25 @@ class Settings(BaseSettings):
     brapi_token: str | None = Field(default=None, alias="BRAPI_TOKEN")
     # Default mais realista para iniciante (pode mudar no app)
     paper_initial_cash: float = Field(default=10_000.0, alias="PAPER_INITIAL_CASH")
+    # Internacionalização leve: "pt_BR" (padrão) ou "en_US". Controla o hook de
+    # formatação (separadores de milhar/decimal e símbolo de moeda).
+    locale: str = Field(default="pt_BR", alias="LOCALE")
     cache_ttl_hours: int = 12
+    # TTL por tipo de dado (horas). Sobrescreve cache_ttl_hours quando o kind
+    # existe. Tipos: "benchmark", "fundamentals", "prices", "dividends",
+    # "macro", "brapi_quote". Dados "vivos" (preços) vencem antes; referências
+    # (benchmark/macro) ficam mais tempo.
+    cache_ttl_kind_hours: dict[str, int] = Field(
+        default_factory=lambda: {
+            "benchmark": 24,
+            "macro": 6,
+            "fundamentals": 12,
+            "prices": 6,
+            "dividends": 24,
+            "brapi_quote": 6,
+        },
+        alias="CACHE_TTL_KIND_HOURS",
+    )
     default_top_n: int = 15
     core_weight: float = 0.70
     satellite_weight: float = 0.30
@@ -52,6 +71,9 @@ class Settings(BaseSettings):
     yfinance_workers: int = Field(default=8, alias="YFINANCE_WORKERS")
     yfinance_ticker_timeout: float = Field(default=4.0, alias="YFINANCE_TICKER_TIMEOUT")
     news_timeout_sec: float = Field(default=8.0, alias="NEWS_TIMEOUT_SEC")
+    # Regime macro: "auto" (busca Selic/IPCA no Banco Central) | "expansionary" |
+    # "cautious" | "restrictive" (manual) | "off" (desliga inclinação setorial).
+    macro_override: str = Field(default="off", alias="MACRO_OVERRIDE")
 
 
 # Universo líquido prioritário (scan rápido na Bolsa real)
@@ -354,4 +376,5 @@ B3_UNIVERSE: list[str] = [
 def get_settings() -> Settings:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
+    SCORE_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     return Settings()

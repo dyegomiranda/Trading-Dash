@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import base64
 import sys
-from pathlib import Path
-from typing import Sequence
+from collections.abc import Sequence
 
 import streamlit as st
 
@@ -130,7 +129,23 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
 
 def page_setup() -> None:
     ensure_root_on_path()
+    _apply_active_locale_from_settings()
     apply_theme()
+
+
+def _apply_active_locale_from_settings() -> None:
+    """Aplica o locale das settings ao hook global de formatação."""
+    try:
+        from src.config import get_settings
+
+        locale = str(getattr(get_settings(), "locale", "pt_BR") or "pt_BR")
+        if locale not in ("pt_BR", "en_US"):
+            locale = "pt_BR"
+        from src.format_hooks import set_active_locale
+
+        set_active_locale(locale)  # type: ignore[arg-type]
+    except Exception:
+        pass  # nunca quebra a página por causa de locale
 
 
 def page_setup_with_data_banner(provider: str | None = None) -> None:

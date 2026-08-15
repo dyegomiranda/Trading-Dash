@@ -13,6 +13,7 @@ import pandas as pd
 
 from src.config import PORTFOLIO_DIR, get_settings
 from src.data.universe import normalize_ticker
+from src.utils import utcnow_date, utcnow_iso
 
 
 @dataclass
@@ -59,16 +60,16 @@ class PaperPortfolio:
     positions: dict[str, Position] = field(default_factory=dict)
     trades: list[Trade] = field(default_factory=list)
     dividends: list[DividendEvent] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: utcnow_iso())
+    updated_at: str = field(default_factory=lambda: utcnow_iso())
 
     @classmethod
-    def create(cls, name: str = "paper-main", cash: float | None = None) -> "PaperPortfolio":
+    def create(cls, name: str = "paper-main", cash: float | None = None) -> PaperPortfolio:
         initial = cash if cash is not None else get_settings().paper_initial_cash
         return cls(name=name, cash=initial, initial_cash=initial)
 
     def _touch(self) -> None:
-        self.updated_at = datetime.utcnow().isoformat()
+        self.updated_at = utcnow_iso()
 
     def set_capital(
         self,
@@ -129,31 +130,37 @@ class PaperPortfolio:
         bucket: str = "core",
         note: str = "",
         ts: str | None = None,
+        *,
+        fee_bps: float = 0.0,
+        slippage_bps: float = 0.0,
     ) -> Trade:
         ticker = normalize_ticker(ticker)
         if shares <= 0 or price <= 0:
             raise ValueError("shares e price devem ser > 0")
-        amount = shares * price
-        if amount > self.cash + 1e-9:
-            raise ValueError(f"Caixa insuficiente: precisa {amount:.2f}, tem {self.cash:.2f}")
-        self.cash -= amount
+        exec_price = price * (1.0 + slippage_bps / 10_000.0)
+        amount = shares * exec_price
+        fee = amount * fee_bps / 10_000.0
+        total_cost = amount + fee
+        if total_cost > self.cash + 1e-9:
+            raise ValueError(f"Caixa insuficiente: precisa {total_cost:.2f}, tem {self.cash:.2f}")
+        self.cash -= total_cost
         pos = self.positions.get(ticker)
         if pos is None:
-            self.positions[ticker] = Position(ticker=ticker, shares=shares, avg_price=price, bucket=bucket)
+            self.positions[ticker] = Position(ticker=ticker, shares=shares, avg_price=exec_price, bucket=bucket)
         else:
             new_shares = pos.shares + shares
-            pos.avg_price = (pos.avg_price * pos.shares + price * shares) / new_shares
+            pos.avg_price = (pos.avg_price * pos.shares + exec_price * shares) / new_shares
             pos.shares = new_shares
             pos.bucket = bucket or pos.bucket
         trade = Trade(
             id=str(uuid4()),
-            ts=ts or datetime.utcnow().isoformat(),
+            ts=ts or utcnow_iso(),
             side="buy",
             ticker=ticker,
             shares=shares,
-            price=price,
+            price=exec_price,
             amount=amount,
-            note=note,
+            note=note if not fee else f"{note} (fee {fee:.2f})",
         )
         self.trades.append(trade)
         self._touch()
@@ -166,6 +173,9 @@ class PaperPortfolio:
         price: float,
         note: str = "",
         ts: str | None = None,
+        *,
+        fee_bps: float = 0.0,
+        slippage_bps: float = 0.0,
     ) -> Trade:
         ticker = normalize_ticker(ticker)
         pos = self.positions.get(ticker)
@@ -173,20 +183,22 @@ class PaperPortfolio:
             raise ValueError("Posição insuficiente para venda")
         if shares <= 0 or price <= 0:
             raise ValueError("shares e price devem ser > 0")
-        amount = shares * price
-        self.cash += amount
+        exec_price = price * (1.0 - slippage_bps / 10_000.0)
+        amount = shares * exec_price
+        fee = amount * fee_bps / 10_000.0
+        self.cash += amount - fee
         pos.shares -= shares
         if pos.shares <= 1e-9:
             del self.positions[ticker]
         trade = Trade(
             id=str(uuid4()),
-            ts=ts or datetime.utcnow().isoformat(),
+            ts=ts or utcnow_iso(),
             side="sell",
             ticker=ticker,
             shares=shares,
-            price=price,
+            price=exec_price,
             amount=amount,
-            note=note,
+            note=note if not fee else f"{note} (fee {fee:.2f})",
         )
         self.trades.append(trade)
         self._touch()
@@ -230,17 +242,21 @@ class PaperPortfolio:
         shares: float | None = None,
         ex_date: str | None = None,
         skip_if_duplicate: bool = True,
+        tax_rate: float = 0.0,
     ) -> DividendEvent | None:
         """Credita dividendo em caixa.
 
         Se ``shares`` for informado, usa essa quantidade (ex.: posição na data-ex).
         Caso contrário, usa a posição atual.
+
+        ``tax_rate`` aplica retenção de imposto fracional (ex.: 0.15 = IR sobre
+        JCP/FII) e registra o valor líquido creditado. Default 0 = sem imposto.
         """
         ticker = normalize_ticker(ticker)
         if amount_per_share <= 0:
             return None
 
-        day = (ex_date or (ts[:10] if ts else "") or datetime.utcnow().date().isoformat())[:10]
+        day = (ex_date or (ts[:10] if ts else "") or utcnow_date())[:10]
         if skip_if_duplicate and f"{ticker}|{day}" in self._dividend_keys():
             return None
 
@@ -254,15 +270,17 @@ class PaperPortfolio:
         if qty <= 1e-12:
             return None
 
-        total = qty * amount_per_share
+        gross = qty * amount_per_share
+        retention = gross * float(tax_rate) if tax_rate else 0.0
+        total = gross - retention
         self.cash += total
         event = DividendEvent(
             id=str(uuid4()),
-            ts=ts or datetime.utcnow().isoformat(),
+            ts=ts or utcnow_iso(),
             ticker=ticker,
             amount=total,
             shares=qty,
-            note=note,
+            note=note if not retention else f"{note} (IR retido {retention:.2f})",
             amount_per_share=float(amount_per_share),
             ex_date=day,
         )
@@ -277,6 +295,9 @@ class PaperPortfolio:
         buckets: dict[str, str] | None = None,
         note: str = "rebalance",
         ts: str | None = None,
+        *,
+        fee_bps: float = 0.0,
+        slippage_bps: float = 0.0,
     ) -> list[Trade]:
         """Rebalanceia para pesos alvo usando valor total (caixa + posições)."""
         buckets = buckets or {}
@@ -292,7 +313,17 @@ class PaperPortfolio:
                 pos = self.positions[t]
                 px = prices.get(t)
                 if px and pos.shares > 0:
-                    trades.append(self.sell(t, pos.shares, px, note=f"{note}:sair", ts=ts))
+                    trades.append(
+                        self.sell(
+                            t,
+                            pos.shares,
+                            px,
+                            note=f"{note}:sair",
+                            ts=ts,
+                            fee_bps=fee_bps,
+                            slippage_bps=slippage_bps,
+                        )
+                    )
 
         # Ajusta cada alvo
         for t, w in weights.items():
@@ -311,16 +342,43 @@ class PaperPortfolio:
             shares = abs(delta_value) / px
             bucket = buckets.get(t, "core")
             if delta_value > 0:
-                max_shares = self.cash / px if px > 0 else 0
+                exec_price = px * (1.0 + slippage_bps / 10_000.0)
+                fee_mult = 1.0 + fee_bps / 10_000.0
+                unit = exec_price * fee_mult
+                max_shares = self.cash / unit if unit > 0 else 0
                 shares = min(shares, max_shares)
-                if shares * px >= 1:
-                    trades.append(self.buy(t, shares, px, bucket=bucket, note=note, ts=ts))
+                if shares * exec_price >= 1:
+                    try:
+                        trades.append(
+                            self.buy(
+                                t,
+                                shares,
+                                px,
+                                bucket=bucket,
+                                note=note,
+                                ts=ts,
+                                fee_bps=fee_bps,
+                                slippage_bps=slippage_bps,
+                            )
+                        )
+                    except ValueError:
+                        continue
             else:
                 pos = self.positions.get(t)
                 if pos:
                     shares = min(shares, pos.shares)
                     if shares * px >= 1:
-                        trades.append(self.sell(t, shares, px, note=note, ts=ts))
+                        trades.append(
+                            self.sell(
+                                t,
+                                shares,
+                                px,
+                                note=note,
+                                ts=ts,
+                                fee_bps=fee_bps,
+                                slippage_bps=slippage_bps,
+                            )
+                        )
         return trades
 
     def total_value(self, prices: dict[str, float]) -> float:
@@ -392,7 +450,7 @@ class PaperPortfolio:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PaperPortfolio":
+    def from_dict(cls, data: dict[str, Any]) -> PaperPortfolio:
         positions = {
             k: Position(**v) for k, v in (data.get("positions") or {}).items()
         }
@@ -417,8 +475,8 @@ class PaperPortfolio:
             positions=positions,
             trades=trades,
             dividends=dividends,
-            created_at=data.get("created_at", datetime.utcnow().isoformat()),
-            updated_at=data.get("updated_at", datetime.utcnow().isoformat()),
+            created_at=data.get("created_at", utcnow_iso()),
+            updated_at=data.get("updated_at", utcnow_iso()),
         )
 
 
@@ -426,6 +484,28 @@ def portfolio_path(name: str = "paper-main") -> Path:
     PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
     safe = "".join(c for c in name if c.isalnum() or c in "-_") or "paper-main"
     return PORTFOLIO_DIR / f"{safe}.json"
+
+
+def list_portfolios() -> list[str]:
+    """Nomes das carteiras paper salvas em disco (conteúdo de data/portfolio/)."""
+    PORTFOLIO_DIR.mkdir(parents=True, exist_ok=True)
+    if not PORTFOLIO_DIR.exists():
+        return []
+    names = [p.stem for p in PORTFOLIO_DIR.glob("*.json")]
+    # "paper-main" primeiro se existir (estabilidade para quem não mexeu)
+    names.sort(key=lambda n: (n != "paper-main", n.lower()))
+    return names or []
+
+
+def delete_portfolio(name: str) -> bool:
+    """Remove uma carteira salva. Retorna False se não existir."""
+    if name == "paper-main":
+        raise ValueError("A carteira padrão 'paper-main' não pode ser apagada.")
+    path = portfolio_path(name)
+    if not path.exists():
+        return False
+    path.unlink()
+    return True
 
 
 def save_portfolio(portfolio: PaperPortfolio) -> Path:

@@ -6,17 +6,26 @@ import pandas as pd
 import streamlit as st
 
 from src.data.news import fetch_headlines
-from src.portfolio.paper import load_portfolio
+from src.data.providers import is_realtime_provider
+from src.portfolio.paper import load_portfolio, list_portfolios
 from src.services import (
     format_brl,
     format_pct,
     load_scored_universe,
     prices_dict_from_fundamentals,
 )
+from src.thesis.macro import macro_tilt_from_override
+from src.ui.data_source import APPLY_THESIS_LABEL, get_session_macro
 from src.thesis.scoring import recommend_weights
-from src.ai.coach import narrative_thesis, summarize_headlines
-from src.ui.charts import holdings_donut
-from src.ui.components import render_journey, render_kpi_row, render_page_header, render_plain_help
+from src.ai.coach import narrative_thesis
+from src.ui.charts import holdings_donut, thesis_radar
+from src.ui.components import (
+    render_core_sectors_card,
+    render_journey,
+    render_kpi_row,
+    render_page_header,
+    render_plain_help,
+)
 from src.ui.data_source import provider_selectbox, render_data_quality_banner
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
 from src.ui.onboarding import render_onboarding_if_needed, render_onboarding_reset_button
@@ -29,9 +38,11 @@ render_page_header("Início", "Comece aqui · caminho guiado para montar uma car
 
 with st.sidebar:
     st.markdown("##### Dados")
-    provider = provider_selectbox(key="home_provider", label="Fonte", show_help=True)
+    provider = provider_selectbox(label="Fonte", show_help=True)
     if st.button("Atualizar overview", width="stretch", key="home_refresh"):
-        st.cache_data.clear()
+        from src.ui.refresh import force_refresh_data
+
+        force_refresh_data()
         st.rerun()
     render_onboarding_reset_button()
 
@@ -51,8 +62,15 @@ def _scored(provider: str):
     )
 
 
-# Carteira paper é local e instantânea — mostra mesmo se Yahoo demorar
-portfolio = load_portfolio("paper-main")
+# Carteira ativa (a mesma de Minha carteira)
+_active = (
+    st.session_state.get("pf_select")
+    or st.session_state.get("pf_active_name")
+    or "paper-main"
+)
+if _active not in list_portfolios() and _active != "paper-main":
+    _active = "paper-main"
+portfolio = load_portfolio(_active)
 scored = pd.DataFrame()
 filtered = scored
 recs = scored
@@ -62,15 +80,16 @@ news = pd.DataFrame()
 try:
     with st.spinner(
         "Carregando overview… (Bolsa real: até ~15–30s na 1ª vez; depois cache)"
-        if provider == "yfinance"
+        if is_realtime_provider(provider)
         else "Carregando overview…"
     ):
         result = _scored(provider)
         scored = result.scored
         filtered = result.filtered
         recs = recommend_weights(
-            filtered if not filtered.empty else scored,
+            filtered,
             top_n=10,
+            macro_tilt=macro_tilt_from_override(get_session_macro()),
         )
         prices = prices_dict_from_fundamentals(scored)
 except Exception as e:
@@ -101,7 +120,7 @@ render_plain_help(
     "Seu caminho em 4 passos",
     """
 1. **Descubra ações** — veja notas e o gráfico de preço em vários períodos  
-2. **Minha carteira → Montar carteira** — defina o capital e clique em *Montar com a tese*  
+2. **Minha carteira** — clique em **Montar carteira com a tese** (R$ 10 mil de treino)  
 3. **Renda esperada** — entenda quanto poderia render em dividendos (estimativa)  
 4. **Teste no passado** (opcional) — veja como a ideia se comportaria historicamente  
 
@@ -168,7 +187,14 @@ with right:
     with st.container(border=True):
         if holdings.empty:
             st.markdown("##### Sua carteira")
-            st.caption("Ainda vazia. Abra **Minha carteira → Montar carteira** e monte com a tese.")
+            st.caption(
+                f"Ainda vazia. Abra **Minha carteira** e clique em **{APPLY_THESIS_LABEL}**."
+            )
+            st.page_link(
+                "app_pages/minha_carteira.py",
+                label=APPLY_THESIS_LABEL,
+                icon=":material/auto_awesome:",
+            )
         else:
             st.plotly_chart(
                 holdings_donut(
@@ -186,9 +212,29 @@ with c1:
     with st.container(border=True):
         st.markdown("##### Radar da tese (top da lista)")
         st.caption(
-            "Empresas com melhor nota para a ideia de renda com qualidade. "
-            "Nomes em português na tabela."
+            "Empresas com melhor nota para renda com qualidade. "
+            "O gráfico abaixo é a média dos 4 pilares (qualidade, dividendo, saúde, preço)."
         )
+        if not recs.empty:
+            def _mean(col: str) -> float | None:
+                if col not in recs.columns:
+                    return None
+                s = pd.to_numeric(recs[col], errors="coerce").dropna()
+                return float(s.mean()) if not s.empty else None
+
+            st.plotly_chart(
+                thesis_radar(
+                    _mean("score_quality"),
+                    _mean("score_dividends"),
+                    _mean("score_financial_health"),
+                    _mean("score_valuation"),
+                    title="Média dos pilares no top da lista",
+                    height=280,
+                ),
+                width="stretch",
+                config={"displayModeBar": False},
+            )
+        render_core_sectors_card()
         if recs.empty:
             st.warning("Sem sugestões com os filtros atuais.")
         else:
