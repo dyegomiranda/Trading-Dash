@@ -15,7 +15,13 @@ from src.services import (
     prices_dict_from_fundamentals,
 )
 from src.thesis.macro import macro_tilt_from_override
-from src.ui.data_source import APPLY_THESIS_LABEL, get_session_macro
+from src.ui.data_source import (
+    APPLY_THESIS_LABEL,
+    get_session_macro,
+    get_session_provider,
+    render_data_quality_banner,
+    render_refresh_control,
+)
 from src.thesis.scoring import recommend_weights
 from src.ai.coach import narrative_thesis
 from src.ui.charts import holdings_donut
@@ -28,9 +34,8 @@ from src.ui.components import (
     render_plain_help,
     render_thesis_pillars,
 )
-from src.ui.data_source import provider_selectbox, render_data_quality_banner
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
-from src.ui.onboarding import render_onboarding_if_needed, render_onboarding_reset_button
+from src.ui.onboarding import render_onboarding_if_needed
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
 
@@ -41,15 +46,9 @@ render_page_header("Início", "Comece aqui · caminho guiado para montar uma car
 if render_onboarding_if_needed():
     st.stop()
 
+provider = get_session_provider()
 with st.sidebar:
-    st.markdown("##### Dados")
-    provider = provider_selectbox(label="Fonte", show_help=True)
-    if st.button("Atualizar overview", width="stretch", key="home_refresh"):
-        from src.ui.refresh import force_refresh_data
-
-        force_refresh_data()
-        st.rerun()
-    render_onboarding_reset_button()
+    render_refresh_control(key="home_refresh")
 
 render_data_quality_banner(provider)
 

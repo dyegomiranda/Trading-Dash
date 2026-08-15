@@ -66,9 +66,9 @@ def donut_allocation(
     center_title: str = "Total",
     center_value: str = "",
     title: str = "Alocação",
-    height: int = 380,
+    height: int = 440,
 ) -> go.Figure:
-    """Rosca com legenda à direita — sem % colado na fatia (evita sobreposição)."""
+    """Rosca com linha do pedaço até o nome + %. Centro alinhado no miolo."""
     raw = [
         (str(lab), float(val))
         for lab, val in zip(labels, values)
@@ -89,24 +89,26 @@ def donut_allocation(
     if other > 0 and raw != [("—", 1.0)]:
         kept.append(("Outros", other))
 
-    legend_labels = [f"{lab}  {val / total:.0%}" for lab, val in kept]
+    pie_labels = [lab for lab, _ in kept]
     pie_values = [val for _, val in kept]
 
     fig = go.Figure(
         data=[
             go.Pie(
-                labels=legend_labels,
+                labels=pie_labels,
                 values=pie_values,
-                hole=0.58,
+                hole=0.52,
                 sort=False,
                 direction="clockwise",
-                textinfo="none",
-                hovertemplate="<b>%{label}</b><br>%{value:,.2f}<extra></extra>",
+                textinfo="label+percent",
+                textposition="outside",
+                texttemplate="%{label}<br>%{percent:.0%}",
+                textfont={"size": 12, "color": "#E2E8F0"},
+                hovertemplate="<b>%{label}</b><br>%{percent:.0%}<br>%{value:,.2f}<extra></extra>",
                 marker={
                     "colors": PALETTE * 3,
                     "line": {"color": "#070B14", "width": 2},
                 },
-                domain={"x": [0.0, 0.56], "y": [0.06, 0.94]},
             )
         ]
     )
@@ -118,32 +120,24 @@ def donut_allocation(
                     f"<span style='font-size:11px;color:#94A3B8'>{center_title}</span>"
                     f"<br><span style='font-size:16px;font-weight:700;color:#F8FAFC'>{center_value}</span>"
                 ),
-                "x": 0.28,
+                "x": 0.5,
                 "y": 0.5,
-                "showarrow": False,
-                "align": "center",
                 "xref": "paper",
                 "yref": "paper",
+                "xanchor": "center",
+                "yanchor": "middle",
+                "showarrow": False,
+                "align": "center",
             }
         )
     fig.update_layout(
         **_base_layout(
             title=title,
-            height=max(height, 380),
-            showlegend=True,
-            margin={"l": 8, "r": 16, "t": 40, "b": 12},
-            legend={
-                "orientation": "v",
-                "yanchor": "middle",
-                "y": 0.5,
-                "xanchor": "left",
-                "x": 0.60,
-                "bgcolor": "rgba(0,0,0,0)",
-                "font": {"size": 12, "color": "#CBD5E1"},
-                "itemwidth": 40,
-                "traceorder": "normal",
-            },
+            height=max(height, 440),
+            showlegend=False,
+            margin={"l": 72, "r": 72, "t": 48, "b": 28},
             annotations=annotations,
+            uniformtext={"minsize": 10, "mode": "hide"},
         )
     )
     return fig

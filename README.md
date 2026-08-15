@@ -16,7 +16,8 @@ App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileir
 | **Descubra ações** | Nota 0–100, pesos sugeridos e **gráfico histórico** de preço |
 | **Minha carteira** | Capital editável, aplicar tese, alocar manualmente, projetar renda |
 | **Teste no passado** | “E se eu tivesse seguido a tese desde 2022?” — com guia antes do 1º teste |
-| **Guia do iniciante** | Dicionário e explicação da estratégia em português claro |
+| **Guia do iniciante** | Dicionário, fontes de dados e a estratégia em português claro |
+| **Configurações** | Modo treino, fonte B3 experimental e inclinação por juros |
 
 ### Modo treino vs Bolsa real
 

@@ -8,12 +8,15 @@ from src.ui.charts import donut_allocation
 from src.ui.components import pillar_means
 
 
-def test_donut_puts_percent_in_legend_not_on_slice():
+def test_donut_labels_on_slices_with_percent():
     fig = donut_allocation(["ITUB4", "WEGE3", "TAEE11"], [40.0, 35.0, 25.0])
     pie = fig.data[0]
-    assert pie.textinfo == "none"
-    labels = list(pie.labels)
-    assert any("ITUB4" in str(x) and "%" in str(x) for x in labels)
+    assert pie.textinfo == "label+percent"
+    assert pie.textposition == "outside"
+    assert "ITUB4" in list(pie.labels)
+    assert fig.layout.showlegend is False
+    center_xs = [a.x for a in (fig.layout.annotations or [])]
+    assert not center_xs or all(abs(float(x) - 0.5) < 1e-6 for x in center_xs)
 
 
 def test_donut_groups_tiny_slices():

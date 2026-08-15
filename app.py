@@ -51,8 +51,13 @@ page_guia = st.Page(
     title="Guia do iniciante",
     icon=":material/menu_book:",
 )
+page_config = st.Page(
+    "app_pages/configuracoes.py",
+    title="Configurações",
+    icon=":material/settings:",
+)
 
-pages = [page_inicio, page_descobrir, page_carteira, page_sim, page_guia]
+pages = [page_inicio, page_descobrir, page_carteira, page_sim, page_guia, page_config]
 
 # Menu nativo oculto — montamos o menu manualmente (logo → links)
 pg = st.navigation(pages, position="hidden")

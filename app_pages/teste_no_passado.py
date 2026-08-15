@@ -18,7 +18,7 @@ from src.data.universe import get_universe
 from src.services import format_brl, format_pct
 from src.ui.charts import holdings_donut
 from src.ui.components import render_kpi_row, render_page_header
-from src.ui.data_source import provider_selectbox, render_data_quality_banner
+from src.ui.data_source import get_session_provider, render_data_quality_banner
 from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 
@@ -29,9 +29,9 @@ render_page_header(
 )
 
 # ── Controles ──────────────────────────────────────────────
+provider = get_session_provider()
 with st.sidebar:
     st.markdown("##### Configurar o teste")
-    provider = provider_selectbox(show_help=True)
     start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
     end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
     initial_cash = st.number_input(

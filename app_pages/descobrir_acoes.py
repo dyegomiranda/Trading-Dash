@@ -24,11 +24,12 @@ from src.ui.components import (
 )
 from src.ui.data_source import (
     APPLY_THESIS_LABEL,
-    macro_selectbox,
-    provider_selectbox,
+    get_session_macro,
+    get_session_provider,
     render_data_quality_banner,
+    render_refresh_control,
 )
-from src.ui.friendly import PRICE_PERIODS, friendly_dataframe, render_glossary_expander
+from src.ui.friendly import PRICE_PERIODS, friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_trust_strip
 from src.utils import utcnow
@@ -39,9 +40,9 @@ render_page_header(
     "Notas da tese em português claro + histórico do preço",
 )
 
+provider = get_session_provider()
 with st.sidebar:
-    st.markdown("##### Filtros")
-    provider = provider_selectbox(label="Fonte de dados", show_help=True)
+    st.markdown("##### Filtros desta lista")
     min_score = st.slider(
         "Nota mínima do app",
         0,
@@ -74,16 +75,13 @@ with st.sidebar:
         help="Do curto prazo (1 mês) até o máximo que a fonte tiver de histórico.",
     )
     hist_days = dict(PRICE_PERIODS).get(period_choice)
-    run = st.button("Atualizar lista", type="primary", width="stretch", key="disc_run")
+    run = st.button("Recalcular lista", type="primary", width="stretch", key="disc_run")
     if run:
-        # refresh real: ignora TTL do cache em memória E do disco
         from src.ui.refresh import force_refresh_data
 
         force_refresh_data()
-    render_glossary_expander()
-
-    macro_choice = macro_selectbox()
-    _macro_tilt = macro_tilt_from_override(macro_choice)
+    render_refresh_control(key="disc_refresh")
+    _macro_tilt = macro_tilt_from_override(get_session_macro())
 
 render_data_quality_banner(provider)
 
@@ -155,7 +153,7 @@ if need_load:
 
 scored_df = st.session_state.get("scored_df")
 if scored_df is None or getattr(scored_df, "empty", True):
-    st.warning("Sem dados de mercado. Clique em **Atualizar lista** ou use Modo treino.")
+    st.warning("Sem dados de mercado. Clique em **Recalcular lista** ou ligue o Modo treino.")
     st.stop()
 
 if "quality_level" not in scored_df.columns:

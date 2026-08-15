@@ -12,6 +12,7 @@ from src.ui.components import (
     render_plain_help,
     render_section_label,
 )
+from src.ui.data_source import render_sources_guide
 from src.ui.friendly import GLOSSARY, JOURNEY_STEPS
 from src.ui.onboarding import render_onboarding_reset_button
 from src.ui.shell import page_setup
@@ -92,7 +93,16 @@ um é o **total da conta**; o outro (na aba Renda) é **renda de dividendos**, n
 """
     )
 
+render_section_label("De onde vêm os números")
+render_sources_guide()
+st.page_link(
+    "app_pages/configuracoes.py",
+    label="Abrir configurações",
+    icon=":material/settings:",
+)
+
 st.markdown("##### Dicionário")
+st.caption("Palavras que aparecem no app, em português simples.")
 for term, meaning in GLOSSARY:
     with st.container(border=True):
         st.markdown(f"**{term}**")

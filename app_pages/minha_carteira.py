@@ -56,11 +56,12 @@ from src.ui.components import (
 from src.ui.data_source import (
     APPLY_THESIS_LABEL,
     get_session_macro,
-    provider_selectbox,
+    get_session_provider,
     render_data_quality_banner,
+    render_refresh_control,
 )
-from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe, render_glossary_expander
-from src.ui.refresh import force_refresh_data, soft_refresh
+from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
+from src.ui.refresh import soft_refresh
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_premises_box, render_trust_strip
 from src.ui.wallet import render_asset_rows, render_wallet_balance
@@ -71,10 +72,9 @@ render_page_header(
     "Conta de treino · monte passo a passo, sem jargão",
 )
 
+provider = get_session_provider()
 with st.sidebar:
-    st.markdown("##### Conta de treino")
-
-    # ── Múltiplas carteiras: seletor + criar/apagar ──
+    st.markdown("##### Qual carteira")
     _saved = list_portfolios()
     if not _saved:
         _saved = ["paper-main"]
@@ -82,41 +82,19 @@ with st.sidebar:
         "Carteira ativa",
         options=_saved,
         key="pf_select",
-        help="Troque entre suas carteiras de treino (cada uma com caixa e posições próprios).",
+        help="Cada carteira tem caixa e ações próprios.",
     )
     if portfolio_name != st.session_state.get("pf_active_name"):
         st.session_state["pf_active_name"] = portfolio_name
 
-    _crt, _mk, _del = st.columns([3, 1, 1])
-    with _crt:
-        new_name = st.text_input(
-            "Criar nova carteira",
-            placeholder="ex.: aposentadoria-2030",
-            key="pf_new_name",
-            help="Nova carteira de treino (vazia, com capital inicial).",
-        )
-    with _mk:
-        _do_create = st.button("Criar", key="pf_create", width="stretch")
-    if _do_create:
-        clean = "".join(c for c in (new_name or "").strip() if c.isalnum() or c in "-_")
-        if not clean:
-            st.caption("Digite um nome (letras, números, - ou _).")
-        elif clean in _saved:
-            st.caption("Já existe uma carteira com esse nome.")
-        else:
-            save_portfolio(PaperPortfolio.create(name=clean))
-            st.session_state["pf_active_name"] = clean
-            st.session_state["pf_select"] = clean
-            st.rerun()
-    with _del:
-        _can_del = st.button(
-            "Apagar",
-            type="secondary",
-            key="pf_del",
-            disabled=portfolio_name == "paper-main",
-            help="Apaga a carteira selecionada (a padrão 'paper-main' é protegida).",
-        )
     _confirm_key = f"pf_del_confirm_{portfolio_name}"
+    _can_del = st.button(
+        "Apagar esta carteira",
+        width="stretch",
+        key="pf_del",
+        disabled=portfolio_name == "paper-main",
+        help="A carteira padrão paper-main não pode ser apagada.",
+    )
     if _can_del:
         if st.session_state.get(_confirm_key, False):
             try:
@@ -130,16 +108,31 @@ with st.sidebar:
                 st.warning(str(e))
         else:
             st.session_state[_confirm_key] = True
-            st.caption(f"Clique em **Apagar** de novo para apagar **{portfolio_name}** de vez.")
+            st.caption("Clique de novo para confirmar.")
     else:
-        # usuário desistiu / mudou a seleção → zera a intenção pendente
         st.session_state.pop(_confirm_key, None)
 
-    provider = provider_selectbox(label="Fonte de dados", show_help=True)
-    if st.button("Atualizar dados", icon=":material/refresh:", width="stretch", key="pf_refresh"):
-        force_refresh_data()
-        st.rerun()
-    render_glossary_expander()
+    st.markdown("##### Nova carteira")
+    new_name = st.text_input(
+        "Nome",
+        placeholder="ex.: aposentadoria-2030",
+        key="pf_new_name",
+        label_visibility="collapsed",
+    )
+    _do_create = st.button("Criar carteira", width="stretch", key="pf_create")
+    if _do_create:
+        clean = "".join(c for c in (new_name or "").strip() if c.isalnum() or c in "-_")
+        if not clean:
+            st.caption("Digite um nome (letras, números, - ou _).")
+        elif clean in _saved:
+            st.caption("Já existe uma carteira com esse nome.")
+        else:
+            save_portfolio(PaperPortfolio.create(name=clean))
+            st.session_state["pf_active_name"] = clean
+            st.session_state["pf_select"] = clean
+            st.rerun()
+
+    render_refresh_control(key="pf_refresh")
 
 render_data_quality_banner(provider)
 

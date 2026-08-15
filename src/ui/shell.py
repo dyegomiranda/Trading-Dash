@@ -116,7 +116,6 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
                 unsafe_allow_html=True,
             )
         for page in pages:
-            # Page já carrega title/icon; width stretch = botões full-width
             try:
                 icon = page.icon or None
             except Exception:
@@ -125,6 +124,10 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
                 st.page_link(page, icon=icon, width="stretch")
             else:
                 st.page_link(page, width="stretch")
+        st.divider()
+        from src.ui.data_source import render_global_mode_toggle
+
+        render_global_mode_toggle()
 
 
 def page_setup() -> None:

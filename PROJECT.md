@@ -65,6 +65,7 @@ TradingDash/
     minha_carteira.py    # paper portfolio
     teste_no_passado.py  # backtest
     guia.py              # dicionário / tese
+    configuracoes.py     # modo treino, fonte B3, regime macro
   assets/logo/TD_logo.png
   assets/icon/TD_icon.png
   src/
@@ -181,7 +182,8 @@ TradingDash/
 | Descubra ações | `descobrir_acoes.py` | ranking, pesos, histórico de preço por ticker |
 | Minha carteira | `minha_carteira.py` | dashboard, operar (capital + tese + manual), renda, mais |
 | Teste no passado | `teste_no_passado.py` | onboarding explicativo (Modo treino vs Bolsa real) **antes** do 1º run; depois KPIs + gráficos |
-| Guia | `guia.py` | glossário e pesos da tese |
+| Guia | `guia.py` | glossário, fontes de dados e pesos da tese |
+| Configurações | `configuracoes.py` | modo treino, brapi, regime macro, atualizar cache |
 
 ---
 

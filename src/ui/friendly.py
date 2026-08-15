@@ -118,6 +118,26 @@ ACTION_LABELS: dict[str, str] = {
 
 GLOSSARY: list[tuple[str, str]] = [
     (
+        "Modo treino",
+        "Interruptor da barra. Ligado: o app usa números ilustrativos para você aprender. Desligado: busca a bolsa (Yahoo).",
+    ),
+    (
+        "Bolsa real",
+        "Preços e indicadores do Yahoo Finance. São de mercado, mas gratuitos — podem atrasar, faltar ou divergir da CVM.",
+    ),
+    (
+        "brapi.dev",
+        "Empresa que junta dados da B3. No plano grátis traz preço e dividendo, quase sem ROE nem dívida. Fica em Configurações.",
+    ),
+    (
+        "Atualizar dados",
+        "Apaga os números guardados (cache) e busca de novo. Use se a lista parecer antiga.",
+    ),
+    (
+        "Inclinação por juros",
+        "Em Configurações. Pode dar um pouco mais de peso a setores estáveis quando os juros estão altos. Não cria nem tira ações.",
+    ),
+    (
         "Ação",
         "Uma fatia de uma empresa. Quando você compra ações, vira sócio em miniatura.",
     ),

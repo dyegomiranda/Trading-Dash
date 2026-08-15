@@ -1,106 +1,152 @@
-"""Widget compartilhado: seletor de fonte de dados com explicação."""
+"""Fonte de dados e ajustes globais da sessão (um estado para o app inteiro)."""
 
 from __future__ import annotations
 
 import streamlit as st
 
-# Primeira visita = treino. brapi fica experimental (sem ROE/dívida no plano grátis).
-PROVIDER_OPTIONS = ("demo", "yfinance")
-SESSION_PROVIDER_KEY = "data_provider"
+PROVIDER_OPTIONS = ("demo", "yfinance", "brapi")
+SESSION_PROVIDER_KEY = "app_provider"
 PENDING_PROVIDER_KEY = "pending_data_provider"
-SESSION_MACRO_KEY = "macro_override"
+REAL_PROVIDER_KEY = "app_provider_real"
+PENDING_TREINO_KEY = "pending_sidebar_treino"
+SIDEBAR_TREINO_KEY = "sidebar_treino"
+SESSION_MACRO_KEY = "app_macro"
 APPLY_THESIS_LABEL = "Montar carteira com a tese"
+
+MACRO_CHOICES = {
+    "off": "Desligado",
+    "auto": "Automático (Selic do Banco Central)",
+    "restrictive": "Juros altos — mais defensivas",
+    "expansionary": "Juros baixos — mais crescimento",
+    "cautious": "Neutro / cauteloso",
+}
 
 
 def request_session_provider(name: str) -> None:
-    """Pede troca de fonte no *próximo* run, antes do selectbox nascer.
-
-    Não escreve em ``data_provider`` depois que o widget existe — isso
-    levanta StreamlitAPIException.
-    """
-    if name in ("demo", "yfinance", "brapi"):
-        st.session_state[PENDING_PROVIDER_KEY] = name
+    """Marca a fonte para o próximo run, antes de qualquer widget nascer."""
+    if name not in PROVIDER_OPTIONS:
+        return
+    st.session_state[PENDING_PROVIDER_KEY] = name
+    st.session_state[PENDING_TREINO_KEY] = name == "demo"
 
 
 def _apply_pending_provider() -> None:
     pending = st.session_state.pop(PENDING_PROVIDER_KEY, None)
-    if pending in ("demo", "yfinance", "brapi"):
+    if pending in PROVIDER_OPTIONS:
         st.session_state[SESSION_PROVIDER_KEY] = pending
+        if pending != "demo":
+            st.session_state[REAL_PROVIDER_KEY] = pending
+    pending_t = st.session_state.pop(PENDING_TREINO_KEY, None)
+    if pending_t is not None:
+        st.session_state[SIDEBAR_TREINO_KEY] = bool(pending_t)
 
 
 def format_provider_label(x: str) -> str:
     if x == "yfinance":
         return "Bolsa real (Yahoo Finance)"
     if x == "brapi":
-        return "Experimental — brapi.dev (sem ROE/dívida)"
+        return "Experimental — dados da B3 (brapi.dev)"
     return "Modo treino (números ilustrativos)"
 
 
 def get_session_provider() -> str:
+    _apply_pending_provider()
     val = st.session_state.get(SESSION_PROVIDER_KEY)
-    if val in ("demo", "yfinance", "brapi"):
+    if val in PROVIDER_OPTIONS:
         return str(val)
+    st.session_state[SESSION_PROVIDER_KEY] = "demo"
     return "demo"
 
 
 def get_session_macro() -> str:
     val = st.session_state.get(SESSION_MACRO_KEY)
-    if val in ("off", "auto", "expansionary", "cautious", "restrictive"):
+    if val in MACRO_CHOICES:
         return str(val)
     try:
         from src.config import get_settings
 
         env = str(getattr(get_settings(), "macro_override", "off") or "off")
-        if env in ("off", "auto", "expansionary", "cautious", "restrictive"):
+        if env in MACRO_CHOICES:
             return env
     except Exception:
         pass
     return "off"
 
 
-def render_provider_help() -> None:
-    with st.expander("O que significa cada fonte de dados?", icon=":material/help:"):
-        st.markdown(
-            """
-| | **Modo treino** | **Bolsa real (Yahoo)** |
-|--|-----------------|------------------------|
-| **Nome e setor** | Cadastro B3 local (não inventa setor) | Mercado + cadastro B3 |
-| **Preços / indicadores** | **Números sintéticos** (fictícios) | Yahoo Finance (podem atrasar ou falhar) |
-| **Quando usar** | Aprender a interface e a tese | Estudar com cara de mercado |
-| **Dinheiro real?** | **Nunca** | Ainda **não** é consultoria; valide fora |
-
-**brapi.dev** (experimental) tem preço e dividendo, mas **quase não traz ROE nem dívida** —
-a nota de qualidade fica incompleta. Por isso não aparece no seletor principal.
-
-O app **não substitui** Status Invest, Fundamentus, RI da empresa ou um profissional habilitado.
-"""
-        )
-
-
 def render_data_quality_banner(provider: str) -> None:
-    """Aviso forte no topo da página conforme a fonte."""
     if provider == "demo":
-        st.error(
-            "**Modo treino ativo:** indicadores (ROE, DY, P/L, notas) são "
-            "**sintéticos/fictícios**. Nome e setor vêm do cadastro B3, mas "
-            "**não use esta tela para colocar dinheiro real.** "
-            "Quando quiser números de mercado, mude para **Bolsa real**.",
-            icon=":material/dangerous:",
+        st.info(
+            "**Modo treino.** As notas e os indicadores são ilustrativos. "
+            "Desligue o interruptor **Modo treino** na barra para usar a bolsa.",
+            icon=":material/school:",
         )
     elif provider == "brapi":
         st.warning(
-            "**Fonte experimental (brapi.dev):** preços e dividendos B3, mas o plano "
-            "gratuito **não traz ROE nem dívida**. A nota de qualidade fica incompleta. "
-            "Prefira Yahoo para estudar a tese.",
+            "**Fonte experimental da B3.** Tem preço e dividendo; quase não traz "
+            "ROE nem dívida. A nota de qualidade fica incompleta.",
             icon=":material/science:",
         )
     else:
-        st.warning(
-            "**Bolsa real (Yahoo Finance):** dados gratuitos — podem estar "
-            "atrasados, incompletos ou divergir de fontes oficiais. Use como apoio, "
-            "não como única fonte de verdade.",
-            icon=":material/info:",
+        st.caption(
+            "Bolsa real (Yahoo). Números gratuitos — podem atrasar ou faltar. "
+            "Valide fora do app antes de qualquer decisão."
         )
+
+
+def render_global_mode_toggle() -> str:
+    """Interruptor único na barra — vale em todas as páginas."""
+    _apply_pending_provider()
+    current = get_session_provider()
+    if SIDEBAR_TREINO_KEY not in st.session_state:
+        st.session_state[SIDEBAR_TREINO_KEY] = current == "demo"
+
+    treino = st.toggle(
+        "Modo treino",
+        key=SIDEBAR_TREINO_KEY,
+        help="Ligado: números ilustrativos para aprender. "
+        "Desligado: preços e indicadores da bolsa (Yahoo).",
+    )
+    if treino and current != "demo":
+        request_session_provider("demo")
+        st.rerun()
+    if not treino and current == "demo":
+        request_session_provider(st.session_state.get(REAL_PROVIDER_KEY) or "yfinance")
+        st.rerun()
+
+    provider = get_session_provider()
+    if provider == "demo":
+        st.caption("Números de estudo · não são da bolsa")
+    elif provider == "brapi":
+        st.caption("Bolsa · fonte experimental B3")
+    else:
+        st.caption("Bolsa real · Yahoo Finance")
+    return provider
+
+
+def render_refresh_control(*, key: str, compact: bool = True) -> None:
+    """Botão de recarregar cache, com o que ele faz e um recado depois do clique."""
+    if st.session_state.pop(f"{key}_flash", False):
+        st.toast("Cache limpo. A tela busca números novos agora.", icon=":material/check:")
+
+    help_txt = (
+        "Apaga os números guardados e busca de novo na fonte. "
+        "Use se a lista parecer velha ou depois de mudar o modo treino."
+    )
+    clicked = st.button(
+        "Atualizar dados",
+        icon=":material/refresh:",
+        width="stretch",
+        key=key,
+        help=help_txt,
+    )
+    if not compact:
+        st.caption(help_txt)
+    if clicked:
+        from src.ui.refresh import force_refresh_data
+
+        force_refresh_data()
+        st.session_state[f"{key}_flash"] = True
+        st.rerun()
 
 
 def provider_selectbox(
@@ -110,63 +156,37 @@ def provider_selectbox(
     default: str = "demo",
     show_help: bool = True,
 ) -> str:
-    """Uma fonte por sessão — o `key` por página é ignorado de propósito."""
-    del key
-    _apply_pending_provider()
-    if SESSION_PROVIDER_KEY not in st.session_state:
-        st.session_state[SESSION_PROVIDER_KEY] = default
-
-    opts = list(PROVIDER_OPTIONS)
-    show_brapi = bool(st.session_state.get("show_brapi"))
-    current = st.session_state.get(SESSION_PROVIDER_KEY, default)
-    if show_brapi or current == "brapi":
-        opts = opts + ["brapi"]
-    if current not in opts:
-        st.session_state[SESSION_PROVIDER_KEY] = default
-
-    provider = st.selectbox(
-        label,
-        options=opts,
-        format_func=format_provider_label,
-        key=SESSION_PROVIDER_KEY,
-        help=(
-            "Modo treino = interface e tese, com números fictícios. "
-            "Bolsa real = Yahoo. A escolha vale em todas as páginas."
-        ),
-    )
-    with st.expander("Fonte experimental (brapi.dev)", icon=":material/science:"):
-        st.checkbox(
-            "Mostrar brapi no seletor (incompleto para a tese)",
-            key="show_brapi",
-            help="Sem ROE/dívida no plano gratuito. Não use para a nota de qualidade.",
-        )
-        st.caption(
-            "Mantemos a opção só para quem quer cruzar preço/dividendo B3. "
-            "Não é a fonte principal."
-        )
-    if show_help:
-        render_provider_help()
-    return provider  # type: ignore[return-value]
+    """Compat: a fonte agora é global. Páginas devem só ler get_session_provider()."""
+    del key, label, default, show_help
+    return get_session_provider()
 
 
 def macro_selectbox() -> str:
-    """Regime macro compartilhado na sessão (Descubra e carteira usam o mesmo)."""
-    choices = {
-        "off": "Desligado (sem inclinação setorial)",
-        "auto": "Automático (meta Selic / IPCA do Banco Central)",
-        "restrictive": "Manual — juros altos (mais defensivas)",
-        "expansionary": "Manual — juros baixos (mais crescimento)",
-        "cautious": "Manual — neutro/cauteloso",
-    }
     if SESSION_MACRO_KEY not in st.session_state:
         st.session_state[SESSION_MACRO_KEY] = get_session_macro()
     return st.selectbox(
-        "Regime macro",
-        options=list(choices.keys()),
-        format_func=lambda k: choices[k],
+        "Como os juros inclinham a carteira",
+        options=list(MACRO_CHOICES.keys()),
+        format_func=lambda k: MACRO_CHOICES[k],
         key=SESSION_MACRO_KEY,
-        help=(
-            "Opcional: reorienta os pesos sugeridos conforme o ciclo de juros. "
-            "Vale na lista e em Montar carteira com a tese. Não cria nem exclui nomes."
-        ),
+        help="Não cria nem tira ações — só muda um pouco o peso de cada setor.",
     )
+
+
+def render_sources_guide() -> None:
+    """Texto do Guia: o que é cada fonte, em linguagem de leigo."""
+    c1, c2 = st.columns(2)
+    with c1, st.container(border=True):
+        st.markdown(":material/school: **Modo treino**")
+        st.caption("Números inventados, estáveis, para aprender os botões. Nunca para dinheiro real.")
+    with c2, st.container(border=True):
+        st.markdown(":material/monitoring: **Bolsa real**")
+        st.caption("Preço e indicadores do Yahoo. Podem atrasar, faltar ou divergir da CVM.")
+    with st.container(border=True):
+        st.markdown(":material/science: **Fonte experimental da B3 (brapi.dev)**")
+        st.caption(
+            "A brapi é uma empresa que junta dados da bolsa brasileira. "
+            "No plano grátis ela entrega preço e dividendo, mas quase não traz "
+            "ROE nem dívida — e a tese precisa desses dois. Por isso é opcional "
+            "e fica em Configurações, não no interruptor principal."
+        )
