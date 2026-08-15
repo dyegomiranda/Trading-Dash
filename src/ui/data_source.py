@@ -7,8 +7,25 @@ import streamlit as st
 # Primeira visita = treino. brapi fica experimental (sem ROE/dívida no plano grátis).
 PROVIDER_OPTIONS = ("demo", "yfinance")
 SESSION_PROVIDER_KEY = "data_provider"
+PENDING_PROVIDER_KEY = "pending_data_provider"
 SESSION_MACRO_KEY = "macro_override"
 APPLY_THESIS_LABEL = "Montar carteira com a tese"
+
+
+def request_session_provider(name: str) -> None:
+    """Pede troca de fonte no *próximo* run, antes do selectbox nascer.
+
+    Não escreve em ``data_provider`` depois que o widget existe — isso
+    levanta StreamlitAPIException.
+    """
+    if name in ("demo", "yfinance", "brapi"):
+        st.session_state[PENDING_PROVIDER_KEY] = name
+
+
+def _apply_pending_provider() -> None:
+    pending = st.session_state.pop(PENDING_PROVIDER_KEY, None)
+    if pending in ("demo", "yfinance", "brapi"):
+        st.session_state[SESSION_PROVIDER_KEY] = pending
 
 
 def format_provider_label(x: str) -> str:
@@ -95,6 +112,7 @@ def provider_selectbox(
 ) -> str:
     """Uma fonte por sessão — o `key` por página é ignorado de propósito."""
     del key
+    _apply_pending_provider()
     if SESSION_PROVIDER_KEY not in st.session_state:
         st.session_state[SESSION_PROVIDER_KEY] = default
 

@@ -36,6 +36,9 @@ page_setup()
 
 render_page_header("Início", "Comece aqui · caminho guiado para montar uma carteira de treino")
 
+if render_onboarding_if_needed():
+    st.stop()
+
 with st.sidebar:
     st.markdown("##### Dados")
     provider = provider_selectbox(label="Fonte", show_help=True)
@@ -45,10 +48,6 @@ with st.sidebar:
         force_refresh_data()
         st.rerun()
     render_onboarding_reset_button()
-
-# Tour na primeira visita
-if render_onboarding_if_needed():
-    st.stop()
 
 render_data_quality_banner(provider)
 

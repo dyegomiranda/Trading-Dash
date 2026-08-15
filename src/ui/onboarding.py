@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from src.config import THESIS_LABEL, THESIS_VERSION
+from src.ui.data_source import request_session_provider
 
 
 def _done() -> bool:
@@ -119,11 +120,12 @@ Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
             ):
                 mark_onboarding_done()
                 st.session_state["onboarding_step"] = 0
-                st.session_state["data_provider"] = "demo"
+                request_session_provider("demo")
                 st.rerun()
     with c3:
         if st.button("Pular tour", width="stretch", key="ob_skip"):
             mark_onboarding_done()
+            request_session_provider("demo")
             st.rerun()
 
     return True
