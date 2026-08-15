@@ -13,12 +13,14 @@ from src.services import format_pct, load_scored_universe
 from src.thesis.macro import macro_header_info, macro_tilt_from_override
 from src.thesis.narrative import build_portfolio_summary, build_stock_narrative
 from src.thesis.scoring import apply_filters, recommend_weights
-from src.ui.charts import holdings_donut, price_history_chart, score_bars, thesis_radar
+from src.ui.charts import holdings_donut, price_history_chart, score_bars
 from src.ui.components import (
+    pillar_means,
     render_core_sectors_card,
     render_kpi_row,
     render_page_header,
     render_plain_help,
+    render_thesis_pillars,
 )
 from src.ui.data_source import (
     APPLY_THESIS_LABEL,
@@ -217,31 +219,9 @@ if not recs.empty:
     )
     with st.container(border=True):
         st.markdown(f"*{_thesis_summary}*")
+        q, d, h, v = pillar_means(recs)
+        render_thesis_pillars(q, d, h, v)
     render_core_sectors_card()
-    def _mean(col: str):
-        if col not in recs.columns:
-            return None
-        s = recs[col]
-        s = s[s.notna()] if hasattr(s, "notna") else s
-        try:
-            import pandas as _pd
-
-            num = _pd.to_numeric(recs[col], errors="coerce").dropna()
-            return float(num.mean()) if not num.empty else None
-        except Exception:
-            return None
-
-    st.plotly_chart(
-        thesis_radar(
-            _mean("score_quality"),
-            _mean("score_dividends"),
-            _mean("score_financial_health"),
-            _mean("score_valuation"),
-            title="Média dos pilares desta lista",
-        ),
-        width="stretch",
-        config={"displayModeBar": False},
-    )
 
 if recs.empty:
     st.warning("Nenhuma ação passou. Baixe a **nota mínima** na barra lateral.")

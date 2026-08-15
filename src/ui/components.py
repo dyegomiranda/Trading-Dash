@@ -259,6 +259,64 @@ def style_plotly_fig(fig):
     return fig
 
 
+def _fmt_pillar(val: float | None) -> str:
+    if val is None:
+        return "—"
+    try:
+        f = float(val)
+    except (TypeError, ValueError):
+        return "—"
+    if f != f:  # NaN
+        return "—"
+    return f"{f:.0f}"
+
+
+def render_thesis_pillars(
+    quality: float | None,
+    dividends: float | None,
+    health: float | None,
+    valuation: float | None,
+    *,
+    heading: str = "As 4 notas da tese",
+) -> None:
+    """Quatro notas médias da lista, em português claro."""
+    st.markdown(f"##### {heading}")
+    st.caption(
+        "Média das empresas desta lista, de 0 a 100. "
+        "**Traço (—)** = não tínhamos esse dado; o app não inventa nota."
+    )
+    items = (
+        ("Qualidade", quality, "Lucro e consistência do negócio"),
+        ("Dividendos", dividends, "Renda sustentável, não o maior yield"),
+        ("Saúde", health, "Dívida e folga financeira"),
+        ("Preço", valuation, "Se o preço está razoável"),
+    )
+    cols = st.columns(4)
+    for col, (label, val, hint) in zip(cols, items):
+        with col, st.container(border=True):
+            st.caption(label)
+            st.markdown(f"**{_fmt_pillar(val)}**")
+            st.caption(hint)
+
+
+def pillar_means(df) -> tuple[float | None, float | None, float | None, float | None]:
+    """Média dos 4 pilares num DataFrame pontuado (None se a coluna estiver vazia)."""
+    import pandas as pd
+
+    def _mean(col: str) -> float | None:
+        if df is None or getattr(df, "empty", True) or col not in df.columns:
+            return None
+        s = pd.to_numeric(df[col], errors="coerce").dropna()
+        return float(s.mean()) if not s.empty else None
+
+    return (
+        _mean("score_quality"),
+        _mean("score_dividends"),
+        _mean("score_financial_health"),
+        _mean("score_valuation"),
+    )
+
+
 def render_core_sectors_card() -> None:
     """Setores da base da tese, em português — o que o iniciante precisa ver."""
     with st.container(border=True):

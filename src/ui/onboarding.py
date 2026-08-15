@@ -77,7 +77,7 @@ Se algo estiver incompleto, a nota da empresa perde força — de propósito.
 **Caminho recomendado**
 
 1. Fique no **Modo treino** nesta primeira visita (já está ligado)  
-2. **Descubra ações** — notas, radar dos 4 pilares e o porquê de cada nome  
+2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome  
 3. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil de treino)  
 4. **Renda esperada** — 3 cenários, sem mágica
 

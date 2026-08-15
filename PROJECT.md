@@ -18,7 +18,7 @@ Use **este `PROJECT.md`** para entender arquitetura, decisões, limitações e o
 2. Carteira **paper money** (dinheiro fictício)  
 3. Projeção de renda (dividendos)  
 4. **Simulação histórica** (“e se eu tivesse seguido a tese desde a data X?”)  
-5. Overview com radar da tese e **notícias reais** (links)
+5. Overview com as 4 notas da tese e **notícias reais** (links)
 
 **Persona:** usuário iniciante em português (Brasil); UI deve ser autoexplicativa.
 
@@ -177,7 +177,7 @@ TradingDash/
 
 | Página | Arquivo | Deve fazer |
 |--------|---------|------------|
-| Início | `inicio.py` | KPIs carteira, rosca, radar da tese, headlines reais |
+| Início | `inicio.py` | KPIs carteira, rosca, 4 notas da tese, headlines reais |
 | Descubra ações | `descobrir_acoes.py` | ranking, pesos, histórico de preço por ticker |
 | Minha carteira | `minha_carteira.py` | dashboard, operar (capital + tese + manual), renda, mais |
 | Teste no passado | `teste_no_passado.py` | onboarding explicativo (Modo treino vs Bolsa real) **antes** do 1º run; depois KPIs + gráficos |

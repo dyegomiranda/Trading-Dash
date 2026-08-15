@@ -12,7 +12,7 @@ App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileir
 
 | Página | Função |
 |--------|--------|
-| **Início** | Visão geral: patrimônio de treino, radar da tese e **notícias reais** com links |
+| **Início** | Visão geral: patrimônio de treino, 4 notas da tese e **notícias reais** com links |
 | **Descubra ações** | Nota 0–100, pesos sugeridos e **gráfico histórico** de preço |
 | **Minha carteira** | Capital editável, aplicar tese, alocar manualmente, projetar renda |
 | **Teste no passado** | “E se eu tivesse seguido a tese desde 2022?” — com guia antes do 1º teste |
@@ -76,7 +76,7 @@ real, é preciso um host com disco (ex.: render/fly.io + volume, ou Docker + bin
 ## Uso rápido (iniciante)
 
 1. **Início** — tour curto; a primeira visita já entra no **Modo treino**.  
-2. **Descubra ações** — notas, radar dos 4 pilares e o porquê de cada nome.  
+2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome.  
 3. **Minha carteira** — ajuste o capital se quiser e clique em **Montar carteira com a tese**.  
 4. **Renda esperada** — 3 cenários (sem inventar yield se a carteira estiver vazia).  
 5. **Teste no passado** (opcional) — ensaio do motor com o retrato de hoje, não o balanço de 2022.

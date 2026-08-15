@@ -66,25 +66,47 @@ def donut_allocation(
     center_title: str = "Total",
     center_value: str = "",
     title: str = "Alocação",
-    height: int = 340,
+    height: int = 380,
 ) -> go.Figure:
-    """Rosca moderna com valor no centro (estilo wallet)."""
+    """Rosca com legenda à direita — sem % colado na fatia (evita sobreposição)."""
+    raw = [
+        (str(lab), float(val))
+        for lab, val in zip(labels, values)
+        if val is not None and float(val) > 0
+    ]
+    if not raw:
+        raw = [("—", 1.0)]
+    raw.sort(key=lambda kv: kv[1], reverse=True)
+    total = sum(v for _, v in raw) or 1.0
+
+    kept: list[tuple[str, float]] = []
+    other = 0.0
+    for i, (lab, val) in enumerate(raw):
+        if i < 8 and val / total >= 0.03:
+            kept.append((lab, val))
+        else:
+            other += val
+    if other > 0 and raw != [("—", 1.0)]:
+        kept.append(("Outros", other))
+
+    legend_labels = [f"{lab}  {val / total:.0%}" for lab, val in kept]
+    pie_values = [val for _, val in kept]
+
     fig = go.Figure(
         data=[
             go.Pie(
-                labels=list(labels),
-                values=list(values),
-                hole=0.72,
+                labels=legend_labels,
+                values=pie_values,
+                hole=0.58,
                 sort=False,
                 direction="clockwise",
-                textinfo="percent",
-                textposition="outside",
-                textfont={"size": 11, "color": "#94A3B8"},
+                textinfo="none",
+                hovertemplate="<b>%{label}</b><br>%{value:,.2f}<extra></extra>",
                 marker={
                     "colors": PALETTE * 3,
                     "line": {"color": "#070B14", "width": 2},
                 },
-                hovertemplate="<b>%{label}</b><br>%{value:,.2f}<br>%{percent}<extra></extra>",
+                domain={"x": [0.0, 0.56], "y": [0.06, 0.94]},
             )
         ]
     )
@@ -93,72 +115,36 @@ def donut_allocation(
         annotations.append(
             {
                 "text": (
-                    f"<span style='font-size:12px;color:#94A3B8'>{center_title}</span>"
-                    f"<br><span style='font-size:20px;font-weight:700;color:#F8FAFC'>{center_value}</span>"
+                    f"<span style='font-size:11px;color:#94A3B8'>{center_title}</span>"
+                    f"<br><span style='font-size:16px;font-weight:700;color:#F8FAFC'>{center_value}</span>"
                 ),
-                "x": 0.5,
+                "x": 0.28,
                 "y": 0.5,
                 "showarrow": False,
                 "align": "center",
+                "xref": "paper",
+                "yref": "paper",
             }
         )
     fig.update_layout(
         **_base_layout(
             title=title,
-            height=height,
+            height=max(height, 380),
             showlegend=True,
+            margin={"l": 8, "r": 16, "t": 40, "b": 12},
+            legend={
+                "orientation": "v",
+                "yanchor": "middle",
+                "y": 0.5,
+                "xanchor": "left",
+                "x": 0.60,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 12, "color": "#CBD5E1"},
+                "itemwidth": 40,
+                "traceorder": "normal",
+            },
             annotations=annotations,
         )
-    )
-    return fig
-
-
-def thesis_radar(
-    quality: float | None,
-    dividends: float | None,
-    health: float | None,
-    valuation: float | None,
-    *,
-    title: str = "Pilares da tese (0–100)",
-    height: int = 320,
-) -> go.Figure:
-    """Radar dos 4 pilares — None vira 0 no desenho, mas o rótulo marca 'sem dado'."""
-
-    def _pt(val: float | None, label: str) -> tuple[float, str]:
-        if val is None or (isinstance(val, float) and val != val):
-            return 0.0, f"{label}\n(sem dado)"
-        return float(val), f"{label}\n{float(val):.0f}"
-
-    vals, labs = zip(
-        _pt(quality, "Qualidade"),
-        _pt(dividends, "Dividendos"),
-        _pt(health, "Saúde"),
-        _pt(valuation, "Preço"),
-        _pt(quality, "Qualidade"),  # fecha o polígono
-    )
-    fig = go.Figure(
-        go.Scatterpolar(
-            r=list(vals),
-            theta=list(labs),
-            fill="toself",
-            name="Nota",
-            line={"color": "#A78BFA", "width": 2},
-            fillcolor="rgba(167, 139, 250, 0.28)",
-            hovertemplate="%{theta}: %{r:.0f}<extra></extra>",
-        )
-    )
-    fig.update_layout(
-        **_base_layout(title=title, height=height, showlegend=False),
-        polar={
-            "bgcolor": "rgba(0,0,0,0)",
-            "radialaxis": {
-                "visible": True,
-                "range": [0, 100],
-                "color": "#64748B",
-                "gridcolor": "rgba(36,48,68,0.65)",
-            },
-            "angularaxis": {"color": "#94A3B8", "gridcolor": "rgba(36,48,68,0.45)"},
-        },
     )
     return fig
 

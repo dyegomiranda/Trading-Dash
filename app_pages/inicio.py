@@ -18,13 +18,15 @@ from src.thesis.macro import macro_tilt_from_override
 from src.ui.data_source import APPLY_THESIS_LABEL, get_session_macro
 from src.thesis.scoring import recommend_weights
 from src.ai.coach import narrative_thesis
-from src.ui.charts import holdings_donut, thesis_radar
+from src.ui.charts import holdings_donut
 from src.ui.components import (
+    pillar_means,
     render_core_sectors_card,
     render_journey,
     render_kpi_row,
     render_page_header,
     render_plain_help,
+    render_thesis_pillars,
 )
 from src.ui.data_source import provider_selectbox, render_data_quality_banner
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
@@ -205,34 +207,17 @@ with right:
                 config={"displayModeBar": False},
             )
 
-# Radar + notícias
 c1, c2 = st.columns([1.2, 1], gap="medium")
 with c1:
     with st.container(border=True):
-        st.markdown("##### Radar da tese (top da lista)")
+        st.markdown("##### Sugestões da tese agora")
         st.caption(
-            "Empresas com melhor nota para renda com qualidade. "
-            "O gráfico abaixo é a média dos 4 pilares (qualidade, dividendo, saúde, preço)."
+            "Empresas com melhor encaixe em renda com qualidade. "
+            "A nota junta lucro, dividendo sustentável, dívida e preço."
         )
         if not recs.empty:
-            def _mean(col: str) -> float | None:
-                if col not in recs.columns:
-                    return None
-                s = pd.to_numeric(recs[col], errors="coerce").dropna()
-                return float(s.mean()) if not s.empty else None
-
-            st.plotly_chart(
-                thesis_radar(
-                    _mean("score_quality"),
-                    _mean("score_dividends"),
-                    _mean("score_financial_health"),
-                    _mean("score_valuation"),
-                    title="Média dos pilares no top da lista",
-                    height=280,
-                ),
-                width="stretch",
-                config={"displayModeBar": False},
-            )
+            q, d, h, v = pillar_means(recs)
+            render_thesis_pillars(q, d, h, v, heading="Média das 4 notas desta lista")
         render_core_sectors_card()
         if recs.empty:
             st.warning("Sem sugestões com os filtros atuais.")
