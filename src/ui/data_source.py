@@ -123,13 +123,6 @@ def render_global_mode_toggle() -> str:
     return provider
 
 
-def render_refresh_control(*, key: str, compact: bool = True) -> None:
-    """Reexporta o controle de cache — implementação em ``src.ui.refresh``."""
-    from src.ui.refresh import render_refresh_control as _render
-
-    _render(key=key, compact=compact)
-
-
 def provider_selectbox(
     *,
     key: str = SESSION_PROVIDER_KEY,

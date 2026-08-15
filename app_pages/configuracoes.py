@@ -11,7 +11,7 @@ from src.ui.data_source import (
     get_session_provider,
     request_session_provider,
 )
-from src.ui.refresh import render_refresh_control
+from src.ui.cache_button import render_refresh_control
 from src.ui.shell import page_setup
 from src.thesis.macro import macro_header_info
 
