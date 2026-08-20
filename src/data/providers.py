@@ -56,6 +56,15 @@ class DataProvider(ABC):
     ) -> pd.DataFrame:
         """Dividendos: date, ticker, amount."""
 
+    def get_split_history(
+        self,
+        tickers: list[str],
+        start: str | datetime,
+        end: str | datetime | None = None,
+    ) -> pd.DataFrame:
+        """Splits/bonificações: date, ticker, ratio (ações novas / velhas)."""
+        return pd.DataFrame(columns=["date", "ticker", "ratio"])
+
     def get_latest_prices(self, tickers: list[str]) -> pd.Series:
         end = utcnow()
         start = end - timedelta(days=14)
@@ -803,6 +812,49 @@ class YFinanceDataProvider(DataProvider):
                     continue
         if not rows:
             return pd.DataFrame(columns=["date", "ticker", "amount", "ex_date"])
+        return pd.DataFrame(rows)
+
+    def get_split_history(
+        self,
+        tickers: list[str],
+        start: str | datetime,
+        end: str | datetime | None = None,
+    ) -> pd.DataFrame:
+        import yfinance as yf
+
+        from src.data.yf_retry import fetch_with_retry
+
+        start_ts = pd.Timestamp(start)
+        end_ts = pd.Timestamp(end or utcnow())
+        rows = []
+        for t in tickers:
+            nt = normalize_ticker(t)
+            sym = to_yf_symbol(nt)
+            try:
+                tk = yf.Ticker(sym)
+                splits = fetch_with_retry(lambda: tk.splits, what=f"splits {sym}")
+                if splits is None or len(splits) == 0:
+                    continue
+                s = splits.copy()
+                s.index = pd.to_datetime(s.index).tz_localize(None)
+                mask = (s.index >= start_ts) & (s.index <= end_ts)
+                s = s.loc[mask]
+                for dt, ratio in s.items():
+                    r = float(ratio)
+                    if r <= 0 or abs(r - 1.0) < 1e-9:
+                        continue
+                    rows.append(
+                        {
+                            "date": pd.Timestamp(dt).normalize(),
+                            "ticker": nt,
+                            "ratio": r,
+                            "source": "yfinance",
+                        }
+                    )
+            except Exception:
+                continue
+        if not rows:
+            return pd.DataFrame(columns=["date", "ticker", "ratio"])
         return pd.DataFrame(rows)
 
 

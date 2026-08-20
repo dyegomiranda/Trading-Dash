@@ -129,13 +129,15 @@ TradingDash/
 
 ### 4.5 Backtest (`src/backtest/engine.py` + `src/backtest/export.py`)
 - Rebalance **Q (padrão)** / M / A, equity curve, trades, dividends
-- No rebalance: **preço = fechamento do dia** e **DY = TTM 12 meses** dos dividendos já pagos (anti look-ahead de mercado)
+- No rebalance: **preço = fechamento do dia** (nunca `adj_close`, para não contar dividendo duas vezes) e **DY = TTM 12 meses** dos dividendos já pagos
+- Splits/bonificação: quantidade ajustada só se a série de preços ainda for crua; subscrição **não** exercida (`src/backtest/corporate_actions.py`)
+- Walk-forward: corte 70/30 na curva + teste cego opcional (`src/backtest/walkforward.py`)
 - Custos: `conservative_costs()` na UI (15+10 bps, JCP 25% do provento a 15%, IR 15% no ganho, slippage dinâmico, atraso 15d no crédito)
 - ADV mínimo + teto de ordem vs ADV; saída por delistagem (sem preço)
 - PIT: auto-injeta `data/reference/pit_snapshots.json` quando ligado. Campo `origin`: `seed_curated` (semente) ou `cvm_dfp_itr` (parse real)
 - Monte Carlo: `src/backtest/robustness.py` (bootstrap da **própria** curva — não é previsão)
 - **Exportação:** ZIP de CSVs + HTML imprimível; o PDF declara origem PIT e custos
-- **Limitação:** a semente **não** é DFP/ITR. Promover com `scripts/download_cvm_data.py --download --build`
+- PIT versionado: `origin=cvm_dfp_itr` (DFP/ITR 2020–2024). Sem preço/DY na CVM — o motor completa no dia do rebalance.
 
 ### 4.6 Config / dados de rede
 - `src/data/yf_retry.py` — helper central de retry/backoff (exponencial + jitter) para chamadas de rede do yfinance (rate-limit 429, timeout, conexão). `set_retry_sleep(False)` desliga o sleep real para testes.
@@ -250,7 +252,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [x] Renomeações conhecidas (ELET3→AXIA3) no universo  
 - [x] Default da UI: **Bolsa real**; demo com banner de risco  
 - [x] Gancho PIT no backtest (`fundamentals_by_date` + auto-load + DY TTM do dia)  
-- [~] **Parse CVM DFP/ITR de verdade** — script `scripts/download_cvm_data.py --download --build` + `src/data/cvm.py`. O JSON versionado ainda é **semente curada** (`origin=seed_curated`) até alguém rodar o download (ZIPs grandes, rede)  
+- [x] **Parse CVM DFP/ITR** 2020–2024 (`origin=cvm_dfp_itr`, ~20 trimestres / ~37 tickers da tese). Preço e DY continuam do pregão (TTM). Reatualizar: `scripts/download_cvm_data.py --years 2020-2024 --download --build`  
 - [ ] Melhor cobertura de indicadores BR (JCP, payout real, etc.)  
 - [x] Fonte B3 dedicada (brapi) — **experimental**, sem ROE/dívida no plano grátis; Yahoo continua principal  
 - [ ] Revisão humana periódica do JSON de tickers  
@@ -341,11 +343,11 @@ Objetivo: subir a **honestidade** do laboratório, não fingir um backtest audit
 | Fase | O quê | Status |
 |------|--------|--------|
 | **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
-| **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | Motor/UI/script **feitos**; JSON versionado ainda é **semente** até `--download --build` |
-| **C** | Combinatorial purged CV / walk-forward OOS, Piotroski/BSD como *overlay* opcional, não como tese nova | **Não iniciado** |
+| **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
+| **C** | Walk-forward IS/OOS (70/30 + teste cego opcional). Piotroski/BSD como overlay opcional — ainda não | Walk-forward **feito**; BSD não |
 | **D** | Fonte paga (fundamentus/status invest/comercial) se a semente CVM não bastar | **Não iniciado** |
 
-**Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM parseada + custos + TTM; ~35–50/100 com a semente. Nunca 90+.
+**Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM 2020–2024 + custos + TTM + walk-forward. Nunca 90+.
 
 Como promover o PIT:
 ```
@@ -356,4 +358,4 @@ A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
 
 ---
 
-*Última atualização do handoff: 2026-08-20 (Fase A completa + parser CVM; semente PIT ainda não é DFP/ITR).*
+*Última atualização do handoff: 2026-08-20 (CVM PIT 2020–2024, splits/bonificação, walk-forward).*

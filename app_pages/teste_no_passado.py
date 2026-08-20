@@ -20,6 +20,11 @@ from src.backtest.export import (
     equity_curve_csv,
 )
 from src.backtest.robustness import run_monte_carlo
+from src.backtest.walkforward import (
+    attach_independent,
+    evaluate_walk_forward,
+    run_independent_oos,
+)
 from src.data.pit_loader import get_pit_origin, has_pit_data, pit_badge
 from src.data.providers import get_provider, is_realtime_provider
 from src.data.universe import get_universe
@@ -170,6 +175,20 @@ with st.sidebar:
             help="O caixa não recebe no dia-ex. 15 dias é um atraso conservador.",
             key="bt_lag", disabled=not enable_costs,
         )
+    with st.expander("Walk-forward", icon=":material/content_cut:"):
+        wf_on = st.toggle(
+            "Medir treino vs teste",
+            value=True,
+            key="bt_wf",
+            help="Parte o período em 70% treino + 30% teste na mesma curva. Não muda as regras.",
+        )
+        wf_ind = st.toggle(
+            "Teste cego independente",
+            value=False,
+            key="bt_wf_ind",
+            help="Roda de novo a partir do corte com capital novo. Demora mais (segunda simulação).",
+            disabled=not wf_on,
+        )
     run = st.button("Rodar simulação", type="primary", width="stretch", key="bt_run")
 
 render_data_quality_banner(provider)
@@ -215,10 +234,18 @@ if run:
         )
         with st.spinner("Viajando no tempo… montando a carteira dia a dia."):
             try:
-                st.session_state["backtest_result"] = run_backtest(
-                    get_provider(provider), cfg  # type: ignore[arg-type]
-                )
+                prov = get_provider(provider)  # type: ignore[arg-type]
+                res_bt = run_backtest(prov, cfg)
+                st.session_state["backtest_result"] = res_bt
                 st.session_state["backtest_ran_once"] = True
+                if wf_on:
+                    wf_rep = evaluate_walk_forward(res_bt, fraction=0.70)
+                    if wf_ind:
+                        oos_bt = run_independent_oos(prov, cfg, wf_rep.cutoff)
+                        wf_rep = attach_independent(wf_rep, oos_bt)
+                    st.session_state["walk_forward"] = wf_rep
+                else:
+                    st.session_state.pop("walk_forward", None)
             except Exception as e:
                 st.error(f"Falha na simulação: {e}")
                 st.stop()
@@ -321,6 +348,8 @@ um atalho offline, não DFP/ITR oficiais.
   `python scripts/download_cvm_data.py --years 2020-2025 --download --build`.
 - Custos vêm **ligados** por padrão (15+10 bps, JCP 25%, IR 15% no ganho, atraso de 15 dias no dividendo).
 - Monte Carlo **não** prevê o futuro: só reamostra os retornos **desta** curva.
+- Walk-forward parte o período (treino vs teste); se o teste for bem mais fraco, o número cheio do período está otimista.
+- Splits/bonificação: quantidade só muda se o preço do dia ainda for cru. Subscrição não é exercida.
 - Performance passada **não** garante performance futura.
 """
         )
@@ -401,6 +430,37 @@ render_kpi_row(
         ("Dividendos no período", format_brl(m["dividends_total"]), None, None),
     ]
 )
+
+wf = st.session_state.get("walk_forward")
+if wf is not None:
+    with st.container(border=True):
+        st.markdown("#### Walk-forward · treino vs teste")
+        st.caption(
+            f"Corte em **{wf.cutoff}**: os primeiros ~{wf.is_fraction:.0%} do período são treino; "
+            "o restante é teste na **mesma** curva. Não otimiza parâmetro — só mostra se o "
+            "resultado se sustentou depois."
+        )
+        render_kpi_row(
+            [
+                ("Treino · retorno", format_pct(wf.is_return), None, None),
+                ("Treino · ao ano", format_pct(wf.is_cagr), None, None),
+                ("Teste · retorno", format_pct(wf.oos_return), None, None),
+                ("Teste · ao ano", format_pct(wf.oos_cagr), None, None),
+                (
+                    "Teste vs treino",
+                    "mais fraco" if wf.oos_weaker else "sustentou",
+                    None,
+                    "down" if wf.oos_weaker else "up",
+                ),
+            ]
+        )
+        if wf.independent_oos_return is not None:
+            st.caption(
+                f"Teste cego independente (capital novo a partir de {wf.cutoff}): "
+                f"retorno {format_pct(wf.independent_oos_return)} · "
+                f"ao ano {format_pct(wf.independent_oos_cagr or 0)} · "
+                f"maior queda {format_pct(wf.independent_oos_max_dd or 0)}."
+            )
 
 # KPIs vs benchmarks
 ibov_r = m.get("ibov_return")
@@ -509,6 +569,16 @@ if bm is not None and not getattr(bm, "empty", True):
                 hovertemplate="%{x|%d/%m/%Y}<br>IDIV R$ %{y:,.2f}<extra></extra>",
             )
         )
+wf_line = st.session_state.get("walk_forward")
+if wf_line is not None:
+    fig.add_vline(
+        x=wf_line.cutoff,
+        line_dash="dot",
+        line_color="#64748B",
+        annotation_text="corte WF",
+        annotation_position="top left",
+        annotation_font={"size": 11, "color": "#94A3B8"},
+    )
 fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
@@ -743,4 +813,5 @@ with st.container(border=True):
 
 if st.button("Limpar resultado e ver o guia de novo", key="bt_clear"):
     st.session_state.pop("backtest_result", None)
+    st.session_state.pop("walk_forward", None)
     st.rerun()

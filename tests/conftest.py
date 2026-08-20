@@ -17,9 +17,18 @@ def _clear_cache():
     um teste que grava um payload de mock pode "envenenar" outro teste que
     espere chamadas de rede (side_effect) ou requeira dados frescos.
     """
-    if CACHE_DIR.exists():
-        shutil.rmtree(CACHE_DIR, ignore_errors=True)
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    _wipe_provider_cache()
     yield
-    if CACHE_DIR.exists():
-        shutil.rmtree(CACHE_DIR, ignore_errors=True)
+    _wipe_provider_cache()
+
+
+def _wipe_provider_cache() -> None:
+    """Apaga JSON de cotação; preserva data/cache/cvm (ZIPs pesados da CVM)."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    for p in CACHE_DIR.iterdir():
+        if p.name == "cvm":
+            continue
+        if p.is_dir():
+            shutil.rmtree(p, ignore_errors=True)
+        else:
+            p.unlink(missing_ok=True)

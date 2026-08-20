@@ -50,8 +50,12 @@ def test_get_pit_coverage_summary():
     assert "PETR4" in summary["tickers"]
 
 
-def test_pit_origin_is_honest_seed():
-    assert get_pit_origin() == "seed_curated"
+def test_pit_origin_is_labeled():
+    origin = get_pit_origin()
+    assert origin in {"seed_curated", "cvm_dfp_itr"}
     meta = load_pit_meta()
-    assert meta["is_cvm"] is False
-    assert "semente" in meta["description"].lower() or "curada" in meta["description"].lower()
+    if origin.startswith("cvm"):
+        assert meta["is_cvm"] is True
+    else:
+        assert meta["is_cvm"] is False
+        assert "semente" in meta["description"].lower() or "curada" in meta["description"].lower()

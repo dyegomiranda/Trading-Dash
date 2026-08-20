@@ -212,6 +212,46 @@ class PaperPortfolio:
         self._touch()
         return trade
 
+    def apply_split(
+        self,
+        ticker: str,
+        ratio: float,
+        *,
+        ts: str | None = None,
+        note: str = "split",
+    ) -> bool:
+        """Bonificação/split: quantidade × ratio, preço médio ÷ ratio.
+
+        O valor de mercado e o custo de aquisição em R$ ficam iguais.
+        ``ratio`` = ações novas / ações velhas (2.0 = desdobramento 2:1;
+        1.1 = bonificação de 10%). Retorna False se não há posição.
+        """
+        ticker = normalize_ticker(ticker)
+        pos = self.positions.get(ticker)
+        try:
+            r = float(ratio)
+        except (TypeError, ValueError):
+            return False
+        if pos is None or r <= 0 or abs(r - 1.0) < 1e-9:
+            return False
+        added = pos.shares * (r - 1.0)
+        pos.shares *= r
+        pos.avg_price /= r
+        self.trades.append(
+            Trade(
+                id=str(uuid4()),
+                ts=ts or utcnow_iso(),
+                side="split",
+                ticker=ticker,
+                shares=added,
+                price=pos.avg_price,
+                amount=0.0,
+                note=f"{note} ratio={r:g}",
+            )
+        )
+        self._touch()
+        return True
+
     def shares_at(self, ticker: str, as_of: datetime | str | pd.Timestamp) -> float:
         """Quantidade de ações do ticker na data (pelo histórico de ordens)."""
         ticker = normalize_ticker(ticker)
@@ -230,6 +270,8 @@ class PaperPortfolio:
                     shares += float(t.shares)
                 elif t.side == "sell":
                     shares -= float(t.shares)
+                elif t.side == "split":
+                    shares += float(t.shares)
         return max(0.0, shares)
 
     def _dividend_keys(self) -> set[str]:

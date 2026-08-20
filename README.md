@@ -131,7 +131,9 @@ Para arquitetura, bugs já resolvidos e **backlog do que falta**, veja **[PROJEC
 - **Custos ligados por padrão:** corretagem 15 bps, slippage 10 bps, ~25% do provento como JCP (15% na fonte), IR 15% no ganho de capital, atraso de 15 dias no crédito do dividendo.
 - **Liquidez (ADV):** exclui papéis pouco negociados e limita o tamanho da ordem.
 - **Monte Carlo:** reamostra **esta** curva (P10/P50/P90). Não é previsão do mercado.
-- **Balanços point-in-time:** o JSON versionado é uma **semente curada** para o motor funcionar offline. Não é o arquivo da CVM. Para contas oficiais (ROE/margem/dívida):
+- **Walk-forward:** parte o período em treino (~70%) e teste (~30%). Opcional: teste cego que recomeça no corte.
+- **Splits/bonificação:** quantidade só muda se o preço do dia ainda for cru. O ensaio usa `close` (não `adj_close`) para não contar dividendo duas vezes. Subscrição não é exercida.
+- **Balanços point-in-time:** JSON gerado dos DFP/ITR da CVM (2020–2024, `origin=cvm_dfp_itr`). Só contas (ROE/margem/dívida). Para atualizar:
 
 ```bash
 .venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download

@@ -363,11 +363,60 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     adv_excluded_count = 0
     last_px: dict[str, float] = {}
     from src.data.asset_type import dividend_tax_rate
+    from src.backtest.corporate_actions import (
+        infer_splits_from_close,
+        merge_splits,
+        normalize_splits,
+        prices_look_raw,
+        splits_on_day,
+    )
+
+    try:
+        raw_splits = provider.get_split_history(tickers, start=start, end=end)
+    except Exception:
+        raw_splits = None
+    splits = merge_splits(normalize_splits(raw_splits), infer_splits_from_close(close))
+    n_splits_applied = 0
+    n_splits_already_adj = 0
+
+    prev_close_row: dict[str, float] = {}
 
     for day in all_days:
         day = pd.Timestamp(day).normalize()
         day_prices = close.loc[day].dropna().to_dict()
+
+        # Splits/bonificação: só redimensiona se o preço do dia ainda for cru
+        day_splits = splits_on_day(splits, day)
+        for rec in day_splits.itertuples(index=False):
+            ticker = str(rec.ticker)
+            ratio = float(rec.ratio)
+            prev_px = prev_close_row.get(ticker)
+            today_px = day_prices.get(ticker)
+            raw = (
+                prices_look_raw(prev_px, today_px, ratio)
+                if prev_px and today_px
+                else None
+            )
+            if raw is not True:
+                if raw is False:
+                    n_splits_already_adj += 1
+                continue
+            if ticker not in portfolio.positions:
+                continue
+            if portfolio.apply_split(
+                ticker,
+                ratio,
+                ts=day.isoformat(),
+                note=f"split-{getattr(rec, 'source', 'src')}",
+            ):
+                n_splits_applied += 1
+                notes.append(
+                    f"{day.date()}: {ticker} split {ratio:g}:1 "
+                    "(quantidade ajustada; série de preços estava crua)."
+                )
+
         last_px.update({t: float(p) for t, p in day_prices.items() if p and p > 0})
+        prev_close_row = {t: float(p) for t, p in day_prices.items() if p and p > 0}
 
         # Fase B: Liquidar proventos pendentes cuja data de liquidação chegou (Cash Lag)
         ready_divs = [d for d in pending_dividends if d["settle_day"] <= day]
@@ -568,6 +617,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "use_point_in_time": bool(config.fundamentals_by_date) and n_pit > 0,
         "pit_origin": pit_origin,
         "ttm_yield_overlay": True,
+        "n_splits_applied": n_splits_applied,
+        "n_splits_already_adjusted": n_splits_already_adj,
         "min_daily_volume_brl": config.min_daily_volume_brl,
         "max_adv_order_pct": config.max_adv_order_pct,
         "adv_excluded_count": adv_excluded_count,
@@ -642,7 +693,14 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
 
     notes.append(
         "MERCADO: no rebalance, preço = fechamento do dia e DY = TTM 12 meses "
-        "dos dividendos já pagos (sem look-ahead de mercado)."
+        "dos dividendos já pagos (sem look-ahead de mercado). "
+        "Usa close, não adj_close — dividendo não é contado duas vezes."
+    )
+    notes.append(
+        "EVENTOS: splits/bonificação ajustam quantidade só se o preço do dia "
+        "ainda for cru; série já ajustada (Yahoo) não redimensiona. "
+        f"{n_splits_applied} aplicados, {n_splits_already_adj} já estavam na série. "
+        "Subscrição/direito de compra não é exercida."
     )
     if config.fundamentals_by_date and n_pit > 0:
         origin_txt = pit_origin or "injetado"
