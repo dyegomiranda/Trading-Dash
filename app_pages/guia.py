@@ -115,7 +115,7 @@ with st.container(border=True):
 - **Montar carteira com a tese** continua fácil — mas limita peso por ação (~{s.max_position_pct:.0%})
   e por setor (~{s.max_sector_pct:.0%})
 - **Dividendos altos demais** com sinais fracos perdem nota (evita “armadilha de yield”)
-- **Renda esperada** mostra **3 cenários** (cauteloso / base / animado) e a conta capital × taxa
+- **Renda esperada** mostra **P10 / P50 / P90** (cauteloso / base / animado) e a conta capital × taxa, com haircut no yield TTM
 - Você pode simular com **qualquer capital inicial**, independente do valor da conta de treino
 - Dados incompletos baixam a confiança da nota; o app avisa a **cobertura** do ranking
 - Fontes gratuitas podem falhar: use o app como **guia amigável da tese**, e confira fora antes

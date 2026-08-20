@@ -46,9 +46,7 @@ def test_run_backtest_pit_flag():
     )
     res = run_backtest(prov, cfg)
     assert res.metrics["use_point_in_time"] is True
-    assert any("point-in-time" in n.lower() for n in res.notes) or any(
-        "UPDATE" in n for n in res.notes
-    )
+    assert any("PIT" in n or "point-in-time" in n.lower() for n in res.notes)
 
 
 def test_run_backtest_snapshot_note():

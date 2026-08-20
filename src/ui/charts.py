@@ -349,15 +349,18 @@ def income_area(
 def income_scenarios_chart(
     combined: pd.DataFrame,
     *,
-    title: str = "Renda esperada: 3 cenários (dividendos por mês)",
+    title: str = "Renda esperada: P10 / P50 / P90 (dividendos por mês)",
 ) -> go.Figure:
-    """Gráfico amigável com cauteloso / base / animado."""
+    """Gráfico amigável com P10 (cauteloso) / P50 (base) / P90 (animado)."""
     fig = go.Figure()
     if combined is None or combined.empty:
         fig.update_layout(**_base_layout(title=title, height=360, showlegend=False))
         return fig
 
     colors = {
+        "P10 · cauteloso": "#94A3B8",
+        "P50 · base": "#A78BFA",
+        "P90 · animado": "#38BDF8",
         "Cauteloso": "#94A3B8",
         "Base (mais provável no modelo)": "#A78BFA",
         "Animado": "#38BDF8",
@@ -371,7 +374,7 @@ def income_scenarios_chart(
                 name=str(scenario),
                 line={
                     "color": colors.get(str(scenario), "#A78BFA"),
-                    "width": 3 if "Base" in str(scenario) else 2.2,
+                    "width": 3 if ("P50" in str(scenario) or "Base" in str(scenario)) else 2.2,
                     "shape": "spline",
                 },
                 marker={"size": 6},

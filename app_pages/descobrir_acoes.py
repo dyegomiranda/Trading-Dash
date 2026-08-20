@@ -18,7 +18,6 @@ from src.ui.components import (
     pillar_means,
     render_core_sectors_card,
     render_kpi_row,
-    render_page_header,
     render_plain_help,
     render_thesis_pillars,
 )
@@ -26,6 +25,7 @@ from src.ui.data_source import (
     APPLY_THESIS_LABEL,
     get_session_macro,
     get_session_provider,
+    render_clean_header,
     render_data_quality_banner,
 )
 from src.ui.cache_button import render_refresh_control
@@ -35,12 +35,13 @@ from src.ui.trust import render_friendly_safety_note, render_trust_strip
 from src.utils import utcnow
 
 page_setup()
-render_page_header(
+provider = get_session_provider()
+render_clean_header(
     "Descubra ações",
     "Notas da tese em português claro + histórico do preço",
+    provider=provider,
 )
 
-provider = get_session_provider()
 with st.sidebar:
     st.markdown("##### Filtros desta lista")
     min_score = st.slider(
@@ -164,7 +165,7 @@ render_trust_strip(provider=provider, coverage=cov)
 
 # Card do regime macro: mostra Selic/IPCA reais e o sentido da inclinação.
 if _macro_tilt is not None:
-    mh = macro_header_info(macro_choice)
+    mh = macro_header_info(get_session_macro())
     with st.expander(mh["label"], expanded=False, icon=":material/timeline:"):
         st.caption(mh["detail"] or "Regime macro neutro nesta configuração.")
         st.caption(

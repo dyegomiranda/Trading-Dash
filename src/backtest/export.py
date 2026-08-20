@@ -42,8 +42,14 @@ def metrics_export_df(result: BacktestResult) -> pd.DataFrame:
         rows.append(("corretagem_bps", str(m.get("cost_fee_bps", 0))))
         rows.append(("slippage_bps", str(m.get("cost_slippage_bps", 0))))
         rows.append(("ir_retencao_dividendos", format_pct(float(m.get("cost_tax_rate", 0)))))
+        rows.append(("jcp_fracao_provento", format_pct(float(m.get("cost_jcp_share", 0) or 0))))
+        rows.append(("ir_ganho_capital", format_pct(float(m.get("cost_capital_gains_rate", 0) or 0))))
+        rows.append(("atraso_div_dias", str(m.get("cost_dividend_cash_lag_days", 0))))
     else:
         rows.append(("custos", "desativados"))
+    rows.append(("point_in_time", "sim" if m.get("use_point_in_time") else "nao"))
+    rows.append(("pit_origem", str(m.get("pit_origin") or "—")))
+    rows.append(("dy_ttm_no_rebalance", "sim" if m.get("ttm_yield_overlay") else "nao"))
     bm = m.get("benchmark_meta") or {}
     ibov = m.get("ibov_return")
     cdi = m.get("cdi_return")
@@ -125,8 +131,8 @@ def backtest_to_csv_bundle(result: BacktestResult) -> bytes:
             "carteira_final.csv": final_holdings_export_df(result),
         }
         for name, df in files.items():
-            if df is None or getattr(df, "empty", True):
-                continue
+            if df is None:
+                df = pd.DataFrame()
             zf.writestr(name, df.to_csv(index=False).encode("utf-8-sig"))
         zf.writestr(
             "LEIA-ME.txt",
@@ -142,6 +148,8 @@ def backtest_to_csv_bundle(result: BacktestResult) -> bytes:
                 "- carteira_final.csv — posições no fim do teste\n\n"
                 "Isto é simulação educacional com capital fictício.\n"
                 "Não é recomendação de investimento nem extrato de corretora.\n"
+                "DY no rebalance = TTM dos dividendos já pagos até o dia.\n"
+                "Balanços PIT só são CVM depois de scripts/download_cvm_data.py --build.\n"
             ).encode(),
         )
     return buf.getvalue()
@@ -252,22 +260,33 @@ def backtest_to_html(result: BacktestResult) -> str:
         costs_html = (
             f"<h2>Custos aplicados</h2><p>Corretagem "
             f"{float(m.get('cost_fee_bps', 0)):.0f} bps · slippage "
-            f"{float(m.get('cost_slippage_bps', 0)):.0f} bps · IR retido "
-            f"{float(m.get('cost_tax_rate', 0)):.0%} sobre dividendos.</p>"
+            f"{float(m.get('cost_slippage_bps', 0)):.0f} bps · JCP "
+            f"{float(m.get('cost_jcp_share', 0) or 0):.0%} do provento · IR no ganho "
+            f"{float(m.get('cost_capital_gains_rate', 0) or 0):.0%} · atraso do dividendo "
+            f"{int(m.get('cost_dividend_cash_lag_days', 0) or 0)} dias.</p>"
         )
 
     pit_html = ""
-    if pit:
+    origin = str(m.get("pit_origin") or "")
+    if pit and origin.startswith("cvm"):
         pit_html = (
-            f"<h2>Dados ponto-a-ponto</h2><p>Fundamentos point-in-time: "
-            f"{m.get('n_rebalances_pit', 0)} reajustes usaram histórico disponível "
-            f"até a data; {m.get('n_rebalances_snapshot', 0)} caíram para o retrato atual.</p>"
+            f"<h2>Dados ponto-a-ponto (CVM)</h2><p>{m.get('n_rebalances_pit', 0)} reajustes "
+            f"usaram DFP/ITR vigente até a data; {m.get('n_rebalances_snapshot', 0)} "
+            f"caíram para o retrato atual. Preço e DY = pregão do dia (TTM).</p>"
+        )
+    elif pit:
+        pit_html = (
+            f"<h2>Point-in-time semente (não é CVM)</h2><p>{m.get('n_rebalances_pit', 0)} "
+            f"reajustes usaram o JSON curado — não é parse de DFP/ITR. "
+            f"DY/preço do rebalance ainda são históricos (TTM). "
+            f"Para contas oficiais: scripts/download_cvm_data.py --build.</p>"
         )
     else:
         pit_html = (
             "<h2>Limitação (leia)</h2><p>O score usou o retrato atual dos fundamentos "
             "em todos os reajustes. A simulação valida o fluxo da tese, não o "
-            "desempenho contábil exato de cada período.</p>"
+            "desempenho contábil exato de cada período. DY/preço do rebalance "
+            "ainda são do dia (TTM).</p>"
         )
 
     notes_html = ""
@@ -322,5 +341,5 @@ def backtest_to_html(result: BacktestResult) -> str:
   {trades_html}
   {divs_html}
   <footer>Gerado por TradingDash em {_esc(m.get('end', '—'))}. Dados de estudo com capital fictício —
-    não é recomendação de investimento.</footer>
+    não é recomendação de investimento. DY no rebalance = TTM histórico; PIT CVM só após --build.</footer>
 </body></html>"""

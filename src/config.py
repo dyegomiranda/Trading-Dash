@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     # Regime macro: "auto" (busca Selic/IPCA no Banco Central) | "expansionary" |
     # "cautious" | "restrictive" (manual) | "off" (desliga inclinação setorial).
     macro_override: str = Field(default="off", alias="MACRO_OVERRIDE")
+    # Fase B: Parâmetros de liquidez e execução real (ADV - Average Daily Volume)
+    min_daily_volume_brl: float = Field(default=500_000.0, alias="MIN_DAILY_VOLUME_BRL")
+    max_adv_order_pct: float = Field(default=0.05, alias="MAX_ADV_ORDER_PCT")
+    pit_enabled_default: bool = Field(default=True, alias="PIT_ENABLED_DEFAULT")
+    # Confiabilidade avançada: slippage não-linear e delay de liquidação de proventos
+    dynamic_slippage: bool = Field(default=True, alias="DYNAMIC_SLIPPAGE")
+    slippage_gamma: float = Field(default=0.10, alias="SLIPPAGE_GAMMA")
+    dividend_cash_lag_days: int = Field(default=15, alias="DIVIDEND_CASH_LAG_DAYS")
 
 
 # Universo líquido prioritário (scan rápido na Bolsa real)

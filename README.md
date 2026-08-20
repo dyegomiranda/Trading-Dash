@@ -125,11 +125,28 @@ Para arquitetura, bugs já resolvidos e **backlog do que falta**, veja **[PROJEC
 
 ---
 
-## Limitações do MVP
+## Confiabilidade da simulação (Fases A e B)
 
-- Simulação usa preços/dividendos históricos, mas o **score fundamental** ainda não é point-in-time contábil.  
-- Custos de corretagem/slippage vêm ligados por padrão no ensaio; IR de dividendo começa em 0% (isento PF).  
-- Fontes gratuitas podem falhar ou demorar. brapi.dev é experimental (sem ROE/dívida no plano grátis).
+- **No rebalance:** preço = fechamento daquele dia; dividend yield = TTM dos proventos já pagos (sem olhar o futuro).
+- **Custos ligados por padrão:** corretagem 15 bps, slippage 10 bps, ~25% do provento como JCP (15% na fonte), IR 15% no ganho de capital, atraso de 15 dias no crédito do dividendo.
+- **Liquidez (ADV):** exclui papéis pouco negociados e limita o tamanho da ordem.
+- **Monte Carlo:** reamostra **esta** curva (P10/P50/P90). Não é previsão do mercado.
+- **Balanços point-in-time:** o JSON versionado é uma **semente curada** para o motor funcionar offline. Não é o arquivo da CVM. Para contas oficiais (ROE/margem/dívida):
+
+```bash
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --build
+```
+
+A CVM não publica preço nem yield — o motor continua usando o pregão do dia.
+
+---
+
+## Limitações conhecidas
+
+- Fontes gratuitas de cotação podem falhar ou atrasar. brapi.dev é experimental (quase sem ROE/dívida no plano grátis).
+- A semente PIT **não** elimina look-ahead contábil. Só o parse CVM (`origin=cvm_dfp_itr`) cobre contas.
+- Ferramenta educacional / paper trading. **Não é recomendação de investimento.**
 
 ---
 

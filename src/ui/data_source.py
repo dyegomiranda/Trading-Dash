@@ -73,23 +73,43 @@ def get_session_macro() -> str:
     return "off"
 
 
-def render_data_quality_banner(provider: str) -> None:
+def get_provider_badge(provider: str) -> tuple[str, str]:
+    """Retorna (texto_badge, tipo_badge) para o cabeçalho."""
     if provider == "demo":
-        st.info(
-            "**Modo treino.** As notas e os indicadores são ilustrativos. "
-            "Desligue o interruptor **Modo treino** na barra para usar a bolsa.",
-            icon=":material/school:",
+        return ("⚡ Modo Treino", "demo")
+    elif provider == "brapi":
+        return ("🔬 Brapi (B3)", "warn")
+    return ("● Bolsa Real (B3)", "live")
+
+
+def render_clean_header(
+    title: str,
+    subtitle: str = "",
+    provider: str | None = None,
+    extra_badges: list[tuple[str, str]] | None = None,
+) -> None:
+    """Renderiza o cabeçalho com badges de status integrados (substitui banners volumosos)."""
+    from src.ui.components import render_page_header
+
+    badges: list[tuple[str, str]] = []
+    p = provider or get_session_provider()
+    badges.append(get_provider_badge(p))
+    if extra_badges:
+        badges.extend(extra_badges)
+
+    render_page_header(title, subtitle=subtitle, badges=badges)
+
+
+def render_data_quality_banner(provider: str) -> None:
+    """Caption curto sob o cabeçalho — o badge já diz o modo."""
+    if provider == "demo":
+        st.caption(
+            "Modo treino: números ilustrativos. Desligue o interruptor **Modo treino** "
+            "na barra para usar a bolsa."
         )
     elif provider == "brapi":
-        st.warning(
-            "**Fonte experimental da B3.** Tem preço e dividendo; quase não traz "
-            "ROE nem dívida. A nota de qualidade fica incompleta.",
-            icon=":material/science:",
-        )
-    else:
         st.caption(
-            "Bolsa real (Yahoo). Números gratuitos — podem atrasar ou faltar. "
-            "Valide fora do app antes de qualquer decisão."
+            "Fonte experimental da B3: quase não traz ROE nem dívida. Notas podem ficar incompletas."
         )
 
 

@@ -52,7 +52,7 @@ def main() -> int:
             check(f"import {dep}", False, str(e))
 
     # 2) Referência versionada
-    print("\n2) Referência B3 (deve estar no git)")
+    print("\n2) Referência B3 e Point-in-Time (deve estar no git)")
     ref = ROOT / "data" / "reference" / "b3_tickers.json"
     if not ref.exists():
         check("data/reference/b3_tickers.json existe", False, "arquivo ausente")
@@ -65,6 +65,16 @@ def main() -> int:
                 check("b3_tickers.json contém cadastro", entries > 0, f"{entries} entradas")
         except (json.JSONDecodeError, OSError) as e:
             check("b3_tickers.json válido (JSON)", False, str(e))
+
+    pit_ref = ROOT / "data" / "reference" / "pit_snapshots.json"
+    if not pit_ref.exists():
+        check("data/reference/pit_snapshots.json existe", False, "arquivo ausente")
+    else:
+        try:
+            pdata = json.loads(pit_ref.read_text(encoding="utf-8"))
+            check("pit_snapshots.json válido (JSON)", isinstance(pdata, dict) and "quarters" in pdata)
+        except Exception as e:
+            check("pit_snapshots.json válido (JSON)", False, str(e))
 
     import subprocess
 

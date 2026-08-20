@@ -19,6 +19,7 @@ from src.ui.data_source import (
     APPLY_THESIS_LABEL,
     get_session_macro,
     get_session_provider,
+    render_clean_header,
     render_data_quality_banner,
 )
 from src.ui.cache_button import render_refresh_control
@@ -30,7 +31,6 @@ from src.ui.components import (
     render_core_sectors_card,
     render_journey,
     render_kpi_row,
-    render_page_header,
     render_plain_help,
     render_thesis_pillars,
 )
@@ -38,15 +38,20 @@ from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
 from src.ui.onboarding import render_onboarding_if_needed
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
+from src.ui.wizard import render_quick_wizard
 
 page_setup()
 
-render_page_header("Início", "Comece aqui · caminho guiado para montar uma carteira de treino")
+provider = get_session_provider()
+render_clean_header(
+    "Início",
+    "Comece aqui · caminho guiado para montar uma carteira de treino",
+    provider=provider,
+)
 
 if render_onboarding_if_needed():
     st.stop()
 
-provider = get_session_provider()
 with st.sidebar:
     render_refresh_control(key="home_refresh")
 
@@ -96,6 +101,10 @@ except Exception as e:
     st.error(f"Falha ao carregar mercado: {e}")
     scored = pd.DataFrame()
     recs = scored
+
+# Quick Wizard: montador visual de carteira em 1 minuto para iniciantes
+if not portfolio.positions:
+    render_quick_wizard(_scored, provider)
 
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)

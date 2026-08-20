@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from src.backtest.engine import BacktestConfig, BacktestCosts, run_backtest
+from src.backtest.engine import (
+    BacktestConfig,
+    BacktestCosts,
+    conservative_costs,
+    run_backtest,
+)
 from src.data.providers import DemoDataProvider
 from src.portfolio.paper import PaperPortfolio
 
@@ -46,3 +51,24 @@ def test_backtest_costs_reduce_equity():
     assert rf.metrics["final_equity"] < r0.metrics["final_equity"]
     assert rf.metrics["dividends_total"] <= r0.metrics["dividends_total"]
     assert any("CUSTOS" in n for n in rf.notes)
+
+
+def test_conservative_costs_apply_jcp_and_capital_gains():
+    prov = DemoDataProvider()
+    univ = ["ITUB4", "PETR4", "VALE3", "WEGE3", "BBDC4", "BBAS3", "ABEV3", "EGIE3"]
+    cfg0 = BacktestConfig(start="2024-01-01", end="2024-09-30", initial_cash=10_000, top_n=4, universe=univ)
+    cfgr = BacktestConfig(
+        start="2024-01-01",
+        end="2024-09-30",
+        initial_cash=10_000,
+        top_n=4,
+        universe=univ,
+        costs=conservative_costs(),
+    )
+    r0 = run_backtest(prov, cfg0)
+    rf = run_backtest(prov, cfgr)
+    assert rf.metrics["cost_jcp_share"] == 0.25
+    assert rf.metrics["cost_capital_gains_rate"] == 0.15
+    assert rf.metrics["cost_dividend_cash_lag_days"] == 15
+    assert rf.metrics["cost_dynamic_slippage"] is True
+    assert rf.metrics["final_equity"] <= r0.metrics["final_equity"]

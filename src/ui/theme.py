@@ -248,6 +248,45 @@ h1 {{
   font-weight: 600 !important;
 }}
 
+/* ========== Header Badges & Chips ========== */
+.td-header-badges {{
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin-left: 0.6rem;
+  vertical-align: middle;
+}}
+.td-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}}
+.td-badge-live {{
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}}
+.td-badge-demo {{
+  background: rgba(167, 139, 250, 0.15);
+  color: #C4B5FD;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+}}
+.td-badge-pit {{
+  background: rgba(56, 189, 248, 0.15);
+  color: #38BDF8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}}
+.td-badge-warn {{
+  background: rgba(251, 191, 36, 0.15);
+  color: #FBBF24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}}
+
 /* ========== Buttons ========== */
 .stButton > button {{
   border-radius: 12px !important;

@@ -1110,34 +1110,40 @@ que você definir abaixo.
             f"foi limitada a {settings_income.projection_max_yield:.0%} para evitar cenários irreais.",
             icon=":material/speed:",
         )
+    elif proj.get("yield_was_cut"):
+        st.caption(
+            f"A taxa bruta (~{float(proj.get('raw_starting_yield') or 0):.1%}) "
+            f"foi reduzida em {float(proj.get('yield_haircut') or 0):.0%} "
+            "(o TTM recente costuma reverter — não projetamos o cheio)."
+        )
 
     render_wallet_balance(
         total=format_brl(final_monthly),
         delta=(
             f"Hoje ~{format_brl(monthly)}/mês · "
-            f"cauteloso {format_brl(float(caut.get('final_monthly_income') or 0))}/mês · "
-            f"animado {format_brl(float(anim.get('final_monthly_income') or 0))}/mês"
+            f"P10 {format_brl(float(caut.get('final_monthly_income') or 0))}/mês · "
+            f"P90 {format_brl(float(anim.get('final_monthly_income') or 0))}/mês"
         ),
         delta_positive=True,
         show_delta_arrow=False,
-        badge="Renda esperada · 3 cenários",
-        label=f"Dividendos no ano {years} (cenário base, por mês)",
+        badge="Renda esperada · P10 / P50 / P90",
+        label=f"Dividendos no ano {years} (P50 · base, por mês)",
         hint=(
-            "Faixa cauteloso → animado mostra incerteza de forma simples. "
-            "O valor grande é o cenário base da tese — ainda é estimativa."
+            "Faixa P10 → P90 mostra incerteza de forma simples. "
+            "O valor grande é o P50 da tese — ainda é estimativa, não percentil estatístico."
         ),
         stats=[
             ("Hoje / mês", format_brl(monthly), "Com o capital da simulação"),
             (
-                "Cauteloso / mês",
+                "P10 / mês",
                 format_brl(float(caut.get("final_monthly_income") or 0)),
-                "Mais conservador",
+                "Cauteloso",
             ),
-            ("Base / mês", format_brl(final_monthly), "Mais usado no guia"),
+            ("P50 / mês", format_brl(final_monthly), "Base da tese"),
             (
-                "Animado / mês",
+                "P90 / mês",
                 format_brl(float(anim.get("final_monthly_income") or 0)),
-                "Otimista com teto",
+                "Animado com teto",
             ),
         ],
     )
@@ -1163,7 +1169,7 @@ que você definir abaixo.
             f"Reinvestir dividendos: {'sim' if reinvest else 'não'}",
             f"Taxa inicial de dividendo (base): ~{start_yield:.1%} (teto {settings_income.projection_max_yield:.0%})",
             "Preço das ações fica de lado (foco em renda, não em valorização)",
-            "Três cenários: cauteloso / base / animado — nenhum é garantia",
+            "Três faixas: P10 cauteloso / P50 base / P90 animado — nenhum é garantia",
             "Fonte de dados: " + ("modo treino" if provider == "demo" else "bolsa (Yahoo + cadastro B3)"),
         ],
         title="Premissas da renda esperada",
@@ -1193,10 +1199,10 @@ que você definir abaixo.
     projection = proj.get("projection")
     if combined is not None and not getattr(combined, "empty", True):
         with st.container(border=True):
-            st.markdown("##### Gráfico 1 · Renda esperada em 3 cenários")
+            st.markdown("##### Gráfico 1 · Renda esperada (P10 / P50 / P90)")
             st.caption(
                 "**O que mede:** dividendos estimados **por mês** (o “aluguel” das ações). "
-                "Três linhas = cauteloso, base e animado. "
+                "Três linhas = P10 cauteloso, P50 base e P90 animado. "
                 "Mude aporte ou capital acima — o gráfico atualiza na hora."
             )
             st.plotly_chart(
@@ -1205,9 +1211,9 @@ que você definir abaixo.
                 config={"displayModeBar": False},
             )
             st.success(
-                f"No **ano {years}** (base): cerca de **{format_brl(final_monthly)}/mês** "
-                f"(faixa **{format_brl(float(caut.get('final_monthly_income') or 0))}** – "
-                f"**{format_brl(float(anim.get('final_monthly_income') or 0))}**/mês).",
+                f"No **ano {years}** (P50): cerca de **{format_brl(final_monthly)}/mês** "
+                f"(faixa P10 **{format_brl(float(caut.get('final_monthly_income') or 0))}** – "
+                f"P90 **{format_brl(float(anim.get('final_monthly_income') or 0))}**/mês).",
                 icon=":material/payments:",
             )
 

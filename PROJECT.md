@@ -77,12 +77,15 @@ TradingDash/
       universe.py        # tickers B3
       benchmarks.py      # CDI (BCB SGS serie 12)
       news.py            # Google News RSS + yfinance news (só com URL)
+      pit_loader.py      # JSON point-in-time (semente ou CVM)
+      cvm.py             # download/parse DFP/ITR/FCA
     thesis/scoring.py    # score, filtros, recommend_weights
     thesis/macro.py      # regime macro (Selic/IPCA) → inclinação setorial
     portfolio/
       paper.py           # PaperPortfolio (JSON em data/portfolio/)
       income.py          # projeção de renda
-    backtest/engine.py   # walk-forward rebalance
+    backtest/engine.py   # walk-forward rebalance (custos, PIT, ADV, TTM DY)
+    backtest/robustness.py  # Monte Carlo (bootstrap da curva)
     ui/
       shell.py           # branding + nav
       theme.py           # CSS dark fintech
@@ -125,9 +128,14 @@ TradingDash/
 - **Honesto:** não é dado CVM point-in-time; é o que o app observou ao longo do uso (etiquetado como tal)
 
 ### 4.5 Backtest (`src/backtest/engine.py` + `src/backtest/export.py`)
-- Rebalance M/Q, equity curve, trades, dividends
-- **Exportação:** `backtest_to_csv_bundle` (ZIP: resumo, configuração, patrimônio, ordens, dividendos, carteira final) e `backtest_to_html` (relatório imprimível → PDF via navegador, sem dependência pesada)
-- **Limitação conhecida:** score fundamental **não** é point-in-time contábil completo (usa snapshot atual/demo + preços/divs históricos)
+- Rebalance **Q (padrão)** / M / A, equity curve, trades, dividends
+- No rebalance: **preço = fechamento do dia** e **DY = TTM 12 meses** dos dividendos já pagos (anti look-ahead de mercado)
+- Custos: `conservative_costs()` na UI (15+10 bps, JCP 25% do provento a 15%, IR 15% no ganho, slippage dinâmico, atraso 15d no crédito)
+- ADV mínimo + teto de ordem vs ADV; saída por delistagem (sem preço)
+- PIT: auto-injeta `data/reference/pit_snapshots.json` quando ligado. Campo `origin`: `seed_curated` (semente) ou `cvm_dfp_itr` (parse real)
+- Monte Carlo: `src/backtest/robustness.py` (bootstrap da **própria** curva — não é previsão)
+- **Exportação:** ZIP de CSVs + HTML imprimível; o PDF declara origem PIT e custos
+- **Limitação:** a semente **não** é DFP/ITR. Promover com `scripts/download_cvm_data.py --download --build`
 
 ### 4.6 Config / dados de rede
 - `src/data/yf_retry.py` — helper central de retry/backoff (exponencial + jitter) para chamadas de rede do yfinance (rate-limit 429, timeout, conexão). `set_retry_sleep(False)` desliga o sleep real para testes.
@@ -241,7 +249,8 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [x] Cadastro B3 de **nome/setor** (`data/reference/b3_tickers.json` + `reference.py`) — demo **não inventa setor**  
 - [x] Renomeações conhecidas (ELET3→AXIA3) no universo  
 - [x] Default da UI: **Bolsa real**; demo com banner de risco  
-- [ ] **Fundamentals point-in-time** (CVM/ITR/DFP ou provedor pago) no backtest — gancho existe; a UI **não** injeta snapshots  
+- [x] Gancho PIT no backtest (`fundamentals_by_date` + auto-load + DY TTM do dia)  
+- [~] **Parse CVM DFP/ITR de verdade** — script `scripts/download_cvm_data.py --download --build` + `src/data/cvm.py`. O JSON versionado ainda é **semente curada** (`origin=seed_curated`) até alguém rodar o download (ZIPs grandes, rede)  
 - [ ] Melhor cobertura de indicadores BR (JCP, payout real, etc.)  
 - [x] Fonte B3 dedicada (brapi) — **experimental**, sem ROE/dívida no plano grátis; Yahoo continua principal  
 - [ ] Revisão humana periódica do JSON de tickers  
@@ -249,7 +258,10 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 
 ### Simulação / risco
 - [x] **Benchmark** na simulação (Ibovespa + CDI + **IDIV** opcional) — `src/data/benchmarks.py` + UI; `fetch_idiv_close` + `include_idiv` em `BacktestConfig`  
-- [x] Custos de corretagem, slippage, IR simplificado — opt-in na UI; **default ligado** (15+10 bps, IR 0%) 
+- [x] Custos conservadores na UI — 15+10 bps, JCP 25%, IR 15% no ganho, slippage dinâmico, atraso 15d (`conservative_costs()`)
+- [x] Filtro de liquidez **ADV** + teto de ordem vs ADV (`max_adv_order_pct`)
+- [x] Monte Carlo bootstrap da curva (`src/backtest/robustness.py`) — faixa P10/P50/P90 **desta** amostra, sem fingir previsão
+- [x] Universo histórico no ensaio (`include_historical` / `B3_HISTORICAL_EXTRA`) — reduz viés de sobrevivência
 - [x] Regras de saída simples (score, DY, payout, dívida, FCF) — `src/thesis/alerts.py`  
 - [x] Regras de saída avançadas: alerta de **histórico de score** (nota caiu/subiu ≥ 10 pts entre observações) — ledger local em `data/scores/history.json` (`src/portfolio/score_history.py`) + códigos `score_caindo`/`score_subindo` em `src/thesis/alerts.py` + labels PT em `src/ui/friendly.py`  
 - [ ] Regras de saída avançadas: rating, eventos CVM  
@@ -270,7 +282,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 ### UX / produto
 - [x] Onboarding na primeira visita (session_state no Início; reset no Início e no Guia) — não persiste entre browsers 
 - [x] Explicar “Modo treino” em **todas** as páginas com o seletor (`src/ui/data_source.py`)  
-- [x] Testes automatizados (pytest) para scoring, portfolio, backtest — `tests/` (120 testes, rede mockada) 
+- [x] Testes automatizados (pytest) para scoring, portfolio, backtest — `tests/` (144 testes, rede mockada) 
 - [x] CI no GitHub (lint + testes) — `.github/workflows/ci.yml` (matrix Python 3.12/3.13/3.14 + `ruff check src/ tests/` + `pytest tests/ -q`)  
 - [x] Instruções de deploy Streamlit Community Cloud no README  
 - [x] Pre-flight de deploy (app sobe offline) — `deploy/preflight.py` (AppTest, fonte demo) + CI + `tests/test_preflight.py`  
@@ -320,4 +332,28 @@ git add -A && git commit -m "..." && git push origin main
 - Dono do repo GitHub: **dyegomiranda**  
 - Projeto iniciado a partir de conversa de produto (tese Quality Dividend / Barsi-like refinada) e implementação iterativa em Streamlit.
 
-*Última atualização do handoff: 2026-08-14 (tese 1.4.0: score honesto, filtro da tese como padrão, Selic 432, jornada única, 120 testes).*
+---
+
+## 13. Plano de robustez da simulação (A–D)
+
+Objetivo: subir a **honestidade** do laboratório, não fingir um backtest auditável de fundo.
+
+| Fase | O quê | Status |
+|------|--------|--------|
+| **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
+| **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | Motor/UI/script **feitos**; JSON versionado ainda é **semente** até `--download --build` |
+| **C** | Combinatorial purged CV / walk-forward OOS, Piotroski/BSD como *overlay* opcional, não como tese nova | **Não iniciado** |
+| **D** | Fonte paga (fundamentus/status invest/comercial) se a semente CVM não bastar | **Não iniciado** |
+
+**Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM parseada + custos + TTM; ~35–50/100 com a semente. Nunca 90+.
+
+Como promover o PIT:
+```
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --build
+```
+A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
+
+---
+
+*Última atualização do handoff: 2026-08-20 (Fase A completa + parser CVM; semente PIT ainda não é DFP/ITR).*

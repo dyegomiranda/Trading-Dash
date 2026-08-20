@@ -235,6 +235,8 @@ def project_income(
             "starting_yield": starting_yield,
             "raw_starting_yield": raw_yield,
             "yield_was_capped": yield_was_capped,
+            "yield_was_cut": yield_was_cut,
+            "yield_haircut": haircut,
             "max_yield": max_yield,
             "total_contributed_end": 0.0,
             "income_boost_from_contrib": 0.0,
@@ -309,6 +311,8 @@ def project_income(
         "starting_yield": starting_yield,
         "raw_starting_yield": raw_yield,
         "yield_was_capped": yield_was_capped,
+        "yield_was_cut": yield_was_cut,
+        "yield_haircut": haircut,
         "max_yield": max_yield,
         "final_yield": final_yield,
         "implied_yield_end": implied_end,
@@ -333,9 +337,10 @@ def project_income_scenarios(
     fallback_yield: float | None = None,
     max_yield: float = DEFAULT_MAX_YIELD,
 ) -> dict[str, Any]:
-    """Três cenários amigáveis: cauteloso, base e animado (ainda com teto realista).
+    """Três faixas: P10 (cauteloso), P50 (base) e P90 (animado).
 
-    Mantém a facilidade de visualizar renda esperada, com honestidade sobre incerteza.
+    Não são percentis estatísticos de Monte Carlo — são cenários didáticos
+    com haircut de yield e teto. Nomes P10/P50/P90 deixam a incerteza explícita.
     """
     base = project_income(
         portfolio,
@@ -365,7 +370,7 @@ def project_income_scenarios(
         fallback_yield=fallback_yield,
         max_yield=max_yield,
         starting_principal_override=starting_principal,
-        yield_override=max(0.03, y0 * 0.75),
+        yield_override=max(0.0, y0 * 0.70),
     )
     animado = project_income(
         portfolio,
@@ -378,15 +383,14 @@ def project_income_scenarios(
         fallback_yield=fallback_yield,
         max_yield=max_yield,
         starting_principal_override=starting_principal,
-        yield_override=min(max_yield, y0 * 1.15),
+        yield_override=min(max_yield, y0 * 1.10),
     )
 
-    # Série combinada para o gráfico de 3 cenários
     frames = []
     for name, res in (
-        ("Cauteloso", cauteloso),
-        ("Base (mais provável no modelo)", base),
-        ("Animado", animado),
+        ("P10 · cauteloso", cauteloso),
+        ("P50 · base", base),
+        ("P90 · animado", animado),
     ):
         proj = res.get("projection")
         if proj is None or getattr(proj, "empty", True):
@@ -400,10 +404,13 @@ def project_income_scenarios(
         "base": base,
         "cauteloso": cauteloso,
         "animado": animado,
+        "p10": cauteloso,
+        "p50": base,
+        "p90": animado,
         "combined": combined,
         "labels": {
-            "cauteloso": "Cauteloso — dividendos mais baixos, sem crescimento da taxa",
-            "base": "Base — usa a taxa da carteira/tese com crescimento leve",
-            "animado": "Animado — um pouco mais otimista (ainda com teto de 10%)",
+            "cauteloso": "P10 · cauteloso — taxa menor, sem crescimento",
+            "base": "P50 · base — taxa da carteira com haircut e crescimento leve",
+            "animado": "P90 · animado — um pouco mais otimista (ainda com teto)",
         },
     }

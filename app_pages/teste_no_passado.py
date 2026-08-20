@@ -7,33 +7,63 @@ from datetime import date
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.backtest.engine import BacktestConfig, BacktestCosts, run_backtest
+from src.backtest.engine import (
+    STRESS_SCENARIOS,
+    BacktestConfig,
+    BacktestCosts,
+    conservative_costs,
+    run_backtest,
+)
 from src.backtest.export import (
     backtest_to_csv_bundle,
     backtest_to_html,
     equity_curve_csv,
 )
+from src.backtest.robustness import run_monte_carlo
+from src.data.pit_loader import get_pit_origin, has_pit_data, pit_badge
 from src.data.providers import get_provider, is_realtime_provider
 from src.data.universe import get_universe
 from src.services import format_brl, format_pct
 from src.ui.charts import holdings_donut
-from src.ui.components import render_kpi_row, render_page_header
-from src.ui.data_source import get_session_provider, render_data_quality_banner
+from src.ui.components import render_kpi_row
+from src.ui.data_source import (
+    get_session_provider,
+    render_clean_header,
+    render_data_quality_banner,
+)
 from src.ui.friendly import friendly_dataframe
 from src.ui.shell import page_setup
 
 page_setup()
-render_page_header(
+_pit_badge = pit_badge()
+render_clean_header(
     "Teste no passado",
-    "Ensaio do motor com o retrato de hoje — não é desempenho contábil histórico",
+    "Simulação histórica com custos, liquidez e o que o PIT realmente cobre",
+    extra_badges=[_pit_badge] if _pit_badge else None,
 )
 
 # ── Controles ──────────────────────────────────────────────
 provider = get_session_provider()
+_cons = conservative_costs()
+_preset_labels = {"livre": "Período livre"}
+_preset_labels.update({k: v["title"] for k, v in STRESS_SCENARIOS.items()})
 with st.sidebar:
     st.markdown("##### Configurar o teste")
-    start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
-    end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
+    preset = st.selectbox(
+        "Período pronto",
+        options=list(_preset_labels.keys()),
+        format_func=lambda k: _preset_labels[k],
+        key="bt_preset",
+        help="Choques conhecidos (2020, alta da Selic, ciclo 2023–24) ou datas livres.",
+    )
+    if preset != "livre":
+        _sc = STRESS_SCENARIOS[preset]
+        start = date.fromisoformat(_sc["start"])
+        end = min(date.fromisoformat(_sc["end"]), date.today())
+        st.caption(f"{_sc['desc']} · {start.isoformat()} → {end.isoformat()}")
+    else:
+        start = st.date_input("Comecei a investir em…", value=date(2022, 1, 3), key="bt_start")
+        end = st.date_input("Parei de acompanhar em…", value=date.today(), key="bt_end")
     initial_cash = st.number_input(
         "Capital fictício (R$)",
         min_value=100.0,
@@ -42,12 +72,17 @@ with st.sidebar:
         key="bt_cash",
     )
     top_n = st.slider("Quantas ações manter", 5, 25, 12, key="bt_top")
-    rebalance = st.selectbox(
+    _reb_labels = {"M": "Todo mês", "Q": "A cada 3 meses", "A": "Uma vez ao ano"}
+    reb_choice = st.segmented_control(
         "Com que frequência reajustar a carteira?",
-        options=["M", "Q"],
-        format_func=lambda x: "Todo mês" if x == "M" else "A cada 3 meses",
-        key="bt_reb",
+        options=list(_reb_labels.keys()),
+        default="Q",
+        key="bt_reb_freq",
+        format_func=lambda x: _reb_labels.get(x, x),
+        required=True,
+        help="Trimestral é o padrão: menos giro, menos custo.",
     )
+    rebalance = reb_choice or "Q"
     min_score = st.slider("Nota mínima das ações", 0, 100, 55, key="bt_score")
     universe_mode = st.selectbox(
         "Quantas empresas analisar?",
@@ -59,6 +94,35 @@ with st.sidebar:
         ),
         key="bt_univ",
     )
+    include_historical = st.toggle(
+        "Incluir tickers que saíram da B3",
+        value=True,
+        key="bt_hist_univ",
+        help="Evita fingir que só existiu quem está listado hoje (viés de sobrevivência).",
+    )
+    with st.expander("Balanços e liquidez", icon=":material/database:"):
+        _pit_on_help = (
+            "Usa o JSON point-in-time vigente até cada rebalance. "
+            "Hoje a origem é **semente curada** (não é parse da CVM), "
+            "salvo se você rodou scripts/download_cvm_data.py --build."
+            if get_pit_origin() == "seed_curated"
+            else "Usa contas DFP/ITR parseadas da CVM vigentes até cada rebalance. "
+            "Preço e DY vêm do pregão do dia (TTM), não da CVM."
+        )
+        use_pit = st.checkbox(
+            "Balanços históricos (Point-in-Time)",
+            value=has_pit_data(),
+            help=_pit_on_help,
+            key="bt_pit_on",
+        )
+        min_adv = st.selectbox(
+            "Volume diário mínimo (ADV)",
+            options=[0.0, 200_000.0, 500_000.0, 1_000_000.0],
+            index=2,
+            format_func=lambda x: "Sem restrição" if x == 0 else f"R$ {x:,.0f} / dia",
+            help="Filtra ações com pouca negociação para evitar alocações irrealistas.",
+            key="bt_min_adv",
+        )
     with st.expander("Benchmarks", icon=":material/query_stats:"):
         include_idiv = st.checkbox(
             "Comparar também com o IDIV (ETF IDIV.SA)",
@@ -70,25 +134,41 @@ with st.sidebar:
             ),
             key="bt_idiv",
         )
-    with st.expander("Custos", icon=":material/price_change:"):
+    with st.expander("Custos (padrão conservador)", icon=":material/price_change:"):
         enable_costs = st.checkbox(
             "Aplicar custos na simulação", value=True, key="bt_costs_on"
         )
         fee_bps = st.slider(
-            "Corretagem (bps)", 0, 100, 15, step=5,
+            "Corretagem (bps)", 0, 100, int(_cons.fee_bps), step=5,
             help="15 bps ≈ 0,15% por ordem. Giro não é de graça.",
             key="bt_fee", disabled=not enable_costs,
         )
         slippage_bps = st.slider(
-            "Slippage (bps)", 0, 100, 10, step=5,
-            help="Impacto de execução: compra fica um pouco mais cara, venda mais barata.",
+            "Slippage base (bps)", 0, 100, int(_cons.slippage_bps), step=5,
+            help="Impacto de execução: compra um pouco mais cara, venda mais barata.",
             key="bt_slip", disabled=not enable_costs,
         )
-        tax_rate = st.slider(
-            "IR sobre proventos (%)", 0, 30, 0, step=5,
-            help="Dividendos de ação e rendimento de FII PF são isentos na fonte. "
-            "Use >0 só se quiser modelar JCP (15%).",
-            key="bt_ir", disabled=not enable_costs,
+        jcp_pct = st.slider(
+            "Fração do provento como JCP (%)", 0, 50, int(_cons.jcp_share * 100), step=5,
+            help="JCP tem 15% de IR na fonte. Dividendo de ação PF continua isento.",
+            key="bt_jcp", disabled=not enable_costs,
+        )
+        cg_pct = st.slider(
+            "IR sobre ganho de capital na venda (%)", 0, 20, int(_cons.capital_gains_rate * 100), step=5,
+            help="15% é o padrão PF sobre o lucro realizado na venda (modelo simples).",
+            key="bt_cg", disabled=not enable_costs,
+        )
+        dynamic_slip = st.checkbox(
+            "Slippage dinâmico por liquidez",
+            value=bool(_cons.dynamic_slippage),
+            help="Ordens grandes em papel pouco negociado pagam mais impacto.",
+            key="bt_dyn_slip", disabled=not enable_costs,
+        )
+        cash_lag = st.slider(
+            "Atraso do crédito de dividendo (dias)",
+            0, 30, int(_cons.dividend_cash_lag_days), step=5,
+            help="O caixa não recebe no dia-ex. 15 dias é um atraso conservador.",
+            key="bt_lag", disabled=not enable_costs,
         )
     run = st.button("Rodar simulação", type="primary", width="stretch", key="bt_run")
 
@@ -99,7 +179,7 @@ if run:
     if start >= end:
         st.error("A data de início precisa ser anterior à data de fim.")
     else:
-        universe = get_universe()
+        universe = get_universe(include_historical=bool(include_historical))
         if universe_mode == "sample":
             universe = universe[:40]
         if is_realtime_provider(provider) and universe_mode == "full":
@@ -116,11 +196,18 @@ if run:
             min_score=float(min_score),
             universe=universe,
             include_idiv=include_idiv,
+            use_point_in_time_fundamentals=use_pit,
+            min_daily_volume_brl=float(min_adv),
+            max_adv_order_pct=0.05 if float(min_adv) > 0 else 0.0,
             costs=(
                 BacktestCosts(
                     fee_bps=float(fee_bps),
                     slippage_bps=float(slippage_bps),
-                    tax_rate=float(tax_rate) / 100.0,
+                    tax_rate=0.0,
+                    jcp_share=float(jcp_pct) / 100.0,
+                    capital_gains_rate=float(cg_pct) / 100.0,
+                    dynamic_slippage=bool(dynamic_slip),
+                    dividend_cash_lag_days=int(cash_lag),
                 )
                 if enable_costs
                 else BacktestCosts()
@@ -144,10 +231,14 @@ if not result:
         """
 Esta página responde a uma pergunta simples:
 
-> **“Como o motor de hoje se comportaria sobre preços e dividendos passados?”**
+> **“Como o motor se comportaria sobre preços e dividendos passados?”**
 
-Isso **não** é “eu segui a tese em 2022”: o score usa o retrato fundamental **atual**.
 Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
+
+No rebalance, o **preço** é o fechamento daquele dia e o **dividend yield** é o TTM
+dos proventos já pagos até ali (sem olhar o futuro). Os **balanços** só são
+point-in-time de verdade se a origem for CVM parseada — a semente curada é
+um atalho offline, não DFP/ITR oficiais.
 """
     )
 
@@ -171,7 +262,7 @@ Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
                 """
 - Busca **preços e dividendos históricos** de ações brasileiras (Yahoo Finance, tickers `.SA`).
 - Pode ser **lento** e, às vezes, incompleto (fonte gratuita).
-- Ainda assim, o **score de qualidade** no MVP usa um “retrato” atual — não o balanço exato de cada mês do passado.
+- O score de qualidade usa o JSON point-in-time quando ligado (semente ou CVM) + DY TTM do dia.
 
 Útil para experimentar, **sem** ser um backtest de auditoria.
 """
@@ -212,11 +303,12 @@ Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
 | **Datas** | Período da “viagem no tempo” |
 | **Capital fictício** | Dinheiro de mentira no dia inicial (agora: **{format_brl(float(initial_cash))}**) |
 | **Quantas ações manter** | Tamanho da carteira em cada reajuste (Top N) |
-| **Frequência** | Mensal ou trimestral — com que frequência realinha a carteira |
+| **Frequência** | Mensal, trimestral (padrão) ou anual |
 | **Nota mínima** | Filtro de qualidade (0–100); mais alto = mais exigente |
-| **Universo** | Amostra rápida (~40) ou lista ampla de tickers B3 |
+| **Universo** | Amostra rápida (~40) ou lista ampla; tickers que saíram entram por padrão |
+| **Custos** | Corretagem 15 bps + slippage 10 + JCP 25% do provento + IR 15% no ganho |
 
-**Sugestão de primeiro teste:** Modo treino · amostra rápida · 2022 → hoje · capital R$ 100.000.
+**Sugestão de primeiro teste:** Modo treino · amostra rápida · trimestral · 2022 → hoje · capital R$ 100.000.
 """
         )
 
@@ -224,10 +316,11 @@ Você não arrisca dinheiro real. É um **laboratório** com capital fictício.
         st.markdown(
             """
 - **Não é recomendação de investimento** e não garante resultado futuro.
-- Preços/dividendos históricos vêm da fonte escolhida; o **score fundamental** no MVP
-  ainda **não** reconstrói o balanço de cada empresa mês a mês no passado.
-- Custos (corretagem e slippage) vêm **ligados** por padrão (~15+10 bps). IR de dividendo
-  começa em 0% (isento para PF).
+- Preços e dividendos vêm da fonte escolhida. O DY no score é TTM até o dia do rebalance.
+- A semente PIT **não** é o arquivo da CVM. Para contas oficiais:
+  `python scripts/download_cvm_data.py --years 2020-2025 --download --build`.
+- Custos vêm **ligados** por padrão (15+10 bps, JCP 25%, IR 15% no ganho, atraso de 15 dias no dividendo).
+- Monte Carlo **não** prevê o futuro: só reamostra os retornos **desta** curva.
 - Performance passada **não** garante performance futura.
 """
         )
@@ -262,25 +355,40 @@ with st.container(border=True):
         f"fonte: {m.get('provider', '—')}"
     )
     pit = m.get("use_point_in_time")
-    if pit:
+    pit_origin = str(m.get("pit_origin") or "")
+    if pit and pit_origin.startswith("cvm"):
         st.info(
-            f"✅ Fundamentos point-in-time: {m.get('n_rebalances_pit', 0)} reajustes "
-            f"usaram o histórico disponível até a data. "
-            f"{m.get('n_rebalances_snapshot', 0)} reajustes caíram para o retrato atual.",
+            f"Fundamentos CVM: {m.get('n_rebalances_pit', 0)} reajustes usaram DFP/ITR "
+            f"vigente até a data. {m.get('n_rebalances_snapshot', 0)} caíram para o retrato atual. "
+            "Preço e DY são do pregão do dia (TTM).",
             icon=":material/verified:",
+        )
+    elif pit:
+        st.warning(
+            f"Point-in-time **semente** ({m.get('n_rebalances_pit', 0)} reajustes) — "
+            "não é parse da CVM. DY/preço do dia ainda são históricos (TTM). "
+            "Para contas oficiais: `scripts/download_cvm_data.py --build`.",
+            icon=":material/info:",
         )
     else:
         st.warning(
-            "⚠️ O score usou o **retrato atual** dos fundamentos em todos os reajustes "
-            "(sem histórico ponto-a-ponto). Os números validam o **fluxo** da tese, "
-            "não o desempenho contábil exato de cada período.",
+            "O score usou o **retrato atual** dos fundamentos em todos os reajustes. "
+            "Os números validam o **fluxo** da tese, não o desempenho contábil de cada período. "
+            "DY/preço do rebalance ainda são do dia (TTM).",
             icon=":material/info:",
         )
     if m.get("costs_enabled"):
         st.info(
-            f"💰 Custos aplicados — corretagem {m.get('cost_fee_bps', 0):.0f} bps, "
+            f"Custos — corretagem {m.get('cost_fee_bps', 0):.0f} bps, "
             f"slippage {m.get('cost_slippage_bps', 0):.0f} bps, "
-            f"IR retido {m.get('cost_tax_rate', 0):.0%} sobre dividendos.",
+            f"JCP {m.get('cost_jcp_share', 0):.0%} do provento, "
+            f"IR no ganho {m.get('cost_capital_gains_rate', 0):.0%}"
+            + (
+                f", atraso do dividendo {m.get('cost_dividend_cash_lag_days', 0):.0f}d"
+                if m.get("cost_dividend_cash_lag_days")
+                else ""
+            )
+            + ".",
             icon=":material/payments:",
         )
 
@@ -455,6 +563,119 @@ with c2:
         else:
             st.caption("—")
 
+# ── Análise de Robustez / Simulação de Monte Carlo (Fase B) ─
+with st.expander("Análise de robustez (Monte Carlo)", icon=":material/casino:", expanded=True):
+    st.markdown(
+        """
+A **simulação de Monte Carlo** reamostra os retornos **desta** curva e projeta
+trajetórias alternativas. Não é previsão do mercado: é a faixa do que *esta*
+volatilidade produziria se o comportamento se repetisse.
+"""
+    )
+    try:
+        mc = run_monte_carlo(
+            result.equity_curve,
+            initial_cash=float(m["initial_cash"]),
+            n_simulations=200,
+            horizon_days=252,
+        )
+        
+        c_mc1, c_mc2, c_mc3, c_mc4 = st.columns(4)
+        with c_mc1:
+            st.metric(
+                "Chance de terminar no azul",
+                format_pct(mc.prob_positive_return),
+                help="Nesta amostra de retornos, fração das trajetórias acima do capital inicial em 1 ano. Não é previsão.",
+            )
+        with c_mc2:
+            st.metric(
+                "Chance de Bater o CDI",
+                format_pct(mc.prob_beat_cdi),
+                help="Probabilidade estatística de render acima da taxa livre de risco.",
+            )
+        with c_mc3:
+            st.metric(
+                "Cenário Base (Mediana 50%)",
+                format_pct(mc.percentiles["p50"]),
+                f"R$ {mc.percentiles['p50_equity']:,.0f}",
+            )
+        with c_mc4:
+            st.metric(
+                "Cenário de Estresse (Pior 10%)",
+                format_pct(mc.percentiles["p10"]),
+                f"R$ {mc.percentiles['p10_equity']:,.0f}",
+                delta_color="inverse",
+            )
+
+        # Gráfico Monte Carlo Cone
+        mc_fig = go.Figure()
+        paths_df = mc.simulated_paths
+        
+        # Cone p10 - p90
+        mc_fig.add_trace(
+            go.Scatter(
+                x=paths_df["day"],
+                y=paths_df["p90_path"],
+                mode="lines",
+                line={"width": 0},
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+        mc_fig.add_trace(
+            go.Scatter(
+                x=paths_df["day"],
+                y=paths_df["p10_path"],
+                mode="lines",
+                line={"width": 0},
+                fill="tonexty",
+                fillcolor="rgba(167, 139, 250, 0.15)",
+                name="Intervalo 80% Confiança (p10 a p90)",
+            )
+        )
+        
+        # Algumas trajetórias de exemplo
+        sim_cols = [c for c in paths_df.columns if c.startswith("sim_")][:15]
+        for col in sim_cols:
+            mc_fig.add_trace(
+                go.Scatter(
+                    x=paths_df["day"],
+                    y=paths_df[col],
+                    mode="lines",
+                    line={"color": "rgba(148, 163, 184, 0.20)", "width": 1},
+                    showlegend=False,
+                    hoverinfo="skip",
+                )
+            )
+
+        # Mediana
+        mc_fig.add_trace(
+            go.Scatter(
+                x=paths_df["day"],
+                y=paths_df["p50_path"],
+                mode="lines",
+                line={"color": "#34D399", "width": 2.5},
+                name="Trajetória Esperada (Mediana)",
+            )
+        )
+
+        mc_fig.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            height=340,
+            margin={"l": 40, "r": 16, "t": 20, "b": 30},
+            font={"color": "#94A3B8", "family": "Inter, sans-serif"},
+            xaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": "Dias úteis futuros"},
+            yaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": "Patrimônio simulado (R$)"},
+            legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+        )
+        st.plotly_chart(mc_fig, width="stretch", config={"displayModeBar": False})
+        st.caption(
+            "Cone de probabilidade projetado para os próximos 252 dias úteis com base no comportamento histórico dos ativos da carteira."
+        )
+    except Exception as e_mc:
+        st.caption(f"Simulação de Monte Carlo indisponível: {e_mc}")
+
 with st.expander("Ordens e dividendos do período", icon=":material/receipt_long:"):
     t1, t2 = st.tabs(["Compras e vendas", "Dividendos"])
     with t1:
@@ -478,8 +699,9 @@ with st.expander("Ordens e dividendos do período", icon=":material/receipt_long
 
 with st.expander("Lembrar das limitações", icon=":material/info:"):
     st.caption(
-        "Ferramenta de estudo. Score fundamental não é point-in-time contábil. "
-        "Custos de corretagem/slippage podem estar ligados. Não é recomendação de investimento."
+        "Ferramenta de estudo. DY no rebalance é TTM histórico. Balanços PIT só são CVM "
+        "depois de scripts/download_cvm_data.py --build. Custos ligados por padrão. "
+        "Não é recomendação de investimento."
     )
 
 # ── Exportar relatório ──────────────────────────────────────

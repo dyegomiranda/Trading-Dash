@@ -60,6 +60,10 @@ def test_scenarios_order():
     a = sc["animado"]["final_monthly_income"]
     assert c <= b <= a
     assert not sc["combined"].empty
+    assert sc["p10"] is sc["cauteloso"]
+    assert sc["p50"] is sc["base"]
+    assert sc["p90"] is sc["animado"]
+    assert any("P10" in str(x) for x in sc["combined"]["scenario"].unique())
 
 
 def test_override_principal_independent_of_portfolio():
@@ -99,3 +103,40 @@ def test_reinvest_snowball_beats_withdrawing():
     assert eq_reinvest > eq_withdraw * 1.05  # bem maior no fim
     # aportes são os mesmos; a diferença vem SÓ do reinvestimento
     assert reinvest["total_contributed_end"] == withdraw["total_contributed_end"]
+
+
+def test_yield_haircut_is_surfaced():
+    pf = PaperPortfolio.create(name="t", cash=10_000)
+    r = project_income(
+        pf,
+        pd.DataFrame(),
+        prices={},
+        reinvest=False,
+        years=5,
+        monthly_contribution=0,
+        fallback_yield=0.08,
+        starting_principal_override=10_000,
+    )
+    assert r["yield_was_cut"] is True
+    assert abs(r["starting_yield"] - 0.08 * 0.75) < 1e-9
+    assert abs(r["yield_haircut"] - 0.25) < 1e-9
+
+
+def test_p10_has_no_three_percent_floor():
+    """Cauteloso antigo forçava 3% — isso inflava carteiras de yield baixo."""
+    pf = PaperPortfolio.create(name="t", cash=10_000)
+    sc = project_income_scenarios(
+        pf,
+        pd.DataFrame(),
+        prices={},
+        years=5,
+        monthly_contribution=0,
+        reinvest=False,
+        starting_principal=10_000,
+        fallback_yield=0.04,
+    )
+    p10 = float(sc["p10"]["starting_yield"])
+    p50 = float(sc["p50"]["starting_yield"])
+    assert p50 == 0.04 * 0.75  # haircut
+    assert p10 < 0.03
+    assert p10 <= p50

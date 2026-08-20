@@ -73,6 +73,7 @@ def test_html_is_pt_and_has_meta():
     # escapa conteúdo cru: nota de que é simulação, não corretora
     assert "não é recomendação" in html
     assert html.startswith("<!doctype html>")
+    assert "TTM" in html
 
 
 def test_html_escaping_user_content():

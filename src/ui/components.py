@@ -49,12 +49,28 @@ def render_hero(
     )
 
 
-def render_page_header(title: str, subtitle: str = "") -> None:
+def render_page_header(
+    title: str,
+    subtitle: str = "",
+    badges: Sequence[tuple[str, str]] | None = None,
+) -> None:
+    """Renderiza o cabeçalho de página com suporte a badges integrados.
+
+    badges: [(label, variant)], onde variant pode ser 'live', 'demo', 'pit', 'warn' ou 'default'.
+    """
     sub = f"<span>{html.escape(subtitle)}</span>" if subtitle else ""
+    badges_html = ""
+    if badges:
+        items = []
+        for text, variant in badges:
+            cls = f"td-badge td-badge-{variant}" if variant in ("live", "demo", "pit", "warn") else "td-badge"
+            items.append(f'<span class="{cls}">{html.escape(text)}</span>')
+        badges_html = f'<span class="td-header-badges">{"".join(items)}</span>'
+
     st.markdown(
         f"""
 <div class="td-page-title">
-  <h2>{html.escape(title)}</h2>
+  <h2>{html.escape(title)}{badges_html}</h2>
   {sub}
 </div>
 """,
