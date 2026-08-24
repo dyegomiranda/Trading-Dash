@@ -35,6 +35,7 @@ from src.portfolio.paper import (
     save_portfolio,
 )
 from src.services import format_brl, format_pct, prices_dict_from_fundamentals
+from src.data.reference import format_ticker_display
 from src.thesis.alerts import evaluate_portfolio, exit_rules_summary
 from src.thesis.macro import macro_tilt_from_override
 from src.thesis.scoring import recommend_weights, score_universe
