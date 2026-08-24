@@ -36,3 +36,33 @@ jobs:
 
       - name: Tests (pytest)
         run: python -m pytest tests/ -q
+
+  build-exe:
+    runs-on: ubuntu-latest
+    name: Build Executable (Linux & Windows)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install PyInstaller
+        run: |
+          python -m pip install pyinstaller
+
+      - name: Build Linux Executable
+        run: |
+          python -m PyInstaller --name "TradingDash_0.1" --add-data "data/reference/b3_tickers.json:data/reference" app.py
+          mkdir -p dist-linux
+          cp -r dist/TradingDash_0.1/* dist-linux/
+          echo "Linux executable built in dist-linux/"
+
+      - name: Build Windows Executable (cross-compile)
+        run: |
+          echo "Nota: Build Windows requer ambiente Windows ou Wine."
+          echo "Para build nativo Windows, use um runner windows-latest."
+          # O PyInstaller pode gerar um executável Windows a partir de Linux com Wine,
+          # mas geralmente recomenda-se usar um runner Windows para melhores resultados.
