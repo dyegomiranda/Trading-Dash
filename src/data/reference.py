@@ -13,10 +13,13 @@ import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+import os
 
-from src.config import DATA_DIR
-
-REFERENCE_PATH = DATA_DIR / "reference" / "b3_tickers.json"
+# Caminho fixo para o cadastro de tickers, relativo à raiz do projeto.
+# Isso garante que o arquivo seja encontrado independentemente da pasta de dados
+# configurada em src.config (pasta .TradingDash oculta no Linux).
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+REFERENCE_PATH = _PROJECT_ROOT / "data" / "reference" / "b3_tickers.json"
 
 
 def _norm(ticker: str) -> str:
@@ -239,4 +242,92 @@ def format_ticker_display(ticker: str) -> str:
     if name and name.upper() != nt:
         return f"{name} ({nt})"
     return nt
+
+
+def validate_ticker_reference() -> dict[str, Any]:
+    """Validates the ticker reference JSON and returns a report.
+
+    Checks for:
+    - Tickers with abnormal name formatting (excessive spaces, weird suffixes)
+    - Renamed/ticker successors that should be applied
+    - Delisted tickers
+    - Missing mandatory fields
+
+    Returns a dict with statistics and a list of issues found.
+    This function does NOT modify the file — it's for human review.
+    """
+    import re
+
+    path = REFERENCE_PATH
+    if not path.exists():
+        return {"error": "Reference file not found at " + str(path)}
+
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    tickers = data.get("tickers", {})
+    total = len(tickers)
+
+    issues: list[dict[str, Any]] = []
+    renamed = 0
+    delisted = 0
+    bad_names = 0
+    missing_fields = 0
+
+    for ticker, meta in tickers.items():
+        # Check mandatory fields
+        for field in ("ticker", "name", "sector"):
+            if field not in meta:
+                missing_fields += 1
+                issues.append(
+                    {"ticker": ticker, "issue": f"Missing field: {field}"}
+                )
+                continue  # skip further checks for this ticker if field missing
+
+        name = str(meta.get("name", "")).strip()
+        sector = meta.get("sector", "")
+
+        # Check for abnormal name formatting:
+        # - Names with too many consecutive spaces
+        # - Names that look like they have padding (multiple spaces inside)
+        # - Names ending with unusual suffixes
+        space_pattern = re.search(r" {2,}", name)
+        if space_pattern:
+            bad_names += 1
+            issues.append(
+                {
+                    "ticker": ticker,
+                    "issue": f"Abnormal spaces in name: '{name}'",
+                    "severity": "low",
+                }
+            )
+
+        # Check for renamed tickers with successors
+        status = meta.get("status", "")
+        if status == "delisted_or_renamed":
+            delisted += 1
+            successor = meta.get("successor", "")
+            if not successor:
+                issues.append(
+                    {
+                        "ticker": ticker,
+                        "issue": "Marked as delisted_or_renamed but no successor defined",
+                        "severity": "medium",
+                    }
+                )
+            else:
+                renamed += 1
+
+    # Normalize report
+    report: dict[str, Any] = {
+        "total_tickers": total,
+        "bad_name_formatting": bad_names,
+        "renamed_tickers": renamed,
+        "delisted_tickers": delisted,
+        "missing_fields": missing_fields,
+        "issues": issues[:50],  # limit to first 50 issues
+        "generated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+    }
+
+    return report
 

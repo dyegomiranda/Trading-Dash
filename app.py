@@ -7,12 +7,34 @@ from pathlib import Path
 
 import streamlit as st
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from src.config import APP_VERSION, check_for_update, ROOT_DIR, get_settings
+
+# --- Garante que pastas de dados existem (importa Settings para criar dirs) ---
+_settings = get_settings()
+
+# --- Verifica atualização (silencioso; nunca quebra a UI) ---
+_update = check_for_update(timeout=8.0)
+
+# --- Exibe banner de atualização se houver versão nova ---
+if _update and _update.get("new_version"):
+    new_ver = _update["new_version"]
+    update_url = _update.get("url")
+    try:
+        st.sidebar.info(
+            f"**Nova versão disponível:** {new_ver}\n"
+            f"[Download aqui]({update_url})"
+            if update_url
+            else f"**Nova versão disponível:** {new_ver}"
+        )
+    except Exception:
+        pass  # never quebra a UI
+
+# --- Caminhos e configuração ---
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from src.ui.paths import ICON_PATH
-from src.ui.shell import inject_branding, render_sidebar_nav
+from src.ui.shell import inject_branding, render_sidebar_nav, page_setup
 
 _page_icon = str(ICON_PATH) if ICON_PATH.exists() else ":material/savings:"
 st.set_page_config(
@@ -23,6 +45,7 @@ st.set_page_config(
 )
 
 inject_branding()
+page_setup()
 
 # Páginas na ordem do menu
 page_inicio = st.Page(

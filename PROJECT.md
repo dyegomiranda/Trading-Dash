@@ -346,7 +346,7 @@ Objetivo: subir a **honestidade** do laboratório, não fingir um backtest audit
 | **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
 | **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
 | **C** | Walk-forward IS/OOS (70/30 + teste cego opcional) com grid search para otimização de parâmetros. Piotroski/BSD como overlay opcional — ainda não | Walk-forward com grid search **feito**; BSD não |
-| **D** | Fonte paga (fundamentus/status invest/comercial) se a semente CVM não bastar | **Não iniciado** |
+| **D** | (Eliminado — sem fonte paga) | — |
 
 **Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM 2020–2024 + custos + TTM + walk-forward. Nunca 90+.
 

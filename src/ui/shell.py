@@ -131,6 +131,8 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
         render_global_mode_toggle()
         render_refresh_control(key="global_refresh")
 
+        
+
 
 def page_setup() -> None:
     ensure_root_on_path()

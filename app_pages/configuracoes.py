@@ -110,4 +110,3 @@ with st.container(border=True):
         "O app guarda preços e indicadores por algumas horas para não travar. "
         "Se a lista parecer antiga, peça números novos."
     )
-    render_refresh_control(key="cfg_refresh", compact=False)

@@ -2,22 +2,84 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT_DIR = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT_DIR / "data"
+# --- Detecção de ambiente frozen (PyInstaller / executável bundlar) ---
+_is_frozen = getattr(sys, "frozen", False)
+_MEIPASS = getattr(sys, "_MEIPASS", None) if _is_frozen else None
+
+if _is_frozen:
+    # Quando bundlar com PyInstaller, a raiz é a pasta temporária de extração
+    ROOT_DIR = Path(_MEIPASS).parent
+else:
+    # Ambiente normal (desenvolvimento / CI)
+    ROOT_DIR = Path(__file__).resolve().parents[1]
+
+# --- Pasta de dados: usa pasta oculta .TradingDash no Linux, senão pasta relativa ---
+if os.name == "posix" and not _is_frozen:
+    # Linux: pasta oculta no home (ex.: ~/.TradingDash)
+    DATA_DIR = Path.home() / ".TradingDash"
+else:
+    # Windows / macOS / frozen: pasta relativa ao executável/app
+    DATA_DIR = ROOT_DIR / "data"
+
 CACHE_DIR = DATA_DIR / "cache"
 PORTFOLIO_DIR = DATA_DIR / "portfolio"
 SCORE_HISTORY_DIR = DATA_DIR / "scores"
 
 
-# Versão da tese — grava em carteiras/projeções para reprodutibilidade
+# --- Versão da tese — grava em carteiras/projeções para reprodutibilidade ---
 THESIS_ID = "quality_dividend"
 THESIS_VERSION = "1.4.0"
 THESIS_LABEL = "Quality Dividend (renda com qualidade)"
+
+
+# --- Versão atual do app (para checar atualizações) ---
+# Mantenha este número sincronizado com o tag no GitHub ou o número de release.
+APP_VERSION = "1.4.0"
+
+
+def check_for_update(timeout: float = 10.0) -> dict | None:
+    """Verifica se há versão nova no GitHub releases.
+
+    Returns dict com {'new_version', 'url'} ou None se não houver atualização
+    ou se der erro na rede (never levanta exceção — quebra a UI).
+    """
+    import urllib.request
+    import json
+    import time
+
+    try:
+        # Usa a API pública do GitHub para o repo do projeto
+        repo = "dyegomiranda/Trading-Dash"
+        api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+        req = urllib.request.Request(
+            api_url,
+            headers={"User-Agent": "TradingDash-Update-Check", "Accept": "application/vnd.github+json"},
+            timeout=timeout,
+        )
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            latest = data.get("tag_name", "").lstrip("v")
+            if latest and latest != APP_VERSION and latest.strip():
+                # Encontra o asset do instalador (Windows .exe ou Linux AppImage)
+                url = None
+                for asset in data.get("assets", []):
+                    name = asset.get("name", "").lower()
+                    if name.endswith(".exe") or name.endswith(".appimage") or name.endswith(".dmg"):
+                        url = asset.get("browser_download_url")
+                        break
+                if url:
+                    return {"new_version": latest, "url": url}
+    except Exception:
+        pass  # nunca quebra a UI
+
+    return None
 
 
 class Settings(BaseSettings):

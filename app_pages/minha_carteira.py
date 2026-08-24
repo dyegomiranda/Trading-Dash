@@ -134,9 +134,7 @@ with st.sidebar:
             st.session_state["pf_select"] = clean
             st.rerun()
 
-    render_refresh_control(key="pf_refresh")
-
-render_data_quality_banner(provider)
+    render_data_quality_banner(provider)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

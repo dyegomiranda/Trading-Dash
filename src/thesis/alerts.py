@@ -197,6 +197,39 @@ def evaluate_holding(
             )
         )
 
+    rating = row.get("rating", None)
+    if rating is not None:
+        if rating in ("CCC", "CC", "C"):
+            alerts.append(
+                HoldingAlert(
+                    ticker=t,
+                    severity="critical",
+                    code="rating_muito_baixo",
+                    message=f"Rating {rating} muito baixo — empresa não cumpre critérios de qualidade da tese.",
+                    action="sair",
+                )
+            )
+        elif rating in ("BB", "B"):
+            alerts.append(
+                HoldingAlert(
+                    ticker=t,
+                    severity="warning",
+                    code="rating_baixo",
+                    message=f"Rating {rating} abaixo do esperado para foco quality — revisar fundamentals.",
+                    action="monitorar",
+                )
+            )
+        elif rating not in ("AAA", "AA", "A", "BBB"):
+            alerts.append(
+                HoldingAlert(
+                    ticker=t,
+                    severity="info",
+                    code="rating_nao_classico",
+                    message=f"Rating {rating} — outside classical quality range. Revisar manualmente.",
+                    action="monitorar",
+                )
+            )
+
     if debt is not None and debt > settings.max_net_debt_ebitda:
         alerts.append(
             HoldingAlert(

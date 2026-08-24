@@ -113,6 +113,32 @@ def _column_label(col: Any) -> str:
     return str(col)
 
 
+def _rating_from_score(roe: float) -> str:
+    """Converte ROE em rating sintetico (AAA a C), útil para regras de saída.
+
+    - ROE >= 20%     -> AAA
+    - ROE >= 15%     -> AA
+    - ROE >= 12%     -> A
+    - ROE >= 10%     -> BBB
+    - ROE >= 8%      -> BB
+    - ROE >= 5%      -> B
+    - ROE < 5%       -> C
+    """
+    if roe >= 0.20:
+        return "AAA"
+    if roe >= 0.15:
+        return "AA"
+    if roe >= 0.12:
+        return "A"
+    if roe >= 0.10:
+        return "BBB"
+    if roe >= 0.08:
+        return "BB"
+    if roe >= 0.05:
+        return "B"
+    return "C"
+
+
 def _map_ohlcv_frame(df: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
     """Converte um DataFrame OHLCV (wide) em long padronizado para um ticker."""
     if df is None or df.empty:
@@ -331,6 +357,8 @@ class DemoDataProvider(DataProvider):
                     "gross_margin": float(np.clip(ebitda_margin + rng.uniform(0.05, 0.2), 0, 0.7)),
                     "dividend_yield": dy,
                     "payout": payout,
+                    "jcp": float(np.clip(rng.normal(0.15, 0.05), 0.05, 0.30)),
+                    "rating": _rating_from_score(roe),
                     "net_debt_ebitda": debt,
                     "debt_equity": float(np.clip(debt * rng.uniform(0.4, 1.2), 0, 10)),
                     "current_ratio": float(np.clip(rng.normal(1.4, 0.4), 0.4, 4)),
