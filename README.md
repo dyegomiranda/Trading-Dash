@@ -46,7 +46,7 @@ Abra o endereço local (geralmente `http://localhost:8501`).
 **fish shell:** prefira `.venv/bin/streamlit run app.py`.  
 Para ativar o venv no fish: `source .venv/bin/activate.fish`.
 
-### Deploy no Streamlit Community Cloud (para o amigo testar sem instalar)
+### Deploy no Streamlit Community Cloud (para testar sem instalar)
 
 **Antes de publicar**, rode o pre-flight local (mesmo “contrato” que o Cloud executa:
 `pip install -r requirements.txt` + `streamlit run app.py`, sem rede):
