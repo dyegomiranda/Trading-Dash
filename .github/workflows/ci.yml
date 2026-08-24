@@ -39,7 +39,7 @@ jobs:
 
   build-exe:
     runs-on: ubuntu-latest
-    name: Build Linux & Windows Executables
+    name: Build Linux Executable
     steps:
       - uses: actions/checkout@v4
 
@@ -61,16 +61,8 @@ jobs:
           cp -r dist/TradingDash_0.1/* dist-linux/
           echo "Linux executable built successfully"
 
-      - name: Build Windows Executable (via PyInstaller on Linux)
-        run: |
-          echo "Para build nativo Windows, recomenda-se usar runner windows-latest."
-          echo "PyInstaller on Linux pode gerar executável Windows com Wine,"
-          echo "mas para resultados confiáveis use um runner Windows."
-          
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: TradingDash-0.1-builds
-          path: |
-            dist-linux/**
-            # Windows executável seria adicionado aqui se buildado
+          path: dist-linux/*
