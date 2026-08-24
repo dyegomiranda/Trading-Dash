@@ -53,43 +53,39 @@ render_clean_header(
 if render_onboarding_if_needed():
     st.stop()
 
-# --- Indicador de loading (exibe ANTES da sidebar/conteúdo) ---
-# Evita que o usuário veja "tela em branca" ou texto solto enquanto os dados carregam.
-# Usa session_state para marcar o estado across Streamlit re-runs.
-# Usa st.status() com "with" notation, que é a forma recomendada pela documentação
-# da Streamlit: o status é atualizado automaticamente ao sair do bloco.
-if not st.session_state.get("_data_loaded", False):
-    with st.status("Carregando dados do mercado...", state="running", expanded=True):
-        st.caption(
-            "Primeira vez pode levar de 15 a 30 segundos. "
-            "Na volta subsequente os dados vêm do cache."
-        )
-        try:
-            from src.services import load_scored_universe
+# --- Indicador de loading (sempre no topo, antes da sidebar) ---
+# Garante que o usuário sempre veja algum indicativo de carregamento
+# ao navegar para Início ou trocar de aba, evitando "tela em branca".
+with st.status("Carregando dados do mercado...", state="running", expanded=True):
+    st.caption(
+        "Dados being carregados. Na volta subsequente podem vir do cache."
+    )
+    try:
+        from src.services import load_scored_universe
 
-            result = load_scored_universe(
-                provider_name=provider, universe_mode="auto"
-            )
-            # Armazena no session_state para persistir across re-runs
-            st.session_state["scored"] = result.scored
-            st.session_state["filtered"] = result.filtered
-            st.session_state["recs"] = recommend_weights(
-                result.filtered,
-                top_n=10,
-                macro_tilt=macro_tilt_from_override(get_session_macro()),
-            )
-            st.session_state["prices"] = prices_dict_from_fundamentals(
-                st.session_state["scored"]
-            )
-            st.session_state["_data_loaded"] = True
-        except Exception as e:
-            st.session_state["_data_loaded"] = True
-            st.error(f"Falha ao carregar mercado: {e}")
-            # Even on error, continue with empty data so the page doesn't break
-            st.session_state["scored"] = pd.DataFrame()
-            st.session_state["filtered"] = pd.DataFrame()
-            st.session_state["recs"] = pd.DataFrame()
-            st.session_state["prices"] = {}
+        result = load_scored_universe(
+            provider_name=provider, universe_mode="auto"
+        )
+        # Armazena no session_state para persistir across re-runs
+        st.session_state["scored"] = result.scored
+        st.session_state["filtered"] = result.filtered
+        st.session_state["recs"] = recommend_weights(
+            result.filtered,
+            top_n=10,
+            macro_tilt=macro_tilt_from_override(get_session_macro()),
+        )
+        st.session_state["prices"] = prices_dict_from_fundamentals(
+            st.session_state["scored"]
+        )
+        # Atualiza status para completo ao finalizar
+        pass  # status atualiza automaticamente ao sair do bloco "with"
+    except Exception as e:
+        st.error(f"Falha ao carregar mercado: {e}")
+        # Mesmo em erro, continua com dados vazios para não quebrar a UI
+        st.session_state["scored"] = pd.DataFrame()
+        st.session_state["filtered"] = pd.DataFrame()
+        st.session_state["recs"] = pd.DataFrame()
+        st.session_state["prices"] = {}
 # Se já carregou, prossegue normally
         # Even on error, continue with empty data so the page doesn't break
         st.session_state["scored"] = pd.DataFrame()
