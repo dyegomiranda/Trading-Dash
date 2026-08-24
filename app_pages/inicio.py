@@ -35,7 +35,7 @@ from src.ui.components import (
     render_thesis_pillars,
 )
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
-from src.ui.onboarding import render_onboarding_if_needed
+from src.ui.onboarding import render_onboarding_if_needed, render_learning_dashboard
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
 from src.ui.wizard import render_quick_wizard
@@ -53,7 +53,47 @@ if render_onboarding_if_needed():
     st.stop()
 
 with st.sidebar:
+    # Botão para refazer o tour no topo
+    if st.button("Refazer tour", key="home_tour_restart", width="stretch"):
+        st.session_state["onboarding_done"] = False
+        st.session_state["onboarding_step"] = 0
+        if "learning_milestones" in st.session_state:
+            del st.session_state["learning_milestones"]
+        st.rerun()
+
+    st.markdown("---")
+
+    # Controle de refresh (atualizar dados)
     render_refresh_control(key="home_refresh")
+
+    st.markdown("---")
+
+    # Modo treino (slider) na parte inferior
+    _apply_pending_provider()
+    current = get_session_provider()
+    if SIDEBAR_TREINO_KEY not in st.session_state:
+        st.session_state[SIDEBAR_TREINO_KEY] = current == "demo"
+
+    treino = st.toggle(
+        "Modo treino",
+        key=SIDEBAR_TREINO_KEY,
+        help="Ligado: números ilustrativos para aprender. "
+        "Desligado: preços e indicadores da bolsa (Yahoo).",
+    )
+    if treino and current != "demo":
+        request_session_provider("demo")
+        st.rerun()
+    if not treino and current == "demo":
+        request_session_provider(st.session_state.get(REAL_PROVIDER_KEY) or "yfinance")
+        st.rerun()
+
+    provider = get_session_provider()
+    if provider == "demo":
+        st.caption("Números de estudo · não são da bolsa")
+    elif provider == "brapi":
+        st.caption("Bolsa · fonte experimental B3")
+    else:
+        st.caption("Bolsa real · Yahoo Finance")
 
 render_data_quality_banner(provider)
 
@@ -166,6 +206,11 @@ try:
 except Exception:
     pass
 
+# Learning dashboard for beginners
+if not st.session_state.get("onboarding_done", False):
+    render_learning_dashboard()
+    st.markdown("---")
+
 pnl = float(summary.get("pnl") or 0)
 render_kpi_row(
     [
@@ -192,98 +237,95 @@ with left:
             ("Empresas", str(summary["n_positions"]), "Quantas você tem"),
         ],
     )
-with right:
-    with st.container(border=True):
-        if holdings.empty:
-            st.markdown("##### Sua carteira")
-            st.caption(
-                f"Ainda vazia. Abra **Minha carteira** e clique em **{APPLY_THESIS_LABEL}**."
-            )
-            st.page_link(
-                "app_pages/minha_carteira.py",
-                label=APPLY_THESIS_LABEL,
-                icon=":material/auto_awesome:",
-            )
-        else:
-            st.plotly_chart(
-                holdings_donut(
-                    holdings,
-                    center_value=format_brl(summary["invested"]),
-                    title="Só o que está em ações (sem o caixa)",
-                ),
-                width="stretch",
-                config={"displayModeBar": False},
-            )
+with right, st.container(border=True):
+    if holdings.empty:
+        st.markdown("##### Sua carteira")
+        st.caption(
+            f"Ainda vazia. Abra **Minha carteira** e clique em **{APPLY_THESIS_LABEL}**."
+        )
+        st.page_link(
+            "app_pages/minha_carteira.py",
+            label=APPLY_THESIS_LABEL,
+            icon=":material/auto_awesome:",
+        )
+    else:
+        st.plotly_chart(
+            holdings_donut(
+                holdings,
+                center_value=format_brl(summary["invested"]),
+                title="Só o que está em ações (sem o caixa)",
+            ),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
 
 c1, c2 = st.columns([1.2, 1], gap="medium")
-with c1:
-    with st.container(border=True):
-        st.markdown("##### Sugestões da tese agora")
-        st.caption(
-            "Empresas com melhor encaixe em renda com qualidade. "
-            "A nota junta lucro, dividendo sustentável, dívida e preço."
-        )
-        if not recs.empty:
-            q, d, h, v = pillar_means(recs)
-            render_thesis_pillars(q, d, h, v, heading="Média das 4 notas desta lista")
-        render_core_sectors_card()
-        if recs.empty:
-            st.warning("Sem sugestões com os filtros atuais.")
-        else:
-            view = recs.copy()
-            keep = [
-                c
-                for c in [
-                    "ticker",
-                    "name",
-                    "sector",
-                    "score_total",
-                    "dividend_yield",
-                    "roe",
-                    "price",
-                    "bucket",
-                ]
-                if c in view.columns
+with c1, st.container(border=True):
+    st.markdown("##### Sugestões da tese agora")
+    st.caption(
+        "Empresas com melhor encaixe em renda com qualidade. "
+        "A nota junta lucro, dividendo sustentável, dívida e preço."
+    )
+    if not recs.empty:
+        q, d, h, v = pillar_means(recs)
+        render_thesis_pillars(q, d, h, v, heading="Média das 4 notas desta lista")
+    render_core_sectors_card()
+    if recs.empty:
+        st.warning("Sem sugestões com os filtros atuais.")
+    else:
+        view = recs.copy()
+        keep = [
+            c
+            for c in [
+                "ticker",
+                "name",
+                "sector",
+                "score_total",
+                "dividend_yield",
+                "roe",
+                "price",
+                "bucket",
             ]
-            show = view[keep].head(10).copy()
-            if "dividend_yield" in show.columns:
-                show["dividend_yield"] = show["dividend_yield"].map(
-                    lambda x: format_pct(x) if x == x and x is not None else "—"
-                )
-            if "roe" in show.columns:
-                show["roe"] = show["roe"].map(
-                    lambda x: format_pct(x) if x == x and x is not None else "—"
-                )
-            st.dataframe(
-                friendly_dataframe(show),
-                width="stretch",
-                hide_index=True,
-                height=360,
+            if c in view.columns
+        ]
+        show = view[keep].head(10).copy()
+        if "dividend_yield" in show.columns:
+            show["dividend_yield"] = show["dividend_yield"].map(
+                lambda x: format_pct(x) if x == x and x is not None else "—"
             )
+        if "roe" in show.columns:
+            show["roe"] = show["roe"].map(
+                lambda x: format_pct(x) if x == x and x is not None else "—"
+            )
+        st.dataframe(
+            friendly_dataframe(show),
+            width="stretch",
+            hide_index=True,
+            height=360,
+        )
 
-with c2:
-    with st.container(border=True):
-        st.markdown("##### Headlines reais")
-        st.caption("Matérias via Google News / Yahoo — clique para abrir a fonte.")
-        if news is None or news.empty:
-            st.warning(
-                "Não foi possível carregar notícias agora (rede/API). "
-                "Tente atualizar o overview."
-            )
-        else:
-            for _, row in news.iterrows():
-                tag = str(row.get("tag") or "mercado")
-                ticker = str(row.get("ticker") or "")
-                title = str(row.get("title") or "")
-                src = str(row.get("source") or "")
-                when = str(row.get("published") or "")
-                url = row.get("url")
-                head = f"**{ticker}** · {tag}" if ticker else tag
-                if url:
-                    st.markdown(f"{head}  \n[{title}]({url})  \n*{src} · {when}*")
-                else:
-                    st.markdown(f"{head}  \n{title}  \n*{src} · {when}*")
-                st.markdown("")
+with c2, st.container(border=True):
+    st.markdown("##### Headlines reais")
+    st.caption("Matérias via Google News / Yahoo — clique para abrir a fonte.")
+    if news is None or news.empty:
+        st.warning(
+            "Não foi possível carregar notícias agora (rede/API). "
+            "Tente atualizar o overview."
+        )
+    else:
+        for _, row in news.iterrows():
+            tag = str(row.get("tag") or "mercado")
+            ticker = str(row.get("ticker") or "")
+            title = str(row.get("title") or "")
+            src = str(row.get("source") or "")
+            when = str(row.get("published") or "")
+            url = row.get("url")
+            head = f"**{ticker}** · {tag}" if ticker else tag
+            if url:
+                st.markdown(f"{head}  \n[{title}]({url})  \n*{src} · {when}*")
+            else:
+                st.markdown(f"{head}  \n{title}  \n*{src} · {when}*")
+            st.markdown("")
 
 st.caption(
     "Overview em tempo de sessão · notícias de fontes públicas · "

@@ -50,13 +50,13 @@ from src.ui.charts import (
 from src.ui.components import (
     render_explain_card,
     render_journey,
-    render_page_header,
     render_plain_help,
 )
 from src.ui.data_source import (
     APPLY_THESIS_LABEL,
     get_session_macro,
     get_session_provider,
+    render_clean_header,
     render_data_quality_banner,
 )
 from src.ui.cache_button import render_refresh_control
@@ -67,12 +67,13 @@ from src.ui.trust import render_friendly_safety_note, render_premises_box, rende
 from src.ui.wallet import render_asset_rows, render_wallet_balance
 
 page_setup()
-render_page_header(
+provider = get_session_provider()
+render_clean_header(
     "Minha carteira",
     "Conta de treino · monte passo a passo, sem jargão",
+    provider=provider,
 )
 
-provider = get_session_provider()
 with st.sidebar:
     st.markdown("##### Qual carteira")
     _saved = list_portfolios()
@@ -180,6 +181,12 @@ except Exception as e:
     )
 
 render_trust_strip(provider=provider, coverage=coverage)
+
+# Initialize session state for decision guidance and activity feed
+if "pf_decision_history" not in st.session_state:
+    st.session_state["pf_decision_history"] = []
+if "pf_activity_feed" not in st.session_state:
+    st.session_state["pf_activity_feed"] = []
 
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)
@@ -358,27 +365,25 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
             holdings, scored_table if not scored_table.empty else fundamentals
         )
         c1, c2 = st.columns(2, gap="medium")
-        with c1:
-            with st.container(border=True):
+        with c1, st.container(border=True):
+            st.plotly_chart(
+                holdings_donut(
+                    holdings,
+                    center_value=format_brl(invested),
+                    title="O que está em ações (sem o caixa)",
+                ),
+                width="stretch",
+                config={"displayModeBar": False},
+            )
+        with c2, st.container(border=True):
+            if sectors.empty:
+                st.caption("Sem dados de setor para montar o gráfico.")
+            else:
                 st.plotly_chart(
-                    holdings_donut(
-                        holdings,
-                        center_value=format_brl(invested),
-                        title="O que está em ações (sem o caixa)",
-                    ),
+                    sector_bars(sectors, title="Divisão por setor da economia"),
                     width="stretch",
                     config={"displayModeBar": False},
                 )
-        with c2:
-            with st.container(border=True):
-                if sectors.empty:
-                    st.caption("Sem dados de setor para montar o gráfico.")
-                else:
-                    st.plotly_chart(
-                        sector_bars(sectors, title="Divisão por setor da economia"),
-                        width="stretch",
-                        config={"displayModeBar": False},
-                    )
 
         st.markdown("##### Suas empresas")
         st.caption(
@@ -400,6 +405,10 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                 if bucket == "core"
                 else ("Complemento" if bucket == "satellite" else bucket)
             )
+            # Formatted name and ticker for display
+            display_name = format_ticker_display(t)
+            # Bucket label to show under the name
+            bucket_label = bucket_pt if bucket_pt else ""
             pnl = float(r.get("pnl") or 0)
             pnl_p = float(r.get("pnl_pct") or 0)
             shares = float(r["shares"])
@@ -409,12 +418,13 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
             asset_rows.append(
                 (
                     t,
-                    f"{name} · {bucket_pt}" if bucket_pt else name,
-                    shares_s,
-                    f"Preço hoje {format_brl(float(r['price']))}",
-                    format_brl(float(r["market_value"])),
-                    f"{format_brl(pnl)} ({format_pct(pnl_p)})",
-                    pnl >= 0,
+                    display_name,
+                    shares_label,
+                    price_label,
+                    market_value,
+                    pnl_label,
+                    pnl_positive,
+                    bucket_label,
                 )
             )
         render_asset_rows(asset_rows)
@@ -499,6 +509,118 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                 width="stretch",
                 hide_index=True,
             )
+
+        # Activity feed for beginners
+        if has_positions:
+            st.markdown("##### 📰 Atividade recente")
+            activity_container = st.container(border=True)
+            with activity_container:
+                # Add some sample activities based on portfolio state
+                activities = []
+
+                # Check for recent trades
+                if hasattr(portfolio, 'trades') and portfolio.trades:
+                    recent_trades = portfolio.trades[-3:] if len(portfolio.trades) >= 3 else portfolio.trades
+                    for trade in recent_trades:
+                        action = "Compra" if trade.side == "buy" else "Venda"
+                        activities.append({
+                            "type": "trade",
+                            "icon": "💰",
+                            "message": f"{action} {trade.shares:.2f} {trade.ticker} por {format_brl(trade.amount)}",
+                            "time": "há pouco"
+                        })
+
+                # Check for dividend receptions
+                if hasattr(portfolio, 'dividends') and portfolio.dividends:
+                    recent_dividends = portfolio.dividends[-2:] if len(portfolio.dividends) >= 2 else portfolio.dividends
+                    for div in recent_dividends:
+                        activities.append({
+                            "type": "dividend",
+                            "icon": "💵",
+                            "message": f"Dividendo recebido: {format_brl(div.total_brl)} de {div.ticker}",
+                            "time": div.date.strftime("%d/%m") if hasattr(div, 'date') else "há pouco"
+                        })
+
+                # If no activities, show a welcome message
+                if not activities:
+                    activities.append({
+                        "type": "welcome",
+                        "icon": "🎯",
+                        "message": "Bem-vindo! Comece montando sua primeira carteira.",
+                        "time": "agora"
+                    })
+
+                # Display activities
+                for act in activities:
+                    if act["type"] == "trade":
+                        st.info(f"{act['icon']} {act['message']} · {act['time']}")
+                    elif act["type"] == "dividend":
+                        st.success(f"{act['icon']} {act['message']} · {act['time']}")
+                    else:
+                        st.info(f"{act['icon']} {act['message']} · {act['time']}")
+
+        # Decision guidance section for beginners
+        if has_positions:
+            st.markdown("##### 💡 Sugestões para sua carteira")
+            decision_container = st.container(border=True)
+            with decision_container:
+                # Generate simple decision guidance based on portfolio state
+                guidance_items = []
+
+                # Check for concentration risk
+                if not holdings.empty and "weight" in holdings.columns:
+                    max_weight = holdings["weight"].max()
+                    if max_weight > 0.3:  # More than 30% in one position
+                        guidance_items.append({
+                            "type": "warning",
+                            "title": "Concentração detectada",
+                            "message": f"Sua maior posição representa {max_weight:.0%} da carteira. Considere diversificar para reduzir risco.",
+                            "action": "Ver sugestões de rebalanceamento"
+                        })
+
+                # Check for low dividend yield
+                if not holdings.empty and "dividend_yield" in holdings.columns:
+                    avg_dy = holdings["dividend_yield"].mean()
+                    if avg_dy < 0.04:  # Less than 4% average yield
+                        guidance_items.append({
+                            "type": "info",
+                            "title": "Yield de dividendos baixo",
+                            "message": f"O yield médio da sua carteira é {avg_dy:.1%}. Para aumentar renda, considere ações com yield mais alto (mas mantenha qualidade).",
+                            "action": "Explore sugestões da tese"
+                        })
+
+                # Check for no recent activity
+                if not portfolio.trades or len(portfolio.trades) == 0:
+                    guidance_items.append({
+                        "type": "info",
+                        "title": "Comece sua jornada",
+                        "message": "Você ainda não fez nenhuma operação. Comece montando uma carteira com a tese Quality Dividend.",
+                        "action": "Montar carteira com a tese"
+                    })
+
+                # Display guidance items
+                if guidance_items:
+                    for item in guidance_items:
+                        if item["type"] == "warning":
+                            st.warning(f"**{item['title']}**: {item['message']}")
+                            if st.button(item["action"], key=f"guidance_action_{hash(item['title'])}"):
+                                if item["action"] == "Montar carteira com a tese" or item["action"] == "Ver sugestões de rebalanceamento":
+                                    st.session_state["pf_section"] = "build"
+                                    st.rerun()
+                                elif item["action"] == "Explore sugestões da tese":
+                                    st.session_state["pf_section"] = "overview"
+                                    st.rerun()
+                        else:
+                            st.info(f"**{item['title']}**: {item['message']}")
+                            if st.button(item["action"], key=f"guidance_action_{hash(item['title'])}"):
+                                if item["action"] == "Montar carteira com a tese":
+                                    st.session_state["pf_section"] = "build"
+                                    st.rerun()
+                                elif item["action"] == "Explore sugestões da tese":
+                                    st.session_state["pf_section"] = "overview"
+                                    st.rerun()
+                else:
+                    st.success("✅ Sua carteira parece equilibrada! Continue monitorando e aprendendo.")
 
 
         st.markdown("##### Pontos de atenção da tese")

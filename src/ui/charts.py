@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from src.data.reference import format_ticker_display, get_ticker_meta, translate_sector
+
 PALETTE = [
     "#A78BFA",
     "#818CF8",
@@ -686,20 +688,29 @@ def sector_breakdown_from_holdings(
     holdings: pd.DataFrame,
     fundamentals: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Agrega valor de mercado por setor."""
+    """Agrega valor de mercado por setor com tradução e fallback garantido."""
     if holdings is None or holdings.empty:
         return pd.DataFrame(columns=["sector", "value", "pct"])
     fund = fundamentals.copy() if fundamentals is not None else pd.DataFrame()
     sector_map: dict[str, str] = {}
     if not fund.empty and "ticker" in fund.columns:
         for _, row in fund.iterrows():
-            sector_map[str(row["ticker"])] = str(row.get("sector") or "Outros")
+            raw_sector = row.get("sector")
+            if raw_sector and str(raw_sector).strip() and str(raw_sector).strip() != "Unknown":
+                sector_map[str(row["ticker"])] = str(raw_sector).strip()
     rows = []
     for _, h in holdings.iterrows():
         t = str(h["ticker"])
+        sec = sector_map.get(t)
+        if not sec or sec == "Unknown":
+            meta = get_ticker_meta(t)
+            sec = meta.get("sector")
+            if not sec or sec == "Unknown":
+                sec = "Outros"
+        sec_pt = translate_sector(sec)
         rows.append(
             {
-                "sector": sector_map.get(t, "Outros"),
+                "sector": sec_pt,
                 "value": float(h.get("market_value") or 0),
             }
         )

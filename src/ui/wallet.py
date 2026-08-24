@@ -79,16 +79,14 @@ def _stat_html(item: StatItem) -> str:
 
 
 def render_asset_rows(
-    rows: Sequence[tuple[str, str, str, str, str, str, bool]],
+    rows: Sequence[tuple[str, str, str, str, str, str, bool, str]],
 ) -> None:
     """Lista de ativos estilo wallet.
 
-    each row: (ticker, subtitle, shares_label, price_label, market_value, pnl_label, pnl_positive)
+    each row: (ticker, display_name, shares_label, price_label, market_value, pnl_label, pnl_positive, bucket_label)
     """
-    if not rows:
-        return
     parts = ['<div class="td-asset-list">']
-    for ticker, subtitle, shares_label, price_label, mv, pnl, pos in rows:
+    for ticker, display_name, shares_label, price_label, mv, pnl, pos, bucket_label in rows:
         cls = "up" if pos else "down"
         avatar = html.escape((ticker[:4] if ticker else "?").upper())
         parts.append(
@@ -96,8 +94,8 @@ def render_asset_rows(
 <div class="td-asset-row">
   <div class="td-asset-avatar">{avatar}</div>
   <div class="td-asset-name">
-    <strong>{html.escape(ticker)}</strong>
-    <span>{html.escape(subtitle)}</span>
+    <strong>{html.escape(display_name)}</strong>
+    {f'<span>{html.escape(bucket_label)}</span>' if bucket_label else ''}
   </div>
   <div class="td-asset-mid">
     {html.escape(shares_label)}
