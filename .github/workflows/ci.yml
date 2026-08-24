@@ -39,7 +39,7 @@ jobs:
 
   build-exe:
     runs-on: ubuntu-latest
-    name: Build Executable (Linux & Windows)
+    name: Build Linux & Windows Executables
     steps:
       - uses: actions/checkout@v4
 
@@ -55,14 +55,22 @@ jobs:
 
       - name: Build Linux Executable
         run: |
+          rm -rf dist/TradingDash_0.1
           python -m PyInstaller --name "TradingDash_0.1" --add-data "data/reference/b3_tickers.json:data/reference" app.py
           mkdir -p dist-linux
           cp -r dist/TradingDash_0.1/* dist-linux/
-          echo "Linux executable built in dist-linux/"
+          echo "Linux executable built successfully"
 
-      - name: Build Windows Executable (cross-compile)
+      - name: Build Windows Executable (via PyInstaller on Linux)
         run: |
-          echo "Nota: Build Windows requer ambiente Windows ou Wine."
-          echo "Para build nativo Windows, use um runner windows-latest."
-          # O PyInstaller pode gerar um executável Windows a partir de Linux com Wine,
-          # mas geralmente recomenda-se usar um runner Windows para melhores resultados.
+          echo "Para build nativo Windows, recomenda-se usar runner windows-latest."
+          echo "PyInstaller on Linux pode gerar executável Windows com Wine,"
+          echo "mas para resultados confiáveis use um runner Windows."
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradingDash-0.1-builds
+          path: |
+            dist-linux/**
+            # Windows executável seria adicionado aqui se buildado
