@@ -23,7 +23,7 @@
     "ABEV3": {
       "ticker": "ABEV3",
       "status": "active",
-      "name": "AMBEV S/A   ON",
+      "name": "Ambev",
       "sector": "Consumer Defensive",
       "industry": "Beverages - Brewers",
       "quote_type": "EQUITY",
@@ -40,10 +40,10 @@
     },
     "AESB3": {
       "ticker": "AESB3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "AES Brasil",
+      "sector": "Utilities",
+      "industry": "Utilities - Renewable",
       "source": "yfinance"
     },
     "AGRO3": {
@@ -66,10 +66,10 @@
     },
     "ALSO3": {
       "ticker": "ALSO3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Allos",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Malls",
       "source": "yfinance"
     },
     "ALUP11": {
@@ -119,16 +119,16 @@
     },
     "ARZZ3": {
       "ticker": "ARZZ3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Azzas (Arezzo)",
+      "sector": "Consumer Cyclical",
+      "industry": "Footwear & Accessories",
       "source": "yfinance"
     },
     "ASAI3": {
       "ticker": "ASAI3",
       "status": "active",
-      "name": "ASSAI       ON      NM",
+      "name": "Assaí Atacadista",
       "sector": "Consumer Defensive",
       "industry": "Grocery Stores",
       "quote_type": "EQUITY",
@@ -155,10 +155,10 @@
     },
     "AXIA4": {
       "ticker": "AXIA4",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Axia Energia",
+      "sector": "Utilities",
+      "industry": "Utilities - Renewable",
       "source": "yfinance"
     },
     "AXIA6": {
@@ -172,16 +172,16 @@
     },
     "AZUL4": {
       "ticker": "AZUL4",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Azul Linhas Aéreas",
+      "sector": "Industrials",
+      "industry": "Airlines",
       "source": "yfinance"
     },
     "B3SA3": {
       "ticker": "B3SA3",
       "status": "active",
-      "name": "B3          ON      NM",
+      "name": "B3",
       "sector": "Financial Services",
       "industry": "Financial Data & Stock Exchanges",
       "quote_type": "EQUITY",
@@ -190,34 +190,34 @@
     "BBAS3": {
       "ticker": "BBAS3",
       "status": "active",
-      "name": "BRASIL      ON      NM",
+      "name": "Banco do Brasil",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "BBDC3": {
       "ticker": "BBDC3",
       "status": "active",
-      "name": "BRADESCO    ON  EJS N1",
+      "name": "Bradesco",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "BBDC4": {
       "ticker": "BBDC4",
       "status": "active",
-      "name": "BRADESCO PN",
+      "name": "Bradesco",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "manual+yfinance"
     },
     "BBSE3": {
       "ticker": "BBSE3",
       "status": "active",
-      "name": "BBSEGURIDADEON  ED  NM",
+      "name": "BB Seguridade",
       "sector": "Financial Services",
       "industry": "Insurance - Diversified",
       "quote_type": "EQUITY",
@@ -234,10 +234,10 @@
     },
     "BKBR3": {
       "ticker": "BKBR3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Zamp (Burger King)",
+      "sector": "Consumer Cyclical",
+      "industry": "Restaurants",
       "source": "yfinance"
     },
     "BLAU3": {
@@ -279,18 +279,18 @@
     "BPAC11": {
       "ticker": "BPAC11",
       "status": "active",
-      "name": "BTGP BANCO  UNT     N2",
+      "name": "BTG Pactual",
       "sector": "Financial Services",
-      "industry": "Capital Markets",
+      "industry": "Investment Banking",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "BPAN4": {
       "ticker": "BPAN4",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Banco Pan",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
       "source": "yfinance"
     },
     "BRAP4": {
@@ -304,10 +304,10 @@
     },
     "BRFS3": {
       "ticker": "BRFS3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "BRF",
+      "sector": "Consumer Defensive",
+      "industry": "Packaged Foods",
       "source": "yfinance"
     },
     "BRKM5": {
@@ -321,10 +321,10 @@
     },
     "BRML3": {
       "ticker": "BRML3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "BR Malls",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Malls",
       "source": "yfinance"
     },
     "BRSR6": {
@@ -357,9 +357,9 @@
     "CASN3": {
       "ticker": "CASN3",
       "status": "active",
-      "name": "CASN3.SA,0P0000D5NJ,0",
-      "sector": null,
-      "industry": null,
+      "name": "Casan",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
       "quote_type": "MUTUALFUND",
       "source": "yfinance"
     },
@@ -374,10 +374,10 @@
     },
     "CCRO3": {
       "ticker": "CCRO3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "CCR",
+      "sector": "Industrials",
+      "industry": "Infrastructure & Toll Roads",
       "source": "yfinance"
     },
     "CEAB3": {
@@ -391,10 +391,10 @@
     },
     "CLSA3": {
       "ticker": "CLSA3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "ClearSale",
+      "sector": "Technology",
+      "industry": "Software - Infrastructure",
       "source": "yfinance"
     },
     "CMIG3": {
@@ -409,7 +409,7 @@
     "CMIG4": {
       "ticker": "CMIG4",
       "status": "active",
-      "name": "CEMIG       PN      N1",
+      "name": "Cemig",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Electric",
       "quote_type": "EQUITY",
@@ -436,7 +436,7 @@
     "CPFE3": {
       "ticker": "CPFE3",
       "status": "active",
-      "name": "CPFL ENERGIAON      NM",
+      "name": "CPFL Energia",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Electric",
       "quote_type": "EQUITY",
@@ -453,26 +453,26 @@
     },
     "CPLE6": {
       "ticker": "CPLE6",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Copel",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
       "source": "yfinance"
     },
     "CRFB3": {
       "ticker": "CRFB3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Carrefour Brasil",
+      "sector": "Consumer Defensive",
+      "industry": "Grocery Stores",
       "source": "yfinance"
     },
     "CSAN3": {
       "ticker": "CSAN3",
       "status": "active",
-      "name": "COSAN       ON      NM",
+      "name": "Cosan",
       "sector": "Energy",
-      "industry": "Oil & Gas Refining & Marketing",
+      "industry": "Conglomerates",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -488,7 +488,7 @@
     "CSMG3": {
       "ticker": "CSMG3",
       "status": "active",
-      "name": "COPASA      ON      NM",
+      "name": "Copasa",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Water",
       "quote_type": "EQUITY",
@@ -497,7 +497,7 @@
     "CSNA3": {
       "ticker": "CSNA3",
       "status": "active",
-      "name": "SID NACIONALON",
+      "name": "CSN",
       "sector": "Basic Materials",
       "industry": "Steel",
       "quote_type": "EQUITY",
@@ -524,7 +524,7 @@
     "CXSE3": {
       "ticker": "CXSE3",
       "status": "active",
-      "name": "CAIXA SEGURION  ED  NM",
+      "name": "Caixa Seguridade",
       "sector": "Financial Services",
       "industry": "Insurance - Diversified",
       "quote_type": "EQUITY",
@@ -533,8 +533,8 @@
     "CYRE3": {
       "ticker": "CYRE3",
       "status": "active",
-      "name": "CYRELA REALTON      NM",
-      "sector": "Consumer Cyclical",
+      "name": "Cyrela",
+      "sector": "Real Estate",
       "industry": "Residential Construction",
       "quote_type": "EQUITY",
       "source": "yfinance"
@@ -578,18 +578,18 @@
     "ECOR3": {
       "ticker": "ECOR3",
       "status": "active",
-      "name": "ECORODOVIAS ON      NM",
+      "name": "Ecorodovias",
       "sector": "Industrials",
-      "industry": "Infrastructure Operations",
+      "industry": "Infrastructure & Toll Roads",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "EGIE3": {
       "ticker": "EGIE3",
       "status": "active",
-      "name": "ENGIE BRASILON      NM",
+      "name": "Engie Brasil",
       "sector": "Utilities",
-      "industry": "Utilities - Renewable",
+      "industry": "Utilities - Regulated Electric",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -615,18 +615,18 @@
     },
     "EMBR3": {
       "ticker": "EMBR3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Embraer",
+      "sector": "Industrials",
+      "industry": "Aerospace & Defense",
       "source": "yfinance"
     },
     "ENAT3": {
       "ticker": "ENAT3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Brava Energia (Enauta)",
+      "sector": "Energy",
+      "industry": "Oil & Gas E&P",
       "source": "yfinance"
     },
     "ENGI11": {
@@ -641,7 +641,7 @@
     "EQTL3": {
       "ticker": "EQTL3",
       "status": "active",
-      "name": "EQUATORIAL  ON      NM",
+      "name": "Equatorial Energia",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Electric",
       "quote_type": "EQUITY",
@@ -668,9 +668,9 @@
     "EZTC3": {
       "ticker": "EZTC3",
       "status": "active",
-      "name": "EZTEC       ON      NM",
+      "name": "EZTec",
       "sector": "Real Estate",
-      "industry": "Real Estate - Development",
+      "industry": "Residential Construction",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -686,7 +686,7 @@
     "FLRY3": {
       "ticker": "FLRY3",
       "status": "active",
-      "name": "FLEURY      ON      NM",
+      "name": "Fleury",
       "sector": "Healthcare",
       "industry": "Diagnostics & Research",
       "quote_type": "EQUITY",
@@ -713,7 +713,7 @@
     "GGBR4": {
       "ticker": "GGBR4",
       "status": "active",
-      "name": "GERDAU      PN      N1",
+      "name": "Gerdau",
       "sector": "Basic Materials",
       "industry": "Steel",
       "quote_type": "EQUITY",
@@ -748,10 +748,10 @@
     },
     "GOLL4": {
       "ticker": "GOLL4",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Gol Linhas Aéreas",
+      "sector": "Industrials",
+      "industry": "Airlines",
       "source": "yfinance"
     },
     "GRND3": {
@@ -765,10 +765,10 @@
     },
     "GUAR3": {
       "ticker": "GUAR3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Guararapes (Riachuelo)",
+      "sector": "Consumer Cyclical",
+      "industry": "Apparel Retail",
       "source": "yfinance"
     },
     "HAPV3": {
@@ -801,9 +801,9 @@
     "HYPE3": {
       "ticker": "HYPE3",
       "status": "active",
-      "name": "HYPERA      ON      NM",
+      "name": "Hypera Pharma",
       "sector": "Healthcare",
-      "industry": "Drug Manufacturers - Specialty & Generic",
+      "industry": "Drug Manufacturers",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -846,18 +846,18 @@
     "ITUB3": {
       "ticker": "ITUB3",
       "status": "active",
-      "name": "ITAUUNIBANCOON  EJ  N1",
+      "name": "Itaú Unibanco",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "ITUB4": {
       "ticker": "ITUB4",
       "status": "active",
-      "name": "ITAUUNIBANCOPN  EJ  N1",
+      "name": "Itaú Unibanco",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -872,10 +872,10 @@
     },
     "JBSS3": {
       "ticker": "JBSS3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "JBS",
+      "sector": "Consumer Defensive",
+      "industry": "Meat Products",
       "source": "yfinance"
     },
     "JHSF3": {
@@ -908,7 +908,7 @@
     "KLBN11": {
       "ticker": "KLBN11",
       "status": "active",
-      "name": "KLABIN S/A  UNT     N2",
+      "name": "Klabin",
       "sector": "Basic Materials",
       "industry": "Paper & Paper Products",
       "quote_type": "EQUITY",
@@ -925,10 +925,10 @@
     },
     "LCAM3": {
       "ticker": "LCAM3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Locamerica",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
       "source": "yfinance"
     },
     "LEVE3": {
@@ -961,9 +961,9 @@
     "LREN3": {
       "ticker": "LREN3",
       "status": "active",
-      "name": "LOJAS RENNER ON",
+      "name": "Lojas Renner",
       "sector": "Consumer Cyclical",
-      "industry": "Department Stores",
+      "industry": "Apparel Retail",
       "quote_type": "EQUITY",
       "source": "manual+yfinance"
     },
@@ -1015,7 +1015,7 @@
     "MGLU3": {
       "ticker": "MGLU3",
       "status": "active",
-      "name": "MAGAZ LUIZA ON      NM",
+      "name": "Magazine Luiza",
       "sector": "Consumer Cyclical",
       "industry": "Specialty Retail",
       "quote_type": "EQUITY",
@@ -1032,10 +1032,10 @@
     },
     "MODL11": {
       "ticker": "MODL11",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Banco Modal",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
       "source": "yfinance"
     },
     "MOVI3": {
@@ -1049,18 +1049,18 @@
     },
     "MRFG3": {
       "ticker": "MRFG3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Marfrig",
+      "sector": "Consumer Defensive",
+      "industry": "Meat Products",
       "source": "yfinance"
     },
     "MRVE3": {
       "ticker": "MRVE3",
       "status": "active",
-      "name": "MRV         ON      NM",
+      "name": "MRV Engenharia",
       "sector": "Real Estate",
-      "industry": "Real Estate - Development",
+      "industry": "Residential Construction",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1076,9 +1076,9 @@
     "MULT3": {
       "ticker": "MULT3",
       "status": "active",
-      "name": "MULTIPLAN   ON      N2",
+      "name": "Multiplan",
       "sector": "Real Estate",
-      "industry": "Real Estate Services",
+      "industry": "Real Estate - Malls",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1093,10 +1093,10 @@
     },
     "NEOE3": {
       "ticker": "NEOE3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Neoenergia",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
       "source": "yfinance"
     },
     "NGRD3": {
@@ -1110,18 +1110,18 @@
     },
     "NTCO3": {
       "ticker": "NTCO3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Natura &Co",
+      "sector": "Consumer Defensive",
+      "industry": "Household & Personal Products",
       "source": "yfinance"
     },
     "ODPV3": {
       "ticker": "ODPV3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Odontoprev",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
       "source": "yfinance"
     },
     "OIBR3": {
@@ -1153,10 +1153,10 @@
     },
     "ORPD3": {
       "ticker": "ORPD3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Ouro Preto",
+      "sector": "Energy",
+      "industry": "Oil & Gas E&P",
       "source": "yfinance"
     },
     "ORVR3": {
@@ -1170,10 +1170,10 @@
     },
     "PARD3": {
       "ticker": "PARD3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Hermes Pardini",
+      "sector": "Healthcare",
+      "industry": "Diagnostics & Research",
       "source": "yfinance"
     },
     "PCAR3": {
@@ -1197,7 +1197,7 @@
     "PETR3": {
       "ticker": "PETR3",
       "status": "active",
-      "name": "PETROBRAS   ON      N2",
+      "name": "Petrobras",
       "sector": "Energy",
       "industry": "Oil & Gas Integrated",
       "quote_type": "EQUITY",
@@ -1206,7 +1206,7 @@
     "PETR4": {
       "ticker": "PETR4",
       "status": "active",
-      "name": "PETROBRAS   PN      N2",
+      "name": "Petrobras",
       "sector": "Energy",
       "industry": "Oil & Gas Integrated",
       "quote_type": "EQUITY",
@@ -1214,10 +1214,10 @@
     },
     "PETZ3": {
       "ticker": "PETZ3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Petz",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
       "source": "yfinance"
     },
     "PINE4": {
@@ -1268,7 +1268,7 @@
     "PRIO3": {
       "ticker": "PRIO3",
       "status": "active",
-      "name": "PRIO        ON      NM",
+      "name": "PRIO (Petrorio)",
       "sector": "Energy",
       "industry": "Oil & Gas E&P",
       "quote_type": "EQUITY",
@@ -1286,9 +1286,9 @@
     "PSSA3": {
       "ticker": "PSSA3",
       "status": "active",
-      "name": "PORTO SEGUROON      NM",
+      "name": "Porto Seguro",
       "sector": "Financial Services",
-      "industry": "Insurance - Diversified",
+      "industry": "Insurance - Property & Casualty",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1313,16 +1313,16 @@
     "RADL3": {
       "ticker": "RADL3",
       "status": "active",
-      "name": "RAIADROGASILON      NM",
+      "name": "RaiaDrogasil",
       "sector": "Healthcare",
-      "industry": "Pharmaceutical Retailers",
+      "industry": "Pharmaceutical Retail",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "RAIL3": {
       "ticker": "RAIL3",
       "status": "active",
-      "name": "RUMO S.A.   ON      NM",
+      "name": "Rumo Logística",
       "sector": "Industrials",
       "industry": "Railroads",
       "quote_type": "EQUITY",
@@ -1331,9 +1331,9 @@
     "RAIZ4": {
       "ticker": "RAIZ4",
       "status": "active",
-      "name": "RAIZEN      PN      N2",
-      "sector": "Utilities",
-      "industry": "Utilities - Renewable",
+      "name": "Raízen",
+      "sector": "Energy",
+      "industry": "Oil & Gas Refining & Marketing",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1358,7 +1358,7 @@
     "RDOR3": {
       "ticker": "RDOR3",
       "status": "active",
-      "name": "REDE D OR   ON      NM",
+      "name": "Rede D'Or",
       "sector": "Healthcare",
       "industry": "Medical Care Facilities",
       "quote_type": "EQUITY",
@@ -1385,7 +1385,7 @@
     "RENT3": {
       "ticker": "RENT3",
       "status": "active",
-      "name": "LOCALIZA    ON      NM",
+      "name": "Localiza",
       "sector": "Industrials",
       "industry": "Rental & Leasing Services",
       "quote_type": "EQUITY",
@@ -1402,10 +1402,10 @@
     },
     "RRRP3": {
       "ticker": "RRRP3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Brava Energia (3R)",
+      "sector": "Energy",
+      "industry": "Oil & Gas E&P",
       "source": "yfinance"
     },
     "RSID3": {
@@ -1420,16 +1420,16 @@
     "SANB11": {
       "ticker": "SANB11",
       "status": "active",
-      "name": "SANTANDER BRUNT",
+      "name": "Santander Brasil",
       "sector": "Financial Services",
-      "industry": "Banks - Regional",
+      "industry": "Banks - Diversified",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
     "SAPR11": {
       "ticker": "SAPR11",
       "status": "active",
-      "name": "SANEPAR     UNT     N2",
+      "name": "Sanepar",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Water",
       "quote_type": "EQUITY",
@@ -1438,7 +1438,7 @@
     "SAPR4": {
       "ticker": "SAPR4",
       "status": "active",
-      "name": "SANEPAR     PN      N2",
+      "name": "Sanepar",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Water",
       "quote_type": "EQUITY",
@@ -1456,7 +1456,7 @@
     "SBSP3": {
       "ticker": "SBSP3",
       "status": "active",
-      "name": "SABESP      ON      NM",
+      "name": "Sabesp",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Water",
       "quote_type": "EQUITY",
@@ -1545,24 +1545,24 @@
     },
     "SOMA3": {
       "ticker": "SOMA3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Grupo Soma",
+      "sector": "Consumer Cyclical",
+      "industry": "Apparel Retail",
       "source": "yfinance"
     },
     "STBP3": {
       "ticker": "STBP3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Santos Brasil",
+      "sector": "Industrials",
+      "industry": "Marine Shipping & Ports",
       "source": "yfinance"
     },
     "SUZB3": {
       "ticker": "SUZB3",
       "status": "active",
-      "name": "SUZANO S.A. ON      NM",
+      "name": "Suzano",
       "sector": "Basic Materials",
       "industry": "Paper & Paper Products",
       "quote_type": "EQUITY",
@@ -1571,7 +1571,7 @@
     "TAEE11": {
       "ticker": "TAEE11",
       "status": "active",
-      "name": "TAESA UNT",
+      "name": "Taesa",
       "sector": "Utilities",
       "industry": "Utilities - Regulated Electric",
       "quote_type": "EQUITY",
@@ -1625,7 +1625,7 @@
     "TIMS3": {
       "ticker": "TIMS3",
       "status": "active",
-      "name": "TIM         ON      NM",
+      "name": "TIM Brasil",
       "sector": "Communication Services",
       "industry": "Telecom Services",
       "quote_type": "EQUITY",
@@ -1634,7 +1634,7 @@
     "TOTS3": {
       "ticker": "TOTS3",
       "status": "active",
-      "name": "TOTVS       ON      NM",
+      "name": "Totvs",
       "sector": "Technology",
       "industry": "Software - Application",
       "quote_type": "EQUITY",
@@ -1660,10 +1660,10 @@
     },
     "TRPL4": {
       "ticker": "TRPL4",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "ISA CTEEP",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
       "source": "yfinance"
     },
     "TTEN3": {
@@ -1687,7 +1687,7 @@
     "UGPA3": {
       "ticker": "UGPA3",
       "status": "active",
-      "name": "ULTRAPAR    ON      NM",
+      "name": "Ultrapar",
       "sector": "Energy",
       "industry": "Oil & Gas Refining & Marketing",
       "quote_type": "EQUITY",
@@ -1705,7 +1705,7 @@
     "USIM5": {
       "ticker": "USIM5",
       "status": "active",
-      "name": "USIMINAS    PNA     N1",
+      "name": "Usiminas",
       "sector": "Basic Materials",
       "industry": "Steel",
       "quote_type": "EQUITY",
@@ -1714,9 +1714,9 @@
     "VALE3": {
       "ticker": "VALE3",
       "status": "active",
-      "name": "VALE        ON      NM",
+      "name": "Vale",
       "sector": "Basic Materials",
-      "industry": "Other Industrial Metals & Mining",
+      "industry": "Metals & Mining",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1732,9 +1732,9 @@
     "VBBR3": {
       "ticker": "VBBR3",
       "status": "active",
-      "name": "VIBRA       ON      NM",
-      "sector": "Consumer Cyclical",
-      "industry": "Specialty Retail",
+      "name": "Vibra Energia",
+      "sector": "Energy",
+      "industry": "Oil & Gas Refining & Marketing",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1759,7 +1759,7 @@
     "VIVT3": {
       "ticker": "VIVT3",
       "status": "active",
-      "name": "TELEF BRASILON",
+      "name": "Telefônica Brasil (Vivo)",
       "sector": "Communication Services",
       "industry": "Telecom Services",
       "quote_type": "EQUITY",
@@ -1777,9 +1777,9 @@
     "WEGE3": {
       "ticker": "WEGE3",
       "status": "active",
-      "name": "WEG         ON      NM",
+      "name": "WEG",
       "sector": "Industrials",
-      "industry": "Electrical Equipment & Parts",
+      "industry": "Electrical Equipment",
       "quote_type": "EQUITY",
       "source": "yfinance"
     },
@@ -1803,10 +1803,10 @@
     },
     "ZAMP3": {
       "ticker": "ZAMP3",
-      "status": "missing",
-      "name": null,
-      "sector": null,
-      "industry": null,
+      "status": "active",
+      "name": "Zamp (Burger King)",
+      "sector": "Consumer Cyclical",
+      "industry": "Restaurants",
       "source": "yfinance"
     }
   }

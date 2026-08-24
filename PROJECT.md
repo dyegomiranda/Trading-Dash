@@ -252,7 +252,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [x] Renomeações conhecidas (ELET3→AXIA3) no universo  
 - [x] Default da UI: **Bolsa real**; demo com banner de risco  
 - [x] Gancho PIT no backtest (`fundamentals_by_date` + auto-load + DY TTM do dia)  
-- [x] **Parse CVM DFP/ITR** 2020–2024 (`origin=cvm_dfp_itr`, ~20 trimestres / ~37 tickers da tese). Preço e DY continuam do pregão (TTM). Reatualizar: `scripts/download_cvm_data.py --years 2020-2024 --download --build`  
+- [x] **Parse CVM DFP/ITR** 2018–2024 (`origin=cvm_dfp_itr`, 56 trimestres / 369 tickers oficiais da B3). Preço e DY continuam do pregão (TTM). Reatualizar: `scripts/download_cvm_data.py --years 2018-2024 --download --build`  
 - [ ] Melhor cobertura de indicadores BR (JCP, payout real, etc.)  
 - [x] Fonte B3 dedicada (brapi) — **experimental**, sem ROE/dívida no plano grátis; Yahoo continua principal  
 - [ ] Revisão humana periódica do JSON de tickers  
@@ -288,6 +288,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 - [x] CI no GitHub (lint + testes) — `.github/workflows/ci.yml` (matrix Python 3.12/3.13/3.14 + `ruff check src/ tests/` + `pytest tests/ -q`)  
 - [x] Instruções de deploy Streamlit Community Cloud no README  
 - [x] Pre-flight de deploy (app sobe offline) — `deploy/preflight.py` (AppTest, fonte demo) + CI + `tests/test_preflight.py`  
+- [x] Melhorias de UX para iniciantes: painel de aprendizado, ajuda contextual, sugestões de decisão e feed de atividade
 - [ ] Deploy efetivo (conectar conta no share.streamlit.io) — falta conta/servidor do dono  
 - [ ] Docker opcional  
 
@@ -344,7 +345,7 @@ Objetivo: subir a **honestidade** do laboratório, não fingir um backtest audit
 |------|--------|--------|
 | **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
 | **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
-| **C** | Walk-forward IS/OOS (70/30 + teste cego opcional). Piotroski/BSD como overlay opcional — ainda não | Walk-forward **feito**; BSD não |
+| **C** | Walk-forward IS/OOS (70/30 + teste cego opcional) com grid search para otimização de parâmetros. Piotroski/BSD como overlay opcional — ainda não | Walk-forward com grid search **feito**; BSD não |
 | **D** | Fonte paga (fundamentus/status invest/comercial) se a semente CVM não bastar | **Não iniciado** |
 
 **Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM 2020–2024 + custos + TTM + walk-forward. Nunca 90+.

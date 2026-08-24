@@ -59,6 +59,17 @@ _BPP_EQUITY = ("2.03",)
 _BPP_DEBT_ST = ("2.01.04",)
 _BPP_DEBT_LT = ("2.02.01",)
 _BPA_CASH = ("1.01.01",)
+_BPA_ASSETS = ("1",)
+_BPA_CURRENT = ("1.01",)
+_BPP_CURRENT = ("2.01",)
+_DFC_CFO = ("6.01",)
+_DFC_INVEST = ("6.02",)
+_DMPL_DIV = "5.04.06"
+_DMPL_JCP = "5.04.07"
+
+# Atraso típico até o arquivo existir no mercado (não no DT_REFER).
+ITR_PUBLICATION_LAG_DAYS = 45
+DFP_PUBLICATION_LAG_DAYS = 90
 
 def digits_cnpj(value: Any) -> str:
     raw = re.sub(r"\D", "", str(value or ""))
@@ -262,22 +273,70 @@ def parse_statement_csv(raw: bytes, kind: str) -> pd.DataFrame:
             "pl": _BPP_EQUITY,
             "divida_cp": _BPP_DEBT_ST,
             "divida_lp": _BPP_DEBT_LT,
+            "passivo_circ": _BPP_CURRENT,
         }
     elif kind == "bpa":
-        roles = {"caixa": _BPA_CASH}
+        roles = {"caixa": _BPA_CASH, "ativo": _BPA_ASSETS, "ativo_circ": _BPA_CURRENT}
+    elif kind == "dfc":
+        roles = {"cfo": _DFC_CFO, "caf_inv": _DFC_INVEST}
+    elif kind == "dmpl":
+        return extract_dmpl_distributions(df)
     else:
         raise ValueError(f"kind desconhecido: {kind}")
     return extract_accounts(df, roles)
 
 
+def extract_dmpl_distributions(df: pd.DataFrame) -> pd.DataFrame:
+    """Dividendos + JCP da DMPL (coluna de patrimônio líquido consolidado)."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = _filter_ultimo(df)
+    df = _prefer_consolidado(df)
+    cnpj_c = _pick_col(df, "CNPJ_CIA", "CNPJ_Companhia")
+    date_c = _pick_col(df, "DT_REFER", "Data_Referencia")
+    conta_c = _pick_col(df, "CD_CONTA")
+    valor_c = _pick_col(df, "VL_CONTA")
+    col_c = _pick_col(df, "COLUNA_DF")
+    if not (cnpj_c and date_c and conta_c and valor_c):
+        return pd.DataFrame()
+    work = df[[cnpj_c, date_c, conta_c, valor_c] + ([col_c] if col_c else [])].copy()
+    work.columns = ["cnpj_raw", "dt_refer", "cd_conta", "vl_conta"] + (["coluna"] if col_c else [])
+    work["cd_conta"] = work["cd_conta"].astype(str).str.strip()
+    work = work[work["cd_conta"].isin((_DMPL_DIV, _DMPL_JCP))]
+    if work.empty:
+        return pd.DataFrame()
+    if "coluna" in work.columns:
+        col = work["coluna"].astype(str).str.strip()
+        cons = col.str.contains("Patrimônio Líquido Consolidado", case=False, na=False)
+        if cons.any():
+            work = work.loc[cons]
+        else:
+            pl = col.str.fullmatch(r"Patrimônio Líquido", case=False)
+            work = work.loc[pl.fillna(False)]
+    work["cnpj"] = work["cnpj_raw"].map(digits_cnpj)
+    work["as_of"] = pd.to_datetime(work["dt_refer"], errors="coerce").dt.strftime("%Y-%m-%d")
+    work["valor"] = _to_float_series(work["vl_conta"])
+    work = work[(work["cnpj"] != "") & (work["as_of"] != "NaT")]
+    grouped = work.groupby(["cnpj", "as_of"], sort=False)["valor"].sum()
+    out = grouped.reset_index()
+    out["distribuicao"] = out["valor"].abs()
+    return out[["cnpj", "as_of", "distribuicao"]]
+
+
 def _zip_member_kind(name: str) -> str | None:
     n = name.lower()
-    if "dre" in n and "con" in n:
+    if "con" not in n:
+        return None
+    if "dre" in n:
         return "dre"
-    if "bpp" in n and "con" in n:
+    if "bpp" in n:
         return "bpp"
-    if "bpa" in n and "con" in n:
+    if "bpa" in n:
         return "bpa"
+    if "dfc_mi" in n:
+        return "dfc"
+    if "dmpl" in n:
+        return "dmpl"
     return None
 
 
@@ -287,7 +346,13 @@ def parse_cvm_zip(zip_path: Path | bytes, *, source: str) -> pd.DataFrame:
         zf = zipfile.ZipFile(io.BytesIO(zip_path))
     else:
         zf = zipfile.ZipFile(zip_path)
-    pieces: dict[str, list[pd.DataFrame]] = {"dre": [], "bpp": [], "bpa": []}
+    pieces: dict[str, list[pd.DataFrame]] = {
+        "dre": [],
+        "bpp": [],
+        "bpa": [],
+        "dfc": [],
+        "dmpl": [],
+    }
     with zf:
         for info in zf.infolist():
             kind = _zip_member_kind(info.filename)
@@ -302,7 +367,7 @@ def parse_cvm_zip(zip_path: Path | bytes, *, source: str) -> pd.DataFrame:
     if base.empty:
         return pd.DataFrame()
     out = base
-    for other in ("bpp", "bpa"):
+    for other in ("bpp", "bpa", "dfc", "dmpl"):
         extra = frames[other]
         if extra.empty:
             continue
@@ -330,11 +395,17 @@ def parse_fca_tickers(zip_path: Path | bytes) -> dict[str, str]:
                 df = _read_cvm_csv(raw)
             except Exception:
                 continue
-            cnpj_c = _pick_col(df, "CNPJ_CIA")
+            cnpj_c = _pick_col(df, "CNPJ_CIA", "CNPJ_Companhia")
             tick_c = _pick_col(df, "Codigo_Negociacao", "CD_NEGOCIACAO", "Ticker")
+            fim_c = _pick_col(df, "Data_Fim_Negociacao", "DT_FIM_NEGOCIACAO")
             if not (cnpj_c and tick_c):
                 continue
-            for _, row in df[[cnpj_c, tick_c]].iterrows():
+            cols = [cnpj_c, tick_c] + ([fim_c] if fim_c else [])
+            for _, row in df[cols].iterrows():
+                if fim_c:
+                    fim = str(row[fim_c] or "").strip()
+                    if fim and fim.lower() not in {"nan", "nat", "none"}:
+                        continue
                 cnpj = digits_cnpj(row[cnpj_c])
                 ticker = normalize_ticker(str(row[tick_c] or ""))
                 if not cnpj or not ticker or not re.match(r"^[A-Z]{4}\d{1,2}$", ticker):
@@ -342,13 +413,20 @@ def parse_fca_tickers(zip_path: Path | bytes) -> dict[str, str]:
                 mapping.setdefault(cnpj, [])
                 if ticker not in mapping[cnpj]:
                     mapping[cnpj].append(ticker)
+    from src.data.universe import get_universe
+
+    allowed = set(get_universe(include_historical=True, resolve_renames=False))
     static = load_static_ticker_map()
     out: dict[str, str] = dict(static)
     for cnpj, tickers in mapping.items():
-        if cnpj in static:
+        in_univ = [t for t in tickers if t in allowed]
+        pool = in_univ or [t for t in tickers if t.endswith(("4", "3", "11", "6", "5"))]
+        if not pool:
             continue
-        preferred = [t for t in tickers if t.endswith(("4", "3", "11", "6", "5"))]
-        out[cnpj] = preferred[0] if preferred else tickers[0]
+        if cnpj in static and static[cnpj] in tickers:
+            out[cnpj] = static[cnpj]
+        else:
+            out[cnpj] = pool[0]
     return out
 
 
@@ -406,6 +484,53 @@ def statements_to_fundamentals(
             caixa = 0.0
         net_debt = debt - caixa
         debt_equity = (net_debt / pl_f) if pl_f and pl_f != 0 else None
+        ativo_f = None
+        try:
+            if rec.get("ativo") is not None and not pd.isna(rec.get("ativo")):
+                ativo_f = float(rec["ativo"])
+        except (TypeError, ValueError):
+            ativo_f = None
+        roa = None
+        if ativo_f and ativo_f != 0 and lucro_f is not None:
+            roa = (lucro_f * factor) / ativo_f
+        ac = None
+        pc = None
+        try:
+            if rec.get("ativo_circ") is not None and not pd.isna(rec.get("ativo_circ")):
+                ac = float(rec["ativo_circ"])
+        except (TypeError, ValueError):
+            ac = None
+        try:
+            if rec.get("passivo_circ") is not None and not pd.isna(rec.get("passivo_circ")):
+                pc = float(rec["passivo_circ"])
+        except (TypeError, ValueError):
+            pc = None
+        current_ratio = (ac / pc) if ac is not None and pc and pc != 0 else None
+        cfo_f = None
+        inv_f = None
+        try:
+            if rec.get("cfo") is not None and not pd.isna(rec.get("cfo")):
+                cfo_f = float(rec["cfo"])
+        except (TypeError, ValueError):
+            cfo_f = None
+        try:
+            if rec.get("caf_inv") is not None and not pd.isna(rec.get("caf_inv")):
+                inv_f = float(rec["caf_inv"])
+        except (TypeError, ValueError):
+            inv_f = None
+        fcf = None
+        if cfo_f is not None:
+            fcf = cfo_f + (inv_f if inv_f is not None else 0.0)
+        dist_f = None
+        try:
+            if rec.get("distribuicao") is not None and not pd.isna(rec.get("distribuicao")):
+                dist_f = abs(float(rec["distribuicao"]))
+        except (TypeError, ValueError):
+            dist_f = None
+        payout = None
+        if dist_f is not None and lucro_f is not None and abs(lucro_f) > 1e-9:
+            payout = dist_f / abs(lucro_f)
+            payout = min(payout, 2.0)
         meta = names_by_ticker.get(ticker, {})
         rows.append(
             {
@@ -413,9 +538,17 @@ def statements_to_fundamentals(
                 "name": meta.get("name") or rec.get("name") or ticker,
                 "sector": meta.get("sector") or "",
                 "roe": roe,
+                "roa": roa,
                 "net_margin": net_margin,
                 "debt_equity": debt_equity,
-                "fcf_positive": None,
+                "current_ratio": current_ratio,
+                "payout": payout,
+                "fcf_positive": (fcf > 0) if fcf is not None else None,
+                "cfo": cfo_f,
+                "fcf": fcf,
+                "ativo": ativo_f,
+                "receita": rec_f,
+                "lucro": lucro_f,
                 "source": rec.get("source") or "cvm",
                 "data_quality": "cvm_pit",
                 "as_of": rec.get("as_of"),
@@ -457,7 +590,7 @@ def write_pit_snapshots(
     payload: dict[str, Any] = {
         "description": (
             "Snapshots point-in-time gerados a partir de DFP/ITR da CVM. "
-            "Só contas (ROE/margem/alavancagem). Preço e dividend yield NÃO vêm da CVM."
+            "Só contas (ROE/ROA/margem/alavancagem/payout/FCF). Preço e DY NÃO vêm da CVM."
         ),
         "version": "2.0.0",
         "updated_at": date.today().isoformat(),
@@ -509,7 +642,8 @@ def build_pit_from_cache(
                 ticker_map.update(parse_fca_tickers(fca))
             except Exception:
                 pass
-        for kind, source in (("dfp", "cvm_dfp"), ("itr", "cvm_itr")):
+        # ITR primeiro; DFP (auditado) por último vence no mesmo DT_REFER.
+        for kind, source in (("itr", "cvm_itr"), ("dfp", "cvm_dfp")):
             path = cache / zip_name(kind, year)
             if not path.exists():
                 continue

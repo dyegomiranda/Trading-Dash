@@ -33,6 +33,7 @@ from src.ui.friendly import PRICE_PERIODS, friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_trust_strip
 from src.utils import utcnow
+from src.data.reference import lookup_company_name
 
 page_setup()
 provider = get_session_provider()
@@ -81,7 +82,6 @@ with st.sidebar:
         from src.ui.refresh import force_refresh_data
 
         force_refresh_data()
-    render_refresh_control(key="disc_refresh")
     _macro_tilt = macro_tilt_from_override(get_session_macro())
 
 render_data_quality_banner(provider)
@@ -226,37 +226,35 @@ if recs.empty:
     st.warning("Nenhuma ação passou. Baixe a **nota mínima** na barra lateral.")
 else:
     left, right = st.columns([1.15, 1], gap="medium")
-    with left:
-        with st.container(border=True):
-            plot = recs.copy()
-            plot["bucket"] = (
-                plot["bucket"]
-                .map({"core": "Base", "satellite": "Complemento"})
-                .fillna(plot["bucket"])
-            )
+    with left, st.container(border=True):
+        plot = recs.copy()
+        plot["bucket"] = (
+            plot["bucket"]
+            .map({"core": "Base", "satellite": "Complemento"})
+            .fillna(plot["bucket"])
+        )
+        st.plotly_chart(
+            score_bars(plot, title="Maiores notas da lista"),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+    with right, st.container(border=True):
+        if "target_weight" in recs.columns and recs["target_weight"].sum() > 0:
+            pie_df = recs.copy()
+            pie_df["market_value"] = pie_df["target_weight"]
             st.plotly_chart(
-                score_bars(plot, title="Maiores notas da lista"),
+                holdings_donut(
+                    pie_df,
+                    center_value=f"Top {len(recs)}",
+                    title="Fatias sugeridas na carteira",
+                ),
                 width="stretch",
                 config={"displayModeBar": False},
             )
-    with right:
-        with st.container(border=True):
-            if "target_weight" in recs.columns and recs["target_weight"].sum() > 0:
-                pie_df = recs.copy()
-                pie_df["market_value"] = pie_df["target_weight"]
-                st.plotly_chart(
-                    holdings_donut(
-                        pie_df,
-                        center_value=f"Top {len(recs)}",
-                        title="Fatias sugeridas na carteira",
-                    ),
-                    width="stretch",
-                    config={"displayModeBar": False},
-                )
-            st.caption(
-                "A rosca mostra **quanto %** cada ação teria numa carteira modelo da tese — "
-                "não é o preço da ação."
-            )
+        st.caption(
+            "A rosca mostra **quanto %** cada ação teria numa carteira modelo da tese — "
+            "não é o preço da ação."
+        )
 
     st.markdown("##### Histórico do preço")
     st.caption(
@@ -343,6 +341,10 @@ else:
         "o dicionário está na barra lateral."
     )
     view = recs.copy()
+    # Substituir siglas por nomes reais na tabela
+    name_map_tickers = {t: lookup_company_name(t) for t in tickers}
+    if "name" in view.columns:
+        view["name"] = view["ticker"].map(name_map_tickers)
     for col in ("dividend_yield", "roe", "payout", "target_weight"):
         if col in view.columns:
             view[col] = view[col].map(

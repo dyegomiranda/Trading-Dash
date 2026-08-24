@@ -189,6 +189,73 @@ with st.sidebar:
             help="Roda de novo a partir do corte com capital novo. Demora mais (segunda simulação).",
             disabled=not wf_on,
         )
+
+        # Grid Search Configuration
+        st.markdown("---")
+        gs_enabled = st.toggle(
+            "Ativar grid search",
+            value=False,
+            key="bt_gs_enabled",
+            help="Otimiza parâmetros testando múltiplas combinações e selecionando a melhor pelo Sharpe Ratio.",
+        )
+
+        if gs_enabled:
+            gs_simple, gs_advanced = st.tabs(["Configuração simples", "JSON avançado"])
+
+            with gs_simple:
+                st.caption("Defina os intervalos para cada parâmetro otimizado")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    gs_top_n = st.text_input(
+                        "top_n (número de ações)",
+                        value="8,12,15,20",
+                        key="bt_gs_top_n",
+                        help="Ex: 8,12,15,20 ou range(8,21,2)"
+                    )
+                    gs_min_score = st.text_input(
+                        "min_score (nota mínima)",
+                        value="50,55,60,65",
+                        key="bt_gs_min_score",
+                        help="Ex: 50,55,60,65"
+                    )
+
+                with col2:
+                    gs_rebalance = st.text_input(
+                        "rebalance (frequência)",
+                        value="M,Q,A",
+                        key="bt_gs_rebalance",
+                        help="Ex: M,Q,A (Mensal, Trimestral, Anual)"
+                    )
+                    gs_core_weight = st.text_input(
+                        "core_weight (peso núcleo)",
+                        value="0.6,0.7,0.8",
+                        key="bt_gs_core_weight",
+                        help="Ex: 0.6,0.7,0.8"
+                    )
+
+            with gs_advanced:
+                st.caption("Configure a grade diretamente em JSON para controle total")
+                gs_json = st.text_area(
+                    "Grade de parâmetros (JSON)",
+                    value='{\n  "top_n": [8, 12, 15, 20],\n  "min_score": [50, 55, 60, 65],\n  "rebalance": ["M", "Q", "A"],\n  "core_weight": [0.6, 0.7, 0.8]\n}',
+                    height=200,
+                    key="bt_gs_json",
+                    help="Formato JSON válido com nomes dos parâmetros como chaves e listas de valores"
+                )
+
+                # Validate JSON button
+                if st.button("Validar JSON", key="bt_gs_validate_json"):
+                    try:
+                        import json
+                        parsed = json.loads(gs_json)
+                        if isinstance(parsed, dict):
+                            st.success("JSON válido!")
+                            st.json(parsed)
+                        else:
+                            st.error("O JSON deve ser um objeto (dicionário)")
+                    except json.JSONDecodeError as e:
+                        st.error(f"JSON inválido: {e}")
     run = st.button("Rodar simulação", type="primary", width="stretch", key="bt_run")
 
 render_data_quality_banner(provider)
@@ -235,17 +302,141 @@ if run:
         with st.spinner("Viajando no tempo… montando a carteira dia a dia."):
             try:
                 prov = get_provider(provider)  # type: ignore[arg-type]
-                res_bt = run_backtest(prov, cfg)
-                st.session_state["backtest_result"] = res_bt
-                st.session_state["backtest_ran_once"] = True
+
+                # Handle grid search if enabled
+                if gs_enabled:
+                    from src.backtest.walkforward import grid_search_walk_forward
+                    import json
+
+                    # Parse parameter grid from UI
+                    try:
+                        if 'gs_json' in locals() and gs_json.strip():
+                            # Use advanced JSON configuration
+                            param_grid = json.loads(gs_json)
+                        else:
+                            # Use simple configuration from text inputs
+                            def parse_input(text_input, input_type=str):
+                                if not text_input.strip():
+                                    return []
+
+                                # Handle range syntax like "range(8,21,2)"
+                                if text_input.strip().startswith("range(") and text_input.strip().endswith(")"):
+                                    try:
+                                        range_part = text_input.strip()[6:-1]  # Remove "range(" and ")"
+                                        parts = [int(x.strip()) for x in range_part.split(",")]
+                                        if len(parts) == 3:
+                                            return list(range(parts[0], parts[1], parts[2]))
+                                        elif len(parts) == 2:
+                                            return list(range(parts[0], parts[1]))
+                                    except (ValueError, TypeError, IndexError):
+                                        pass  # Fall back to comma-separated parsing
+
+                                # Handle comma-separated values
+                                items = []
+                                for item in text_input.split(","):
+                                    item = item.strip()
+                                    if not item:
+                                        continue
+                                    try:
+                                        if input_type is int:
+                                            items.append(int(item))
+                                        elif input_type is float:
+                                            items.append(float(item))
+                                        else:
+                                            items.append(item)
+                                    except ValueError:
+                                        # If conversion fails, keep as string
+                                        items.append(item)
+                                return items
+
+                            param_grid = {
+                                "top_n": parse_input(gs_top_n, int),
+                                "min_score": parse_input(gs_min_score, float),
+                                "rebalance": parse_input(gs_rebalance, str),
+                                "core_weight": parse_input(gs_core_weight, float)
+                            }
+
+                            # Remove empty lists
+                            param_grid = {k: v for k, v in param_grid.items() if v}
+
+                    except json.JSONDecodeError as e:
+                        st.error(f"Erro ao processar configuração de grid search: {e}")
+                        st.stop()
+                    except Exception as e:
+                        st.error(f"Erro inesperado na configuração de grid search: {e}")
+                        st.stop()
+
+                    # Validate that we have parameters to search
+                    if not param_grid:
+                        st.warning("Nenhum parâmetro configurado para grid search. Executando backtest normal.")
+                        res_bt = run_backtest(prov, cfg)
+                        st.session_state["backtest_result"] = res_bt
+                        st.session_state["backtest_ran_once"] = True
+                        grid_search_result = None
+                    else:
+                        # Show progress for grid search
+                        total_combinations = 1
+                        for values in param_grid.values():
+                            total_combinations *= len(values)
+
+                        if total_combinations > 100:
+                            st.info(f"Executando grid search com {total_combinations} combinações... Isso pode demorar.")
+
+                        # Execute grid search
+                        grid_search_result = grid_search_walk_forward(
+                            provider=prov,
+                            base_config=cfg,
+                            param_grid=param_grid,
+                            fraction=0.70,
+                            max_combinations=100 if total_combinations > 100 else None,  # Limit to 100 combinations for performance
+                            risk_free_rate=0.115  # CDI anual padrão
+                        )
+
+                        # Store results
+                        st.session_state["backtest_result"] = None  # We don't have a single result to store
+                        st.session_state["backtest_ran_once"] = True
+                        st.session_state["grid_search_result"] = grid_search_result
+
+                        # For backward compatibility, also store the best result as the main backtest result
+                        if grid_search_result.best_wf_report is not None:
+                            # We need to reconstruct a BacktestResult-like object for display purposes
+                            # For now, we'll store None and handle display separately
+                            pass
+                else:
+                    # Regular backtest without grid search
+                    res_bt = run_backtest(prov, cfg)
+                    st.session_state["backtest_result"] = res_bt
+                    st.session_state["backtest_ran_once"] = True
+                    grid_search_result = None
+
+                # Handle walk-forward analysis (either from regular backtest or grid search)
                 if wf_on:
-                    wf_rep = evaluate_walk_forward(res_bt, fraction=0.70)
-                    if wf_ind:
-                        oos_bt = run_independent_oos(prov, cfg, wf_rep.cutoff)
-                        wf_rep = attach_independent(wf_rep, oos_bt)
+                    if gs_enabled and grid_search_result is not None:
+                        # Use the best result from grid search
+                        wf_rep = grid_search_result.best_wf_report
+                        if wf_ind:
+                            # For independent OOS, we need to run it with the best parameters
+                            # Create config with best parameters
+                            best_config_dict = cfg.__dict__.copy()
+                            best_config_dict.update(grid_search_result.best_params)
+                            try:
+                                best_config = BacktestConfig(**best_config_dict)
+                            except Exception:
+                                # Fallback to original config if best params invalid
+                                best_config = cfg
+                            oos_bt = run_independent_oos(prov, best_config, wf_rep.cutoff)
+                            wf_rep = attach_independent(wf_rep, oos_bt)
+                    elif not gs_enabled:
+                        # Regular walk-forward analysis
+                        wf_rep = evaluate_walk_forward(res_bt, fraction=0.70)
+                        if wf_ind:
+                            oos_bt = run_independent_oos(prov, cfg, wf_rep.cutoff)
+                            wf_rep = attach_independent(wf_rep, oos_bt)
+
                     st.session_state["walk_forward"] = wf_rep
                 else:
                     st.session_state.pop("walk_forward", None)
+
             except Exception as e:
                 st.error(f"Falha na simulação: {e}")
                 st.stop()
@@ -270,30 +461,28 @@ um atalho offline, não DFP/ITR oficiais.
     )
 
     c1, c2 = st.columns(2, gap="medium")
-    with c1:
-        with st.container(border=True):
-            st.markdown("#### O que é **Modo treino**?")
-            st.markdown(
-                """
+    with c1, st.container(border=True):
+        st.markdown("#### O que é **Modo treino**?")
+        st.markdown(
+            """
 - Usa um **mercado simulado** (números realistas, mas inventados).
 - É **rápido**, funciona offline e é ótimo para **aprender o fluxo**.
 - Os resultados **não** representam a B3 de verdade.
 
 **Use na primeira vez.** Depois, se quiser, mude para bolsa real.
 """
-            )
-    with c2:
-        with st.container(border=True):
-            st.markdown("#### O que é **Bolsa real**?")
-            st.markdown(
-                """
+        )
+    with c2, st.container(border=True):
+        st.markdown("#### O que é **Bolsa real**?")
+        st.markdown(
+            """
 - Busca **preços e dividendos históricos** de ações brasileiras (Yahoo Finance, tickers `.SA`).
 - Pode ser **lento** e, às vezes, incompleto (fonte gratuita).
 - O score de qualidade usa o JSON point-in-time quando ligado (semente ou CVM) + DY TTM do dia.
 
 Útil para experimentar, **sem** ser um backtest de auditoria.
 """
-            )
+        )
 
     with st.container(border=True):
         st.markdown("#### Como a simulação funciona (em passos)")
@@ -308,18 +497,15 @@ um atalho offline, não DFP/ITR oficiais.
         )
 
     m1, m2, m3 = st.columns(3)
-    with m1:
-        with st.container(border=True):
-            st.markdown("##### 1. Escolha a fonte")
-            st.caption("Modo treino = seguro e rápido.")
-    with m2:
-        with st.container(border=True):
-            st.markdown("##### 2. Ajuste datas e capital")
-            st.caption("Barra lateral → início, fim, capital.")
-    with m3:
-        with st.container(border=True):
-            st.markdown("##### 3. Clique em Rodar")
-            st.caption("Depois explore os gráficos e tabelas.")
+    with m1, st.container(border=True):
+        st.markdown("##### 1. Escolha a fonte")
+        st.caption("Modo treino = seguro e rápido.")
+    with m2, st.container(border=True):
+        st.markdown("##### 2. Ajuste datas e capital")
+        st.caption("Barra lateral → início, fim, capital.")
+    with m3, st.container(border=True):
+        st.markdown("##### 3. Clique em Rodar")
+        st.caption("Depois explore os gráficos e tabelas.")
 
     with st.expander("O que cada configuração significa?", icon=":material/help:"):
         st.markdown(
@@ -607,31 +793,29 @@ with st.container(border=True):
     )
 
 c1, c2 = st.columns(2, gap="medium")
-with c1:
-    with st.container(border=True):
-        if result.final_holdings is not None and not result.final_holdings.empty:
-            st.plotly_chart(
-                holdings_donut(
-                    result.final_holdings,
-                    center_value=format_brl(m["final_equity"]),
-                    title="Carteira no fim do teste",
-                ),
-                width="stretch",
-                config={"displayModeBar": False},
-            )
-        else:
-            st.caption("Sem posições no fim.")
-with c2:
-    with st.container(border=True):
-        if result.final_holdings is not None and not result.final_holdings.empty:
-            st.dataframe(
-                friendly_dataframe(result.final_holdings),
-                width="stretch",
-                hide_index=True,
-                height=320,
-            )
-        else:
-            st.caption("—")
+with c1, st.container(border=True):
+    if result.final_holdings is not None and not result.final_holdings.empty:
+        st.plotly_chart(
+            holdings_donut(
+                result.final_holdings,
+                center_value=format_brl(m["final_equity"]),
+                title="Carteira no fim do teste",
+            ),
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+    else:
+        st.caption("Sem posições no fim.")
+with c2, st.container(border=True):
+    if result.final_holdings is not None and not result.final_holdings.empty:
+        st.dataframe(
+            friendly_dataframe(result.final_holdings),
+            width="stretch",
+            hide_index=True,
+            height=320,
+        )
+    else:
+        st.caption("—")
 
 # ── Análise de Robustez / Simulação de Monte Carlo (Fase B) ─
 with st.expander("Análise de robustez (Monte Carlo)", icon=":material/casino:", expanded=True):

@@ -115,6 +115,14 @@ class BacktestConfig:
     # Fase B: Filtro de liquidez mínima (ADV) e teto de capacidade por ordem
     min_daily_volume_brl: float = 0.0
     max_adv_order_pct: float = 0.0
+    # ITR ~45d, DFP ~90d após DT_REFER — o arquivo não existia no fim do trimestre.
+    apply_filing_lag: bool = True
+    filing_lag_itr_days: int = 45
+    filing_lag_dfp_days: int = 90
+    # Sinal no fechamento de t; executa no fechamento de t+N (padrão: pregão seguinte).
+    execution_lag_days: int = 1
+    # Veto Piotroski (0 = desligado). Com poucos sinais, não veta.
+    piotroski_min: int = 0
 
 
 @dataclass
@@ -177,36 +185,63 @@ def _cagr(equity: pd.Series) -> float:
     return float((end / start) ** (1 / years) - 1)
 
 
+def _filing_lag_days(df: pd.DataFrame, config: BacktestConfig) -> int:
+    if not getattr(config, "apply_filing_lag", True):
+        return 0
+    src = ""
+    if df is not None and not getattr(df, "empty", True) and "source" in df.columns:
+        series = df["source"].dropna()
+        if len(series):
+            src = str(series.iloc[0]).lower()
+    if "dfp" in src:
+        return int(config.filing_lag_dfp_days)
+    return int(config.filing_lag_itr_days)
+
+
+def _available_pit_keys(
+    config: BacktestConfig,
+    day: pd.Timestamp,
+) -> list[tuple[pd.Timestamp, str]]:
+    """Snapshots cujo período + atraso de publicação já tinham saído."""
+    if not config.fundamentals_by_date:
+        return []
+    day_s = pd.Timestamp(day).normalize()
+    candidates: list[tuple[pd.Timestamp, str]] = []
+    for k, df in config.fundamentals_by_date.items():
+        try:
+            k_ts = pd.Timestamp(k).normalize()
+        except Exception:
+            continue
+        lag = _filing_lag_days(df, config)
+        available = k_ts + pd.Timedelta(days=int(lag))
+        if available <= day_s:
+            candidates.append((k_ts, k))
+    candidates.sort(key=lambda x: x[0])
+    return candidates
+
+
 def _resolve_fundamentals(
     config: BacktestConfig,
     day: pd.Timestamp,
     fallback: pd.DataFrame,
 ) -> tuple[pd.DataFrame, bool]:
-    """Escolhe o snapshot de fundamentos válido no dia (point-in-time).
+    """Escolhe o snapshot de fundamentos *já publicado* no dia.
 
-    Retorna (fundamentals, ponto_a_ponto):
-    - Se ``fundamentals_by_date`` tiver snapshot para o mês/trimestre do dia,
-      usa ESSE (ponto a ponto real, sem look-ahead).
-    - Caso contrário devolve o snapshot atual (fallback) com flag False,
-      para o relatório avisar que usou dados "de hoje".
+    Atraso padrão: ITR 45 dias, DFP 90 dias após o fim do período.
     """
-    if not config.fundamentals_by_date:
-        return fallback, False
-    # chave mais antiga <= dia (sem olhar para o futuro)
-    day_s = pd.Timestamp(day).normalize()
-    candidates = []
-    for k, df in config.fundamentals_by_date.items():
-        try:
-            k_ts = pd.Timestamp(k)
-        except Exception:
-            continue
-        if k_ts <= day_s:
-            candidates.append((k_ts, k))
+    candidates = _available_pit_keys(config, day)
     if not candidates:
         return fallback, False
-    candidates.sort(key=lambda x: x[0])
     _, key = candidates[-1]
     return config.fundamentals_by_date[key], True
+
+
+def _prior_fundamentals(config: BacktestConfig, day: pd.Timestamp) -> pd.DataFrame | None:
+    candidates = _available_pit_keys(config, day)
+    if len(candidates) < 2:
+        return None
+    _, key = candidates[-2]
+    return config.fundamentals_by_date[key]
 
 
 def _ttm_dividend_yield(
@@ -378,6 +413,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
     splits = merge_splits(normalize_splits(raw_splits), infer_splits_from_close(close))
     n_splits_applied = 0
     n_splits_already_adj = 0
+    n_piotroski_veto = 0
+    pending_rebalance: dict[str, Any] | None = None
 
     prev_close_row: dict[str, float] = {}
 
@@ -504,8 +541,36 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                             }
                         )
 
+        def _execute_rebalance(plan: dict[str, Any], px: dict[str, float], when: pd.Timestamp) -> None:
+            trades = portfolio.rebalance_to_weights(
+                plan["weights"],
+                px,
+                buckets=plan["buckets"],
+                note=f"rebalance-{plan['signal_day'].date()}",
+                ts=when.isoformat(),
+                fee_bps=config.costs.fee_bps,
+                slippage_bps=plan["slippage_bps"],
+                capital_gains_rate=config.costs.capital_gains_rate,
+            )
+            for tr in trades:
+                trade_rows.append(
+                    {
+                        "date": when,
+                        "side": tr.side,
+                        "ticker": tr.ticker,
+                        "shares": tr.shares,
+                        "price": tr.price,
+                        "amount": tr.amount,
+                        "note": tr.note,
+                    }
+                )
+
+        if pending_rebalance is not None:
+            _execute_rebalance(pending_rebalance, day_prices, day)
+            pending_rebalance = None
+
         if day in rebalance_set:
-            # fundamentos válidos no dia (point-in-time) ou snapshot atual
+            # fundamentos já publicados no dia (PIT + atraso de entrega)
             fund_day, is_pit = _resolve_fundamentals(config, day, fundamentals)
             if is_pit:
                 n_pit += 1
@@ -531,6 +596,23 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 tradable = tradable[tradable["ticker"].isin(valid_adv_tickers)].copy()
                 adv_excluded_count += max(0, before_len - len(tradable))
 
+            if int(config.piotroski_min or 0) > 0 and not tradable.empty:
+                from src.thesis.piotroski import passes_veto
+
+                prev_fund = _prior_fundamentals(config, day)
+                prev_map: dict[str, pd.Series] = {}
+                if prev_fund is not None and not prev_fund.empty and "ticker" in prev_fund.columns:
+                    for _, prow in prev_fund.iterrows():
+                        prev_map[str(prow["ticker"])] = prow
+                keep = []
+                for _, row in tradable.iterrows():
+                    t = str(row["ticker"])
+                    if passes_veto(row, prev_map.get(t), minimum=int(config.piotroski_min)):
+                        keep.append(t)
+                    else:
+                        n_piotroski_veto += 1
+                tradable = tradable[tradable["ticker"].isin(keep)].copy()
+
             if tradable.empty:
                 notes.append(
                     f"{day.date()}: ninguém passou no filtro da tese/liquidez — "
@@ -553,7 +635,6 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                     weights, equity_now, day_adv, float(config.max_adv_order_pct)
                 )
 
-            # Fase B: Slippage dinâmico com base na liquidez
             eff_slippage_bps = config.costs.slippage_bps
             if config.costs.dynamic_slippage and adv_20 is not None and day in adv_20.index:
                 day_adv_mean = float(adv_20.loc[day].mean()) if not adv_20.loc[day].empty else 1_000_000.0
@@ -562,17 +643,19 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 eff_slippage_bps = config.costs.slippage_bps + float(config.costs.slippage_gamma * impact_factor * 10_000.0)
                 eff_slippage_bps = min(eff_slippage_bps, 150.0)
 
-            trades = portfolio.rebalance_to_weights(
-                weights,
-                day_prices,
-                buckets=buckets,
-                note=f"rebalance-{day.date()}",
-                ts=day.isoformat(),
-                fee_bps=config.costs.fee_bps,
-                slippage_bps=eff_slippage_bps,
-                capital_gains_rate=config.costs.capital_gains_rate,
-            )
-            for tr in trades:
+            plan = {
+                "weights": weights,
+                "buckets": buckets,
+                "slippage_bps": eff_slippage_bps,
+                "signal_day": day,
+            }
+            if int(config.execution_lag_days or 0) <= 0:
+                _execute_rebalance(plan, day_prices, day)
+            else:
+                pending_rebalance = plan
+                continue
+
+            for tr in []:  # placeholder stripped below
                 trade_rows.append(
                     {
                         "date": day,

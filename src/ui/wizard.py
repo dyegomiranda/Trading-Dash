@@ -129,5 +129,6 @@ def render_quick_wizard(scored_universe_func, provider: str) -> None:
                         icon="✅",
                     )
                     st.session_state["pf_flash"] = "Carteira criada com sucesso!"
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao montar carteira: {e}")

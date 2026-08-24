@@ -35,7 +35,7 @@ from src.portfolio.paper import (
     save_portfolio,
 )
 from src.services import format_brl, format_pct, prices_dict_from_fundamentals
-from src.data.reference import format_ticker_display
+from src.data.reference import format_ticker_display, lookup_company_name
 from src.thesis.alerts import evaluate_portfolio, exit_rules_summary
 from src.thesis.macro import macro_tilt_from_override
 from src.thesis.scoring import recommend_weights, score_universe
@@ -399,28 +399,33 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
         asset_rows = []
         for _, r in holdings.iterrows():
             t = str(r["ticker"])
-            name = name_map.get(t, t)
+            display_name = lookup_company_name(t)
             bucket = str(r.get("bucket") or "")
             bucket_pt = (
                 "Base (mais estável)"
                 if bucket == "core"
                 else ("Complemento" if bucket == "satellite" else bucket)
             )
-            # Formatted name and ticker for display
-            display_name = format_ticker_display(t)
             # Bucket label to show under the name
             bucket_label = bucket_pt if bucket_pt else ""
             pnl = float(r.get("pnl") or 0)
             pnl_p = float(r.get("pnl_pct") or 0)
             shares = float(r["shares"])
+            px = prices.get(t) if prices else None
+            mv_val = float(r.get("market_value") or 0) or (shares * px if px else 0.0)
+            cost = float(r.get("avg_cost") or 0)
             shares_s = (
                 f"{shares:,.2f} ações".replace(",", "X").replace(".", ",").replace("X", ".")
             )
+            price_label = format_brl(px) if px else "—"
+            market_value = format_brl(mv_val)
+            pnl_positive = pnl >= 0
+            pnl_label = f"{format_brl(pnl)} ({format_pct(pnl_p / 100 if abs(pnl_p) > 1 else pnl_p)})"
             asset_rows.append(
                 (
                     t,
                     display_name,
-                    shares_label,
+                    shares_s,
                     price_label,
                     market_value,
                     pnl_label,

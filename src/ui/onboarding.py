@@ -1,4 +1,4 @@
-"""Onboarding amigável na primeira visita (session_state)."""
+"""Onboarding amigável na primeira visita (session_state) com trilha de aprendizado."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import streamlit as st
 
 from src.config import THESIS_LABEL, THESIS_VERSION
 from src.ui.data_source import request_session_provider
+from src.ui.friendly import GLOSSARY
 
 
 def _done() -> bool:
@@ -16,14 +17,49 @@ def mark_onboarding_done() -> None:
     st.session_state["onboarding_done"] = True
 
 
+def _get_learning_milestones() -> dict[str, bool]:
+    """Obtém ou inicializa os marcos de aprendizado do usuário."""
+    if "learning_milestones" not in st.session_state:
+        st.session_state["learning_milestones"] = {
+            "understand_training": False,
+            "know_data_sources": False,
+            "built_first_portfolio": False,
+            "viewed_income_estimates": False,
+            "ran_backtest": False,
+            "understood_risk": False,
+        }
+    return st.session_state["learning_milestones"]
+
+
+def _update_milestone(milestone_id: str, achieved: bool = True) -> None:
+    """Atualiza um marco de aprendizado específico."""
+    milestones = _get_learning_milestones()
+    if milestone_id in milestones:
+        milestones[milestone_id] = achieved
+        st.session_state["learning_milestones"] = milestones
+
+
+def _has_portfolio_positions() -> bool:
+    """Verifica se a carteira padrão já tem posições."""
+    try:
+        from src.portfolio.paper import load_portfolio
+        p = load_portfolio("paper-main")
+        return bool(p.positions)
+    except Exception:
+        return False
+
+
 def render_onboarding_if_needed() -> bool:
-    """Mostra o guia de 4 passos se ainda não concluiu.
+    """Mostra o guia de onboarding com trilha de aprendizado se ainda não concluiu.
 
     Returns
     -------
     True se o onboarding está ativo (páginas podem encurtar o resto).
     """
     if _done():
+        return False
+    if _has_portfolio_positions():
+        mark_onboarding_done()
         return False
 
     st.markdown("### Bem-vindo ao TradingDash")
@@ -67,7 +103,7 @@ Não é promessa de lucro — é um **guia guiado** para aprender a tese com cal
 | **Bolsa real** | Estudar com preços/indicadores de mercado (podem falhar ou atrasar) |
 | **Modo treino** | Aprender a interface na hora, com números ilustrativos |
 
-O app mostra **qualidade dos dados** e **premissas**.  
+O app mostra **qualidade dos dados** e **premissas**.
 Se algo estiver incompleto, a nota da empresa perde força — de propósito.
 """
             )
@@ -76,9 +112,9 @@ Se algo estiver incompleto, a nota da empresa perde força — de propósito.
                 """
 **Caminho recomendado**
 
-1. Fique no **Modo treino** nesta primeira visita (já está ligado)  
-2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome  
-3. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil de treino)  
+1. Fique no **Modo treino** nesta primeira visita (já está ligado)
+2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome
+3. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil de treino)
 4. **Renda esperada** — 3 cenários, sem mágica
 
 Depois, se quiser: **Teste no passado** (ensaio com o retrato de hoje) e o **Guia**.
@@ -89,8 +125,8 @@ Depois, se quiser: **Teste no passado** (ensaio com o retrato de hoje) e o **Gui
                 """
 **Checklist rápido**
 
-- [ ] Entendi que é **treino** até eu validar fora do app  
-- [ ] Vou começar no **Modo treino** e só depois pedir Bolsa real  
+- [ ] Entendi que é **treino** até eu validar fora do app
+- [ ] Vou começar no **Modo treino** e só depois pedir Bolsa real
 - [ ] O botão que monta o livro é **Montar carteira com a tese**
 
 Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
@@ -136,4 +172,88 @@ def render_onboarding_reset_button() -> None:
     if st.button("Refazer tour de boas-vindas", key="ob_reset"):
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
+        # Reset learning milestones too
+        if "learning_milestones" in st.session_state:
+            del st.session_state["learning_milestones"]
         st.rerun()
+
+
+def render_learning_dashboard() -> None:
+    """Renderiza o painel de aprendizado com marcos alcançados."""
+    milestones = _get_learning_milestones()
+
+    st.markdown("### 🎯 Sua jornada de aprendizado")
+
+    # Define os marcos com descrições e ícones
+    milestone_definitions = {
+        "understand_training": {
+            "title": "Entende o modo treino",
+            "description": "Soube diferenciar modo treino (dados ilustrativos) da bolsa real",
+            "icon": ":material/school:",
+        },
+        "know_data_sources": {
+            "title": "Conhece as fontes de dados",
+            "description": "Entende onde os números vêm e suas limitações",
+            "icon": ":material/database:",
+        },
+        "built_first_portfolio": {
+            "title": "Primeira carteira construída",
+            "description": "Montou sua primeira carteira usando a tese Quality Dividend",
+            "icon": ":material/business_center:",
+        },
+        "viewed_income_estimates": {
+            "title": "Visualizou renda esperada",
+            "description": "Analisou os cenários de renda de dividendos projetados",
+            "icon": ":material/savings:",
+        },
+        "ran_backtest": {
+            "title": "Executou primeiro backtest",
+            "description": "Testou como sua estratégia teria se comportado no passado",
+            "icon": ":material/insights:",
+        },
+        "understood_risk": {
+            "title": "Entende o conceito de risco",
+            "description": "Compreende drawdown, volatilidade e a importância da diversificação",
+            "icon": ":material/shield:",
+        },
+    }
+
+    # Cria cards para cada marco
+    cols = st.columns(3)
+    for i, (milestone_id, achieved) in enumerate(milestones.items()):
+        milestone = milestone_definitions.get(milestone_id, {
+            "title": milestone_id.replace("_", " ").title(),
+            "description": "Marco de aprendizado",
+            "icon": ":material/flag:",
+        })
+
+        with cols[i % 3]:
+            if achieved:
+                st.success(
+                    f"{milestone['icon']} **{milestone['title']}**\n\n{milestone['description']}",
+                    icon=":material/check_circle:"
+                )
+            else:
+                st.info(
+                    f"{milestone['icon']} **{milestone['title']}**\n\n{milestone['description']}",
+                    icon=":material/radio_button_unchecked:"
+                )
+
+
+def render_contextual_help(term: str, key: str | None = None) -> None:
+    """Renderiza ajuda contextual para um termo técnico usando o glossário amigável.
+
+    Args:
+        term: O termo técnico para explicar
+        key: Chave única para o elemento (opcional)
+    """
+    # Procura no glossário amigável
+    for friendly_term, explanation in GLOSSARY:
+        if friendly_term.lower() == term.lower():
+            with st.popover(f"💡 {friendly_term}", use_container_width=False):
+                st.markdown(explanation)
+            return
+
+    # Se não encontrou no glossário, cria um popover genérico
+    with st.popover(f"💡 {term}", use_container_width=False):
+        st.markdown("Termo técnico - consulte o glossário para mais detalhes.")

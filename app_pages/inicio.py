@@ -21,6 +21,7 @@ from src.ui.data_source import (
     get_session_provider,
     render_clean_header,
     render_data_quality_banner,
+    render_global_mode_toggle,
 )
 from src.ui.cache_button import render_refresh_control
 from src.thesis.scoring import recommend_weights
@@ -53,47 +54,14 @@ if render_onboarding_if_needed():
     st.stop()
 
 with st.sidebar:
-    # Botão para refazer o tour no topo
-    if st.button("Refazer tour", key="home_tour_restart", width="stretch"):
+    st.markdown("---")
+
+    if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
         if "learning_milestones" in st.session_state:
             del st.session_state["learning_milestones"]
         st.rerun()
-
-    st.markdown("---")
-
-    # Controle de refresh (atualizar dados)
-    render_refresh_control(key="home_refresh")
-
-    st.markdown("---")
-
-    # Modo treino (slider) na parte inferior
-    _apply_pending_provider()
-    current = get_session_provider()
-    if SIDEBAR_TREINO_KEY not in st.session_state:
-        st.session_state[SIDEBAR_TREINO_KEY] = current == "demo"
-
-    treino = st.toggle(
-        "Modo treino",
-        key=SIDEBAR_TREINO_KEY,
-        help="Ligado: números ilustrativos para aprender. "
-        "Desligado: preços e indicadores da bolsa (Yahoo).",
-    )
-    if treino and current != "demo":
-        request_session_provider("demo")
-        st.rerun()
-    if not treino and current == "demo":
-        request_session_provider(st.session_state.get(REAL_PROVIDER_KEY) or "yfinance")
-        st.rerun()
-
-    provider = get_session_provider()
-    if provider == "demo":
-        st.caption("Números de estudo · não são da bolsa")
-    elif provider == "brapi":
-        st.caption("Bolsa · fonte experimental B3")
-    else:
-        st.caption("Bolsa real · Yahoo Finance")
 
 render_data_quality_banner(provider)
 
@@ -154,7 +122,7 @@ watch = (
     else ["ITUB4", "PETR4", "VALE3"]
 )
 try:
-    news = fetch_headlines(watch, provider="yfinance", limit=6, timeout_sec=6.0)
+    news = fetch_headlines(watch, provider="yfinance", limit=6, timeout_sec=12.0)
 except Exception:
     news = pd.DataFrame()
 

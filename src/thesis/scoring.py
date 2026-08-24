@@ -484,6 +484,8 @@ def recommend_weights(
         if not eligible.empty:
             work = eligible
 
+    work = work.reset_index(drop=True)
+
     # Teto de nomes por setor (~3 em uma lista de 15) — mais próximo de um livro iniciante
     if "sector" in work.columns and max_sector_pct > 0:
         max_per_sector = max(2, int(np.ceil(top_n * 0.20)))

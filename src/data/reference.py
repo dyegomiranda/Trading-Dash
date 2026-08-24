@@ -191,3 +191,52 @@ def active_universe(tickers: list[str]) -> list[str]:
             seen.add(nt)
             out.append(nt)
     return out
+
+
+SECTOR_TRANSLATION_PT: dict[str, str] = {
+    "Utilities": "Utilidade Pública (Energia/Saneamento)",
+    "Financial Services": "Serviços Financeiros / Bancos",
+    "Consumer Defensive": "Consumo Básico",
+    "Consumer Cyclical": "Consumo Cíclico / Varejo",
+    "Basic Materials": "Materiais Básicos / Mineração",
+    "Industrials": "Bens Industriais / Logística",
+    "Healthcare": "Saúde / Farmacêutico",
+    "Technology": "Tecnologia",
+    "Communication Services": "Telecomunicações",
+    "Energy": "Petróleo, Gás e Energia",
+    "Real Estate": "Imobiliário / Shoppings",
+    "Unknown": "Outros Setores",
+    "Outros": "Outros Setores",
+}
+
+
+def translate_sector(sector: str | None) -> str:
+    """Traduz o nome do setor em inglês para português claro."""
+    if not sector or not str(sector).strip() or str(sector) == "Unknown":
+        return "Outros Setores"
+    s = str(sector).strip()
+    return SECTOR_TRANSLATION_PT.get(s, s)
+
+
+def lookup_company_name(ticker: str) -> str:
+    """Retorna o nome amigável da empresa ou a sigla se não houver."""
+    meta = get_ticker_meta(ticker)
+    name = meta.get("name")
+    if name and str(name).strip() and str(name).strip().upper() != _norm(ticker):
+        clean = str(name).strip()
+        # Remove sufixos como ON NM, PN N1, etc se for o formato bruto
+        for suffix in (" ON NM", " PN N2", " PN N1", " ON N2", " UNT N2", " ON", " PN", " UNT"):
+            if clean.endswith(suffix):
+                clean = clean[: -len(suffix)].strip()
+        return clean.title() if clean.isupper() else clean
+    return _norm(ticker)
+
+
+def format_ticker_display(ticker: str) -> str:
+    """Formata o código da ação com o nome amigável: 'Petz (PETZ3)'."""
+    nt = _norm(ticker)
+    name = lookup_company_name(nt)
+    if name and name.upper() != nt:
+        return f"{name} ({nt})"
+    return nt
+

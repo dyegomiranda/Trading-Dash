@@ -29,55 +29,60 @@ def _google_news_link(link: str) -> str:
     return link
 
 
-def _fetch_google_rss(query: str, limit: int = 6) -> list[dict[str, Any]]:
+def _fetch_google_rss(query: str, limit: int = 6, attempts: int = 2) -> list[dict[str, Any]]:
     url = (
         "https://news.google.com/rss/search?"
         f"q={quote_plus(query)}&hl=pt-BR&gl=BR&ceid=BR:pt-419"
     )
-    req = Request(
-        url,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-        },
-    )
-    items: list[dict[str, Any]] = []
-    try:
-        with urlopen(req, timeout=12) as resp:
-            raw = resp.read()
-        root = ET.fromstring(raw)
-        channel = root.find("channel")
-        if channel is None:
-            return []
-        for item in channel.findall("item")[:limit]:
-            title = (item.findtext("title") or "").strip()
-            link = (item.findtext("link") or "").strip()
-            source_el = item.find("source")
-            source = (source_el.text or "Google News").strip() if source_el is not None else "Google News"
-            pub = item.findtext("pubDate") or ""
-            published = "—"
-            if pub:
-                try:
-                    published = parsedate_to_datetime(pub).strftime("%d/%m %H:%M")
-                except Exception:
-                    published = pub[:16]
-            if not title or not link:
+    user_agents = [
+        (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ),
+        (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+    ]
+    for attempt in range(attempts):
+        req = Request(url, headers={"User-Agent": user_agents[attempt % len(user_agents)]})
+        try:
+            with urlopen(req, timeout=15) as resp:
+                raw = resp.read()
+            root = ET.fromstring(raw)
+            channel = root.find("channel")
+            if channel is None:
                 continue
-            items.append(
-                {
-                    "title": title,
-                    "ticker": "",
-                    "source": source,
-                    "tag": "mercado",
-                    "published": published,
-                    "url": _google_news_link(link),
-                }
-            )
-    except Exception:
-        return []
-    return items
+            items: list[dict[str, Any]] = []
+            for item in channel.findall("item")[:limit]:
+                title = (item.findtext("title") or "").strip()
+                link = (item.findtext("link") or "").strip()
+                source_el = item.find("source")
+                source = (source_el.text or "Google News").strip() if source_el is not None else "Google News"
+                pub = item.findtext("pubDate") or ""
+                published = "—"
+                if pub:
+                    try:
+                        published = parsedate_to_datetime(pub).strftime("%d/%m %H:%M")
+                    except Exception:
+                        published = pub[:16]
+                if not title or not link:
+                    continue
+                items.append(
+                    {
+                        "title": title,
+                        "ticker": "",
+                        "source": source,
+                        "tag": "mercado",
+                        "published": published,
+                        "url": _google_news_link(link),
+                    }
+                )
+            if items:
+                return items
+        except Exception:
+            continue
+    return []
 
 
 def _fetch_yfinance_news(tickers: list[str], limit: int = 8) -> list[dict[str, Any]]:
