@@ -160,8 +160,20 @@ with st.sidebar:
         )
         cg_pct = st.slider(
             "IR sobre ganho de capital na venda (%)", 0, 20, int(_cons.capital_gains_rate * 100), step=5,
-            help="15% é o padrão PF sobre o lucro realizado na venda (modelo simples).",
+            help="15% é a alíquota PF sobre o lucro realizado. Só incide se as vendas do mês passarem de R$ 20 mil (veja a caixa abaixo).",
             key="bt_cg", disabled=not enable_costs,
+        )
+        pf_exempt = st.checkbox(
+            "Isenção PF até R$ 20 mil em vendas no mês",
+            value=True,
+            key="bt_pf_exempt",
+            help=(
+                "Na pessoa física, se o total vendido no mês for até R$ 20 mil, "
+                "o ganho de capital em ações no mercado à vista é isento. "
+                "Conta de R$ 10 mil quase nunca cruza esse limite. "
+                "Desmarque só para simular conta grande ou PJ (IR em toda venda)."
+            ),
+            disabled=not enable_costs,
         )
         dynamic_slip = st.checkbox(
             "Slippage dinâmico por liquidez",
@@ -292,6 +304,9 @@ if run:
                     tax_rate=0.0,
                     jcp_share=float(jcp_pct) / 100.0,
                     capital_gains_rate=float(cg_pct) / 100.0,
+                    pf_monthly_sales_exemption=(
+                        20_000.0 if pf_exempt else 0.0
+                    ),
                     dynamic_slippage=bool(dynamic_slip),
                     dividend_cash_lag_days=int(cash_lag),
                 )
@@ -599,6 +614,11 @@ with st.container(border=True):
             f"JCP {m.get('cost_jcp_share', 0):.0%} do provento, "
             f"IR no ganho {m.get('cost_capital_gains_rate', 0):.0%}"
             + (
+                f" (isenção PF até {format_brl(float(m.get('cost_pf_monthly_sales_exemption') or 0))} em vendas/mês)"
+                if float(m.get("cost_pf_monthly_sales_exemption") or 0) > 0
+                else " (sem isenção PF)"
+            )
+            + (
                 f", atraso do dividendo {m.get('cost_dividend_cash_lag_days', 0):.0f}d"
                 if m.get("cost_dividend_cash_lag_days")
                 else ""
@@ -705,6 +725,13 @@ if ibov_r is not None or cdi_r is not None or idiv_r is not None:
         f"Fontes dos benchmarks · Ibovespa: {bm_meta.get('ibov_source', '—')} · "
         f"CDI: {bm_meta.get('cdi_source', '—')} · "
         f"IDIV: {bm_meta.get('idiv_source', '—')}"
+    )
+    st.caption(
+        "Ficar abaixo do CDI **não prova que a tese é ruim**. De 2022 em diante a Selic "
+        "ficou elevada, então o CDI acumulado é um alvo difícil para ações de dividendo. "
+        "O IR de 15% na venda só vale para PF se as vendas no mês passam de R$ 20 mil — "
+        "em contas de R$ 10 mil o modelo agora respeita essa isenção. "
+        "Corretagem, slippage e giro mensal ainda pesam no resultado."
     )
 
 # Curva com benchmarks

@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.data.reference import get_ticker_meta, translate_sector
+from src.data.reference import format_ticker_display, get_ticker_meta, translate_sector
 
 PALETTE = [
     "#A78BFA",
@@ -79,25 +79,33 @@ def donut_allocation(
     if not raw:
         raw = [("—", 1.0)]
     raw.sort(key=lambda kv: kv[1], reverse=True)
-    total = sum(v for _, v in raw) or 1.0
+    # Cada fatia fica visível — não agrupar em "Outros" (some a composição real).
+    pie_labels = [lab for lab, _ in raw]
+    pie_values = [val for _, val in raw]
 
-    kept: list[tuple[str, float]] = []
-    other = 0.0
-    for i, (lab, val) in enumerate(raw):
-        if i < 8 and val / total >= 0.03:
-            kept.append((lab, val))
-        else:
-            other += val
-    if other > 0 and raw != [("—", 1.0)]:
-        kept.append(("Outros", other))
+    def _slice_ticker(lab: str) -> str:
+        s = str(lab).strip()
+        if s == "—":
+            return s
+        if "(" in s:
+            return s.split("(", 1)[0].strip() or s
+        return s
 
-    pie_labels = [lab for lab, _ in kept]
-    pie_values = [val for _, val in kept]
+    def _hover_name(lab: str) -> str:
+        s = str(lab).strip()
+        if s == "—" or "(" in s:
+            return s
+        return format_ticker_display(s)
+
+    slice_labels = [_slice_ticker(lab) for lab in pie_labels]
+    hover_labels = [_hover_name(lab) for lab in pie_labels]
+    n_slices = max(len(slice_labels), 1)
+    colors = PALETTE * (n_slices // len(PALETTE) + 2)
 
     fig = go.Figure(
         data=[
             go.Pie(
-                labels=pie_labels,
+                labels=slice_labels,
                 values=pie_values,
                 hole=0.52,
                 sort=False,
@@ -106,9 +114,10 @@ def donut_allocation(
                 textposition="outside",
                 texttemplate="%{label}<br>%{percent:.0%}",
                 textfont={"size": 12, "color": "#E2E8F0"},
-                hovertemplate="<b>%{label}</b><br>%{percent:.0%}<br>%{value:,.2f}<extra></extra>",
+                hovertext=hover_labels,
+                hovertemplate="<b>%{hovertext}</b><br>%{percent:.0%}<br>R$ %{value:,.2f}<extra></extra>",
                 marker={
-                    "colors": PALETTE * 3,
+                    "colors": colors,
                     "line": {"color": "#070B14", "width": 2},
                 },
             )

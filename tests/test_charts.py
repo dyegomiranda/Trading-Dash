@@ -8,6 +8,14 @@ from src.ui.charts import donut_allocation
 from src.ui.components import pillar_means
 
 
+def test_donut_hover_uses_full_name():
+    fig = donut_allocation(["LREN3"], [100.0])
+    hover = list(fig.data[0].hovertext)
+    assert hover
+    assert "LREN3" in str(hover[0])
+    assert "Renner" in str(hover[0])
+
+
 def test_donut_labels_on_slices_with_percent():
     fig = donut_allocation(["ITUB4", "WEGE3", "TAEE11"], [40.0, 35.0, 25.0])
     pie = fig.data[0]
@@ -19,13 +27,15 @@ def test_donut_labels_on_slices_with_percent():
     assert not center_xs or all(abs(float(x) - 0.5) < 1e-6 for x in center_xs)
 
 
-def test_donut_groups_tiny_slices():
+def test_donut_keeps_all_slices():
     labels = [f"T{i}" for i in range(12)]
     values = [20.0] + [1.0] * 11
     fig = donut_allocation(labels, values)
-    names = " ".join(str(x) for x in fig.data[0].labels)
-    assert "Outros" in names
-    assert len(fig.data[0].labels) <= 9
+    names = list(fig.data[0].labels)
+    assert "Outros" not in names
+    assert len(names) == 12
+    hover = list(fig.data[0].hovertext)
+    assert len(hover) == 12
 
 
 def test_pillar_means_none_when_missing():

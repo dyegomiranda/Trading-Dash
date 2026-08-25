@@ -15,6 +15,10 @@ from src.config import PORTFOLIO_DIR, get_settings
 from src.data.universe import normalize_ticker
 from src.utils import utcnow_date, utcnow_iso
 
+# Isenção PF de IR sobre ganho de capital em ações no mercado à vista:
+# total de alienações no mês ≤ R$ 20.000 (regra vigente para pessoa física).
+PF_MONTHLY_SALES_EXEMPTION_BRL = 20_000.0
+
 
 @dataclass
 class Position:
@@ -62,6 +66,8 @@ class PaperPortfolio:
     dividends: list[DividendEvent] = field(default_factory=list)
     created_at: str = field(default_factory=lambda: utcnow_iso())
     updated_at: str = field(default_factory=lambda: utcnow_iso())
+    sales_by_month: dict[str, float] = field(default_factory=dict)
+    untaxed_gains_by_month: dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def create(cls, name: str = "paper-main", cash: float | None = None) -> PaperPortfolio:
@@ -93,6 +99,8 @@ class PaperPortfolio:
             self.initial_cash = float(new_capital)
             self.trades = []
             self.dividends = []
+            self.sales_by_month = {}
+            self.untaxed_gains_by_month = {}
             self._touch()
             return
 
@@ -166,6 +174,40 @@ class PaperPortfolio:
         self._touch()
         return trade
 
+    @staticmethod
+    def _month_key(ts: str | None) -> str:
+        raw = ts or utcnow_iso()
+        return raw[:7]
+
+    def _capital_gains_tax(
+        self,
+        *,
+        sale_amount: float,
+        gain: float,
+        rate: float,
+        ts: str | None,
+        exemption: float,
+    ) -> float:
+        """IR no ganho, com isenção PF se as vendas do mês não passam do teto.
+
+        Alienação conta pelo valor da venda (não pelo lucro). Se o mês estourar
+        o teto, o ganho desta venda e o que tinha ficado isento no mesmo mês
+        passam a ser tributados (regra tudo-ou-nada do mês).
+        """
+        ym = self._month_key(ts)
+        self.sales_by_month[ym] = float(self.sales_by_month.get(ym, 0.0)) + float(sale_amount)
+        positive_gain = max(0.0, float(gain))
+        if rate <= 0 or positive_gain <= 0:
+            return 0.0
+        if exemption > 0 and self.sales_by_month[ym] <= exemption + 1e-9:
+            self.untaxed_gains_by_month[ym] = (
+                float(self.untaxed_gains_by_month.get(ym, 0.0)) + positive_gain
+            )
+            return 0.0
+        clawback = float(self.untaxed_gains_by_month.get(ym, 0.0)) if exemption > 0 else 0.0
+        self.untaxed_gains_by_month[ym] = 0.0
+        return (positive_gain + clawback) * float(rate)
+
     def sell(
         self,
         ticker: str,
@@ -177,6 +219,7 @@ class PaperPortfolio:
         fee_bps: float = 0.0,
         slippage_bps: float = 0.0,
         capital_gains_rate: float = 0.0,
+        pf_monthly_sales_exemption: float | None = None,
     ) -> Trade:
         ticker = normalize_ticker(ticker)
         pos = self.positions.get(ticker)
@@ -188,7 +231,18 @@ class PaperPortfolio:
         amount = shares * exec_price
         fee = amount * fee_bps / 10_000.0
         gain = (exec_price - pos.avg_price) * shares
-        cg_tax = max(0.0, gain) * float(capital_gains_rate or 0.0)
+        exemption = (
+            PF_MONTHLY_SALES_EXEMPTION_BRL
+            if pf_monthly_sales_exemption is None
+            else float(pf_monthly_sales_exemption)
+        )
+        cg_tax = self._capital_gains_tax(
+            sale_amount=amount,
+            gain=gain,
+            rate=float(capital_gains_rate or 0.0),
+            ts=ts,
+            exemption=exemption,
+        )
         self.cash += amount - fee - cg_tax
         pos.shares -= shares
         if pos.shares <= 1e-9:
@@ -349,6 +403,7 @@ class PaperPortfolio:
         fee_bps: float = 0.0,
         slippage_bps: float = 0.0,
         capital_gains_rate: float = 0.0,
+        pf_monthly_sales_exemption: float | None = None,
     ) -> list[Trade]:
         """Rebalanceia para pesos alvo usando valor total (caixa + posições)."""
         buckets = buckets or {}
@@ -374,6 +429,7 @@ class PaperPortfolio:
                             fee_bps=fee_bps,
                             slippage_bps=slippage_bps,
                             capital_gains_rate=capital_gains_rate,
+                            pf_monthly_sales_exemption=pf_monthly_sales_exemption,
                         )
                     )
 
@@ -430,6 +486,7 @@ class PaperPortfolio:
                                 fee_bps=fee_bps,
                                 slippage_bps=slippage_bps,
                                 capital_gains_rate=capital_gains_rate,
+                                pf_monthly_sales_exemption=pf_monthly_sales_exemption,
                             )
                         )
         return trades
@@ -500,6 +557,8 @@ class PaperPortfolio:
             "dividends": [asdict(d) for d in self.dividends],
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "sales_by_month": dict(self.sales_by_month),
+            "untaxed_gains_by_month": dict(self.untaxed_gains_by_month),
         }
 
     @classmethod
@@ -530,6 +589,13 @@ class PaperPortfolio:
             dividends=dividends,
             created_at=data.get("created_at", utcnow_iso()),
             updated_at=data.get("updated_at", utcnow_iso()),
+            sales_by_month={
+                str(k): float(v) for k, v in (data.get("sales_by_month") or {}).items()
+            },
+            untaxed_gains_by_month={
+                str(k): float(v)
+                for k, v in (data.get("untaxed_gains_by_month") or {}).items()
+            },
         )
 
 

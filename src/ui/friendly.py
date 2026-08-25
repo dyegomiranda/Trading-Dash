@@ -287,6 +287,16 @@ def friendly_dataframe(df: pd.DataFrame, extra_map: dict[str, str] | None = None
         out["acao_sugerida"] = out["acao_sugerida"].map(
             lambda x: ACTION_LABELS.get(str(x), str(x))
         )
+    if "ticker" in out.columns:
+        from src.data.reference import format_ticker_display
+
+        def _fmt_ticker(x: object) -> str:
+            s = str(x)
+            if not s or s == "nan" or "(" in s:
+                return s
+            return format_ticker_display(s)
+
+        out["ticker"] = out["ticker"].map(_fmt_ticker)
     labels = {**COLUMN_LABELS, **(extra_map or {})}
     rename = {c: labels[c] for c in out.columns if c in labels}
     return out.rename(columns=rename)

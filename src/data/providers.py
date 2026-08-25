@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import CACHE_DIR, get_settings
+from src.data.reference import resolve_sector
 from src.data.universe import get_universe, normalize_ticker, to_yf_symbol
 from src.utils import utcnow, utcnow_date
 
@@ -321,7 +322,7 @@ class DemoDataProvider(DataProvider):
         for t in self._universe:
             rng = self._rng_for(t)
             meta = get_ticker_meta(t)
-            sector = meta.get("sector") or "Unknown"
+            sector = resolve_sector(meta.get("sector"))
             industry = meta.get("industry")
             name = meta.get("name") or t
             # qualidade um pouco maior se setor está no core da tese
@@ -611,7 +612,7 @@ class YFinanceDataProvider(DataProvider):
                 yf_sector = info.get("sector")
                 yf_industry = info.get("industry")
                 name = yf_name or meta.get("name") or t
-                sector = yf_sector or meta.get("sector") or "Unknown"
+                sector = resolve_sector(meta.get("sector"), yf_sector)
                 industry = yf_industry or meta.get("industry")
                 quality = (
                     "market"
@@ -700,7 +701,7 @@ class YFinanceDataProvider(DataProvider):
                 {
                     "ticker": t,
                     "name": meta.get("name") or t,
-                    "sector": meta.get("sector") or "Unknown",
+                    "sector": resolve_sector(meta.get("sector")),
                     "industry": meta.get("industry"),
                     "price": 0.0,
                     "market_cap": None,

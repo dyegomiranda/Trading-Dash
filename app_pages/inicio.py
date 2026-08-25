@@ -22,7 +22,6 @@ from src.ui.data_source import (
     render_clean_header,
     render_data_quality_banner,
 )
-from src.ui.cache_button import render_refresh_control
 from src.thesis.scoring import recommend_weights
 from src.ai.coach import narrative_thesis
 from src.ui.charts import holdings_donut
@@ -43,25 +42,22 @@ from src.ui.wizard import render_quick_wizard
 page_setup()
 
 provider = get_session_provider()
-render_clean_header(
-    "Início",
-    "Comece aqui · caminho guiado para montar uma carteira de treino",
-    provider=provider,
-)
-
-if render_onboarding_if_needed():
-    st.stop()
+_home_title = "Início"
+_home_sub = "Comece aqui · caminho guiado para montar uma carteira de treino"
+_header_shown = False
+if not st.session_state.get("onboarding_done"):
+    render_clean_header(_home_title, _home_sub, provider=provider)
+    _header_shown = True
+    if render_onboarding_if_needed():
+        st.stop()
 
 with st.sidebar:
-    render_refresh_control(key="home_refresh")
     if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
         if "learning_milestones" in st.session_state:
             del st.session_state["learning_milestones"]
         st.rerun()
-
-render_data_quality_banner(provider)
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -93,22 +89,36 @@ _load_msg = (
     if is_realtime_provider(provider)
     else "Carregando overview do modo treino…"
 )
-body = st.container()
+_boot = st.empty()
+_boot.html(
+    "<div class='td-boot' role='status' aria-live='polite'>"
+    "<div class='td-boot-ring'></div>"
+    f"<p class='td-boot-msg'>{_load_msg}</p>"
+    "</div>"
+)
+_load_error: Exception | None = None
 try:
-    with st.spinner(_load_msg), body.skeleton():
-        result = _scored(provider)
-        scored = result.scored
-        filtered = result.filtered
-        recs = recommend_weights(
-            filtered,
-            top_n=10,
-            macro_tilt=macro_tilt_from_override(get_session_macro()),
-        )
-        prices = prices_dict_from_fundamentals(scored)
+    result = _scored(provider)
+    scored = result.scored
+    filtered = result.filtered
+    recs = recommend_weights(
+        filtered,
+        top_n=10,
+        macro_tilt=macro_tilt_from_override(get_session_macro()),
+    )
+    prices = prices_dict_from_fundamentals(scored)
 except Exception as e:
-    st.error(f"Falha ao carregar mercado: {e}")
+    _load_error = e
     scored = pd.DataFrame()
     recs = scored
+finally:
+    _boot.empty()
+
+if not _header_shown:
+    render_clean_header(_home_title, _home_sub, provider=provider)
+render_data_quality_banner(provider)
+if _load_error is not None:
+    st.error(f"Falha ao carregar mercado: {_load_error}")
 
 # Quick Wizard: montador visual de carteira em 1 minuto para iniciantes
 if not portfolio.positions:

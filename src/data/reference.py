@@ -120,6 +120,125 @@ MANUAL_OVERRIDES: dict[str, dict[str, Any]] = {
         "industry": "Oil & Gas Integrated",
         "status": "active",
     },
+    # Universo histórico (saíram/renomearam) — sem isto o setor cai em Unknown.
+    "LAME3": {
+        "name": "Lojas Americanas",
+        "sector": "Consumer Cyclical",
+        "industry": "Department Stores",
+        "status": "historical",
+        "successor": "AMER3",
+        "notes": "Ticker antigo; hoje Americanas (AMER3)",
+    },
+    "LAME4": {
+        "name": "Lojas Americanas",
+        "sector": "Consumer Cyclical",
+        "industry": "Department Stores",
+        "status": "historical",
+        "successor": "AMER3",
+        "notes": "Ticker antigo PN; hoje Americanas (AMER3)",
+    },
+    "BTOW3": {
+        "name": "B2W Digital",
+        "sector": "Consumer Cyclical",
+        "industry": "Internet Retail",
+        "status": "historical",
+        "successor": "AMER3",
+        "notes": "Incorporada à Americanas",
+    },
+    "VVAR3": {
+        "name": "Via Varejo",
+        "sector": "Consumer Cyclical",
+        "industry": "Specialty Retail",
+        "status": "historical",
+        "successor": "BHIA3",
+        "notes": "Hoje Casas Bahia (BHIA3)",
+    },
+    "HGTX3": {
+        "name": "Cia Hering",
+        "sector": "Consumer Cyclical",
+        "industry": "Apparel Manufacturing",
+        "status": "historical",
+        "successor": "SOMA3",
+        "notes": "Incorporada ao Grupo Soma",
+    },
+    "SMLS3": {
+        "name": "Smiles Fidelidade",
+        "sector": "Consumer Cyclical",
+        "industry": "Travel Services",
+        "status": "historical",
+        "notes": "Programa de milhas; saiu de bolsa",
+    },
+    "LINX3": {
+        "name": "Linx",
+        "sector": "Technology",
+        "industry": "Software - Application",
+        "status": "historical",
+        "notes": "Adquirida pela Stone",
+    },
+    "BIDI11": {
+        "name": "Banco Inter",
+        "sector": "Financial Services",
+        "industry": "Banks - Regional",
+        "status": "historical",
+        "successor": "INBR32",
+        "notes": "Migrou para units INBR32",
+    },
+    "BIDI4": {
+        "name": "Banco Inter",
+        "sector": "Financial Services",
+        "industry": "Banks - Regional",
+        "status": "historical",
+        "successor": "INBR32",
+        "notes": "PN antiga do Inter",
+    },
+    "IRBR3": {
+        "name": "IRB Brasil Resseguros",
+        "sector": "Financial Services",
+        "industry": "Insurance - Reinsurance",
+        "status": "active",
+    },
+    "OIBR3": {
+        "name": "Oi",
+        "sector": "Communication Services",
+        "industry": "Telecom Services",
+        "status": "historical",
+    },
+    "OIBR4": {
+        "name": "Oi",
+        "sector": "Communication Services",
+        "industry": "Telecom Services",
+        "status": "historical",
+    },
+    "GNDI3": {
+        "name": "NotreDame Intermédica",
+        "sector": "Healthcare",
+        "industry": "Medical Care Facilities",
+        "status": "historical",
+        "successor": "HAPV3",
+        "notes": "Incorporada à Hapvida",
+    },
+    "PARD3": {
+        "name": "Hermes Pardini",
+        "sector": "Healthcare",
+        "industry": "Diagnostics & Research",
+        "status": "historical",
+        "notes": "Laboratório; saiu de bolsa",
+    },
+    "TESA3": {
+        "name": "Terra Santa Agro",
+        "sector": "Consumer Defensive",
+        "industry": "Farm Products",
+        "status": "historical",
+        "notes": "Agronegócio; saiu de bolsa",
+    },
+    "CNTO3": {
+        "name": "Grupo SBF / Centauro",
+        "sector": "Consumer Cyclical",
+        "industry": "Apparel Retail",
+        "status": "historical",
+        "successor": "SBFG3",
+        "notes": "Ticker antigo; hoje SBFG3",
+    },
 }
 
 
@@ -192,6 +311,33 @@ def active_universe(tickers: list[str]) -> list[str]:
     return out
 
 
+_UNKNOWN_SECTORS = {
+    "",
+    "unknown",
+    "n/a",
+    "none",
+    "nan",
+    "outros",
+    "outros setores",
+    "other",
+    "n/d",
+}
+
+
+def is_known_sector(sector: str | None) -> bool:
+    if sector is None:
+        return False
+    return str(sector).strip().lower() not in _UNKNOWN_SECTORS
+
+
+def resolve_sector(*candidates: str | None) -> str:
+    """Primeiro setor reconhecido (cadastro B3 antes de yfinance/Unknown)."""
+    for c in candidates:
+        if is_known_sector(c):
+            return str(c).strip()
+    return "Unknown"
+
+
 SECTOR_TRANSLATION_PT: dict[str, str] = {
     "Utilities": "Utilidade Pública (Energia/Saneamento)",
     "Financial Services": "Serviços Financeiros / Bancos",
@@ -232,11 +378,11 @@ def lookup_company_name(ticker: str) -> str:
 
 
 def format_ticker_display(ticker: str) -> str:
-    """Formata o código da ação com o nome amigável: 'Petz (PETZ3)'."""
+    """Formata o código da ação com o nome: 'LREN3 (Lojas Renner)'."""
     nt = _norm(ticker)
     name = lookup_company_name(nt)
     if name and name.upper() != nt:
-        return f"{name} ({nt})"
+        return f"{nt} ({name})"
     return nt
 
 

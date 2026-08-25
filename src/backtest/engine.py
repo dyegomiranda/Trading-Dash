@@ -11,7 +11,7 @@ import pandas as pd
 from src.data.benchmarks import build_benchmark_curves
 from src.data.providers import DataProvider
 from src.data.universe import normalize_ticker
-from src.portfolio.paper import PaperPortfolio
+from src.portfolio.paper import PF_MONTHLY_SALES_EXEMPTION_BRL, PaperPortfolio
 from src.thesis.scoring import recommend_weights, score_universe
 from src.utils import utcnow_date
 
@@ -55,6 +55,8 @@ class BacktestCosts:
     tax_rate: float = 0.0
     jcp_share: float = 0.0
     capital_gains_rate: float = 0.0
+    # Isenção PF: vendas no mês até este valor não pagam IR no ganho (0 = tributa tudo).
+    pf_monthly_sales_exemption: float = PF_MONTHLY_SALES_EXEMPTION_BRL
     # Confiabilidade avançada:
     dynamic_slippage: bool = False
     slippage_gamma: float = 0.10
@@ -309,6 +311,7 @@ def _execute_planned_rebalance(
         fee_bps=config.costs.fee_bps,
         slippage_bps=plan["slippage_bps"],
         capital_gains_rate=config.costs.capital_gains_rate,
+        pf_monthly_sales_exemption=config.costs.pf_monthly_sales_exemption,
     )
     for tr in trades:
         trade_rows.append(
@@ -518,6 +521,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                     fee_bps=config.costs.fee_bps,
                     slippage_bps=config.costs.slippage_bps,
                     capital_gains_rate=config.costs.capital_gains_rate,
+                    pf_monthly_sales_exemption=config.costs.pf_monthly_sales_exemption,
                 )
             except ValueError:
                 continue
@@ -751,6 +755,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "cost_tax_rate": config.costs.tax_rate,
         "cost_jcp_share": config.costs.jcp_share,
         "cost_capital_gains_rate": config.costs.capital_gains_rate,
+        "cost_pf_monthly_sales_exemption": config.costs.pf_monthly_sales_exemption,
         "cost_dynamic_slippage": config.costs.dynamic_slippage,
         "cost_dividend_cash_lag_days": config.costs.dividend_cash_lag_days,
         "top_n": config.top_n,
@@ -866,7 +871,13 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         notes.append(
             f"CUSTOS: fee {config.costs.fee_bps:.0f} bps, slippage base "
             f"{config.costs.slippage_bps:.0f} bps{extra_txt}, JCP {config.costs.jcp_share:.0%} "
-            f"do provento a 15%, IR ganho {config.costs.capital_gains_rate:.0%} na venda."
+            f"do provento a 15%, IR ganho {config.costs.capital_gains_rate:.0%} na venda"
+            + (
+                f" (isenção PF até R$ {config.costs.pf_monthly_sales_exemption:,.0f}/mês em vendas)"
+                if config.costs.pf_monthly_sales_exemption > 0
+                else " (sem isenção PF)"
+            )
+            + "."
         )
 
     last_prices = close.iloc[-1].dropna().to_dict()

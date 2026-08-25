@@ -23,7 +23,7 @@ import pandas as pd
 
 from src.config import get_settings
 from src.data.providers import DataProvider, _read_cache, _write_cache
-from src.data.reference import get_ticker_meta
+from src.data.reference import get_ticker_meta, resolve_sector
 from src.data.ttl import ttl_for
 from src.data.universe import normalize_ticker
 from src.utils import utcnow, utcnow_date
@@ -133,7 +133,7 @@ class BrapiDataProvider(DataProvider):
                 {
                     "ticker": t,
                     "name": q.get("longName") or meta.get("name") or t,
-                    "sector": meta.get("sector") or "Unknown",
+                    "sector": resolve_sector(meta.get("sector")),
                     "industry": meta.get("industry"),
                     "price": float(price) if price else None,
                     "market_cap": q.get("marketCap") or None,
