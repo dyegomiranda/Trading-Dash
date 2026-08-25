@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from src.data.reference import format_ticker_display, get_ticker_meta, translate_sector
+from src.data.reference import get_ticker_meta, translate_sector
 
 PALETTE = [
     "#A78BFA",

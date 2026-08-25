@@ -43,6 +43,17 @@ python3 -m venv .venv
 
 Abra o endereço local (geralmente `http://localhost:8501`).
 
+### Binários (sem instalar Python)
+
+Na página [Releases](https://github.com/dyegomiranda/Trading-Dash/releases) (ou em **Actions → Binaries**, após um tag `v*` ou disparo manual):
+
+| Sistema | Arquivo | Como usar |
+|---------|---------|-----------|
+| Linux | `TradingDash-x86_64.AppImage` | `chmod +x` e execute. Carteiras em `~/.local/share/TradingDash/` |
+| Windows | `TradingDash-windows.zip` | Extraia e rode `TradingDash.exe`. Carteiras em `%APPDATA%\TradingDash\` |
+
+Os dados da carteira **não saem do seu computador**.
+
 **fish shell:** prefira `.venv/bin/streamlit run app.py`.  
 Para ativar o venv no fish: `source .venv/bin/activate.fish`.
 

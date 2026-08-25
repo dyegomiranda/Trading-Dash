@@ -3,31 +3,13 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import streamlit as st
 
-from src.config import APP_VERSION, check_for_update, ROOT_DIR, get_settings
+from src.config import ROOT_DIR, get_settings
 
-# --- Garante que pastas de dados existem (importa Settings para criar dirs) ---
-_settings = get_settings()
-
-# --- Verifica atualização (silencioso; nunca quebra a UI) ---
-_update = check_for_update(timeout=8.0)
-
-# --- Exibe banner de atualização se houver versão nova ---
-if _update and _update.get("new_version"):
-    new_ver = _update["new_version"]
-    update_url = _update.get("url")
-    try:
-        st.sidebar.info(
-            f"**Nova versão disponível:** {new_ver}\n"
-            f"[Download aqui]({update_url})"
-            if update_url
-            else f"**Nova versão disponível:** {new_ver}"
-        )
-    except Exception:
-        pass  # never quebra a UI
+# Garante pastas graváveis (cache/carteiras) sem bloquear a UI na rede.
+get_settings()
 
 # --- Caminhos e configuração ---
 if str(ROOT_DIR) not in sys.path:

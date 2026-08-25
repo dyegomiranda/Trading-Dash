@@ -21,7 +21,6 @@ from src.ui.data_source import (
     get_session_provider,
     render_clean_header,
     render_data_quality_banner,
-    render_global_mode_toggle,
 )
 from src.ui.cache_button import render_refresh_control
 from src.thesis.scoring import recommend_weights
@@ -53,49 +52,8 @@ render_clean_header(
 if render_onboarding_if_needed():
     st.stop()
 
-# --- Indicador de loading (sempre no topo, antes da sidebar) ---
-# Garante que o usuário sempre veja algum indicativo de carregamento
-# ao navegar para Início ou trocar de aba, evitando "tela em branca".
-with st.status("Carregando dados do mercado...", state="running", expanded=True):
-    st.caption(
-        "Dados being carregados. Na volta subsequente podem vir do cache."
-    )
-    try:
-        from src.services import load_scored_universe
-
-        result = load_scored_universe(
-            provider_name=provider, universe_mode="auto"
-        )
-        # Armazena no session_state para persistir across re-runs
-        st.session_state["scored"] = result.scored
-        st.session_state["filtered"] = result.filtered
-        st.session_state["recs"] = recommend_weights(
-            result.filtered,
-            top_n=10,
-            macro_tilt=macro_tilt_from_override(get_session_macro()),
-        )
-        st.session_state["prices"] = prices_dict_from_fundamentals(
-            st.session_state["scored"]
-        )
-        # Atualiza status para completo ao finalizar
-        pass  # status atualiza automaticamente ao sair do bloco "with"
-    except Exception as e:
-        st.error(f"Falha ao carregar mercado: {e}")
-        # Mesmo em erro, continua com dados vazios para não quebrar a UI
-        st.session_state["scored"] = pd.DataFrame()
-        st.session_state["filtered"] = pd.DataFrame()
-        st.session_state["recs"] = pd.DataFrame()
-        st.session_state["prices"] = {}
-# Se já carregou, prossegue normally
-        # Even on error, continue with empty data so the page doesn't break
-        st.session_state["scored"] = pd.DataFrame()
-        st.session_state["filtered"] = pd.DataFrame()
-        st.session_state["recs"] = pd.DataFrame()
-        st.session_state["prices"] = {}
-# Se já carregou, prossegue normally (os dados estão em session_state)
 with st.sidebar:
-    st.markdown("---")
-
+    render_refresh_control(key="home_refresh")
     if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
@@ -130,12 +88,14 @@ recs = scored
 prices: dict = {}
 news = pd.DataFrame()
 
+_load_msg = (
+    "Carregando mercado… na primeira vez pode levar até meio minuto; depois vem do cache."
+    if is_realtime_provider(provider)
+    else "Carregando overview do modo treino…"
+)
+body = st.container()
 try:
-    with st.spinner(
-        "Carregando overview… (Bolsa real: até ~15–30s na 1ª vez; depois cache)"
-        if is_realtime_provider(provider)
-        else "Carregando overview…"
-    ):
+    with st.spinner(_load_msg), body.skeleton():
         result = _scored(provider)
         scored = result.scored
         filtered = result.filtered

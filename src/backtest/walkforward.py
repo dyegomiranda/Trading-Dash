@@ -289,16 +289,9 @@ def grid_search_walk_forward(
             sharpe = -math.inf
             wf_report = None
         else:
-            # Avaliar walk-forward
             wf_report = evaluate_walk_forward(result, fraction=fraction)
-            # Calcular Sharpe Ratio do período de teste (out-of-sample)
-            # Para Sharpe do walk-forward, usamos apenas o período OOS
-            if hasattr(result, 'equity_curve') and not result.equity_curve.empty:
-                # Extrair apenas o período OOS para cálculo do Sharpe
-                # Nota: Esta é uma aproximação - idealmente teríamos acesso direto aos dados OOS
-                sharpe = _calculate_sharpe_ratio(result.equity_curve, risk_free_rate)
-            else:
-                sharpe = -math.inf
+            # Escolhe no TREINO (IS). Usar a curva inteira vazaria o teste.
+            sharpe = float(wf_report.is_cagr) if wf_report is not None else -math.inf
 
         # Armazenar resultado
         result_tuple = (dict(zip(param_names, combination)), sharpe, wf_report)

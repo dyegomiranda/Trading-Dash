@@ -110,3 +110,21 @@ with st.container(border=True):
         "O app guarda preços e indicadores por algumas horas para não travar. "
         "Se a lista parecer antiga, peça números novos."
     )
+    render_refresh_control(key="cfg_refresh")
+
+st.markdown("##### Atualização do programa")
+with st.container(border=True):
+    st.caption(
+        "Os binários (.exe / AppImage) saem na página de Releases do GitHub. "
+        "Carteiras ficam neste computador, não na nuvem."
+    )
+    if st.button("Procurar versão nova", key="cfg_check_update"):
+        from src.config import APP_VERSION, check_for_update
+
+        info = check_for_update(timeout=4.0)
+        if info and info.get("new_version"):
+            url = info.get("url") or "https://github.com/dyegomiranda/Trading-Dash/releases"
+            st.success(f"Há uma versão nova: {info['new_version']} (você está em {APP_VERSION}).")
+            st.link_button("Abrir download", url, width="stretch")
+        else:
+            st.caption(f"Você já está na {APP_VERSION}, ou a checagem não alcançou o GitHub.")

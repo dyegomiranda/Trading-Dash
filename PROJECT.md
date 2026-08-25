@@ -284,7 +284,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 ### UX / produto
 - [x] Onboarding na primeira visita (session_state no Início; reset no Início e no Guia) — não persiste entre browsers 
 - [x] Explicar “Modo treino” em **todas** as páginas com o seletor (`src/ui/data_source.py`)  
-- [x] Testes automatizados (pytest) para scoring, portfolio, backtest — `tests/` (144 testes, rede mockada) 
+- [x] Testes automatizados (pytest) para scoring, portfolio, backtest — `tests/` (175 testes, rede mockada) 
 - [x] CI no GitHub (lint + testes) — `.github/workflows/ci.yml` (matrix Python 3.12/3.13/3.14 + `ruff check src/ tests/` + `pytest tests/ -q`)  
 - [x] Instruções de deploy Streamlit Community Cloud no README  
 - [x] Pre-flight de deploy (app sobe offline) — `deploy/preflight.py` (AppTest, fonte demo) + CI + `tests/test_preflight.py`  
@@ -346,9 +346,9 @@ Objetivo: subir a **honestidade** do laboratório, não fingir um backtest audit
 | **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
 | **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
 | **C** | Walk-forward IS/OOS (70/30 + teste cego opcional) com grid search para otimização de parâmetros. Piotroski/BSD como overlay opcional — ainda não | Walk-forward com grid search **feito**; BSD não |
-| **D** | (Eliminado — sem fonte paga) | — |
+| **D** | Fonte paga | **Fora.** Sem dado comercial; o teto sobe com CVM, custos, TTM, walk-forward e execução t+1. |
 
-**Teto honesto de confiança** (seguir a tese no app, paper money): ~50–65/100 com CVM 2020–2024 + custos + TTM + walk-forward. Nunca 90+.
+**Teto honesto de confiança** (paper money): ~60–72/100 com CVM + atraso de publicação + t+1 + walk-forward. Nunca 90+.
 
 Como promover o PIT:
 ```

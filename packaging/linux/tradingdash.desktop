@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TradingDash
+Comment=Estudo Quality Dividend na B3 (paper trading)
+Exec=TradingDash
+Icon=tradingdash
+Categories=Finance;Education;
+Terminal=true

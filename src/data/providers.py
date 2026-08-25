@@ -406,13 +406,18 @@ class DemoDataProvider(DataProvider):
         mu = 0.06
         vol = 0.22
         dt = 1 / 252
-        shocks = rng.normal((mu - 0.5 * vol**2) * dt, vol * np.sqrt(dt), size=len(days))
-        path = base * np.exp(np.cumsum(shocks[::-1])[::-1])
-        path = path / path[-1] * base
+        # GBM para frente a partir do preço-base. NÃO amarrar o último preço
+        # ao valor de hoje — isso + queda ex-div gerava prejuízo sistemático.
+        log_rets = rng.normal((mu - 0.5 * vol**2) * dt, vol * np.sqrt(dt), size=len(days))
+        path = np.empty(len(days), dtype=float)
+        path[0] = base
+        if len(days) > 1:
+            path[1:] = base * np.exp(np.cumsum(log_rets[1:]))
         if dy > 0:
             for i, day in enumerate(days):
                 if (day.month, day.day) in ((5, 15), (11, 15)):
-                    path[i:] = np.maximum(path[i:] - float(path[i]) * dy / 2.0, 0.5)
+                    amt = float(path[i]) * dy / 2.0
+                    path[i:] = np.maximum(path[i:] - amt, 0.5)
         df = pd.DataFrame(
             {
                 "date": days,
@@ -463,19 +468,28 @@ class DemoDataProvider(DataProvider):
                 continue
             fund = self._fundamentals.loc[nt]
             dy = float(fund["dividend_yield"])
-            price = float(fund["price"])
-            annual = dy * price
-            # 2 pagamentos anuais
+            px_df = self._simulate_prices(nt, start_ts, end_ts)
+            px_map = {}
+            if px_df is not None and not px_df.empty:
+                tmp = px_df.copy()
+                tmp["date"] = pd.to_datetime(tmp["date"]).dt.normalize()
+                px_map = dict(zip(tmp["date"], tmp["close"]))
+            fallback_amt = max(0.0, dy * float(fund["price"]) / 2.0)
             years = range(start_ts.year, end_ts.year + 1)
             for y in years:
                 for month, day in ((5, 15), (11, 15)):
-                    d = pd.Timestamp(year=y, month=month, day=day)
-                    if start_ts <= d <= end_ts:
+                    d = pd.Timestamp(year=y, month=month, day=day).normalize()
+                    if start_ts.normalize() <= d <= end_ts.normalize():
+                        close = float(px_map.get(d) or 0.0)
+                        # Mesma conta da queda ex-div no preço (antes do corte).
+                        amt = (close / (1.0 - dy / 2.0)) * (dy / 2.0) if dy < 1.8 and close > 0 else fallback_amt
+                        if close <= 0:
+                            amt = fallback_amt
                         rows.append(
                             {
                                 "date": d,
                                 "ticker": nt,
-                                "amount": annual / 2,
+                                "amount": float(amt),
                                 "ex_date": d,
                             }
                         )

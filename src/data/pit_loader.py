@@ -20,17 +20,27 @@ from typing import Any
 
 import pandas as pd
 
-from src.config import DATA_DIR
+from src.config import DATA_DIR, REFERENCE_DIR
 from src.data.schemas import coerce_fundamentals
 
-PIT_SNAPSHOTS_PATH = DATA_DIR / "reference" / "pit_snapshots.json"
+
+def pit_snapshots_path():
+    """JSON gerado pelo usuário (cache) tem prioridade; senão o arquivo versionado no pacote."""
+    override = DATA_DIR / "reference" / "pit_snapshots.json"
+    if override.exists():
+        return override
+    return REFERENCE_DIR / "pit_snapshots.json"
+
+
+PIT_SNAPSHOTS_PATH = pit_snapshots_path()
 
 
 def _read_pit_payload() -> dict[str, Any]:
-    if not PIT_SNAPSHOTS_PATH.exists():
+    path = pit_snapshots_path()
+    if not path.exists():
         return {}
     try:
-        return json.loads(PIT_SNAPSHOTS_PATH.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
 

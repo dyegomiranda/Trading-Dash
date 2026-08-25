@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from src.config import ROOT_DIR
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = ROOT_DIR
 ASSETS = ROOT / "assets"
 LOGO_PATH = ASSETS / "logo" / "TD_logo.png"
 ICON_PATH = ASSETS / "icon" / "TD_icon.png"

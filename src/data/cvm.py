@@ -31,7 +31,7 @@ from urllib.request import Request, urlopen
 
 import pandas as pd
 
-from src.config import DATA_DIR
+from src.config import DATA_DIR, REFERENCE_DIR
 from src.data.pit_loader import PIT_SNAPSHOTS_PATH
 from src.data.universe import normalize_ticker
 
@@ -42,7 +42,7 @@ FCA_ZIP = CVM_BASE + "/DOC/FCA/DADOS/fca_cia_aberta_{year}.zip"
 CAD_CSV = CVM_BASE + "/CAD/DADOS/cad_cia_aberta.csv"
 
 CVM_CACHE = DATA_DIR / "cache" / "cvm"
-TICKER_MAP_PATH = DATA_DIR / "reference" / "cvm_ticker_map.json"
+TICKER_MAP_PATH = REFERENCE_DIR / "cvm_ticker_map.json"
 
 _UA = {
     "User-Agent": (

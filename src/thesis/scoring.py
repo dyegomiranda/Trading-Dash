@@ -341,6 +341,7 @@ def apply_filters(
         dy = _safe(_row_get(row, "dividend_yield"))
         roe = _safe(_row_get(row, "roe"))
         debt = _safe(_row_get(row, "net_debt_ebitda"))
+        debt_eq = _safe(_row_get(row, "debt_equity"))
         payout = _safe(_row_get(row, "payout"))
         score = _safe(_row_get(row, "score_total"), 0) or 0
         price = _safe(_row_get(row, "price"))
@@ -355,7 +356,7 @@ def apply_filters(
             why.append("sem ROE")
         elif strict and roe is not None and roe < settings.min_roe:
             why.append(f"ROE<{settings.min_roe:.0%}")
-        if strict and debt is None:
+        if strict and debt is None and debt_eq is None:
             why.append("sem dado de dívida")
         elif strict and debt is not None and debt > settings.max_net_debt_ebitda:
             why.append("alavancagem alta")

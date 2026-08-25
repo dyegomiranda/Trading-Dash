@@ -292,6 +292,38 @@ def _overlay_market_on_fundamentals(
     return out
 
 
+def _execute_planned_rebalance(
+    portfolio: PaperPortfolio,
+    plan: dict[str, Any],
+    px: dict[str, float],
+    when: pd.Timestamp,
+    config: BacktestConfig,
+    trade_rows: list[dict[str, Any]],
+) -> None:
+    trades = portfolio.rebalance_to_weights(
+        plan["weights"],
+        px,
+        buckets=plan["buckets"],
+        note=f"rebalance-{plan['signal_day'].date()}",
+        ts=when.isoformat(),
+        fee_bps=config.costs.fee_bps,
+        slippage_bps=plan["slippage_bps"],
+        capital_gains_rate=config.costs.capital_gains_rate,
+    )
+    for tr in trades:
+        trade_rows.append(
+            {
+                "date": when,
+                "side": tr.side,
+                "ticker": tr.ticker,
+                "shares": tr.shares,
+                "price": tr.price,
+                "amount": tr.amount,
+                "note": tr.note,
+            }
+        )
+
+
 def _cap_weights_by_adv(
     weights: dict[str, float],
     equity: float,
@@ -541,32 +573,15 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                             }
                         )
 
-        def _execute_rebalance(plan: dict[str, Any], px: dict[str, float], when: pd.Timestamp) -> None:
-            trades = portfolio.rebalance_to_weights(
-                plan["weights"],
-                px,
-                buckets=plan["buckets"],
-                note=f"rebalance-{plan['signal_day'].date()}",
-                ts=when.isoformat(),
-                fee_bps=config.costs.fee_bps,
-                slippage_bps=plan["slippage_bps"],
-                capital_gains_rate=config.costs.capital_gains_rate,
-            )
-            for tr in trades:
-                trade_rows.append(
-                    {
-                        "date": when,
-                        "side": tr.side,
-                        "ticker": tr.ticker,
-                        "shares": tr.shares,
-                        "price": tr.price,
-                        "amount": tr.amount,
-                        "note": tr.note,
-                    }
-                )
-
         if pending_rebalance is not None:
-            _execute_rebalance(pending_rebalance, day_prices, day)
+            _execute_planned_rebalance(
+                portfolio,
+                pending_rebalance,
+                day_prices,
+                day,
+                config,
+                trade_rows,
+            )
             pending_rebalance = None
 
         if day in rebalance_set:
@@ -618,55 +633,49 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                     f"{day.date()}: ninguém passou no filtro da tese/liquidez — "
                     "mantive a carteira anterior (sem relaxar o filtro)."
                 )
-                continue
-            picks = recommend_weights(
-                tradable,
-                top_n=config.top_n,
-                core_weight=config.core_weight,
-                satellite_weight=config.satellite_weight,
-                max_position_pct=config.max_position_pct,
-                macro_tilt=config.macro_tilt,
-            )
-            weights = dict(zip(picks["ticker"], picks["target_weight"]))
-            buckets = dict(zip(picks["ticker"], picks.get("bucket", "core")))
-            if config.max_adv_order_pct > 0 and day_adv:
-                equity_now = float(portfolio.total_value(day_prices))
-                weights = _cap_weights_by_adv(
-                    weights, equity_now, day_adv, float(config.max_adv_order_pct)
-                )
-
-            eff_slippage_bps = config.costs.slippage_bps
-            if config.costs.dynamic_slippage and adv_20 is not None and day in adv_20.index:
-                day_adv_mean = float(adv_20.loc[day].mean()) if not adv_20.loc[day].empty else 1_000_000.0
-                order_size_est = portfolio.total_value(day_prices) / max(len(picks), 1)
-                impact_factor = float(np.sqrt(order_size_est / max(day_adv_mean, 100_000.0)))
-                eff_slippage_bps = config.costs.slippage_bps + float(config.costs.slippage_gamma * impact_factor * 10_000.0)
-                eff_slippage_bps = min(eff_slippage_bps, 150.0)
-
-            plan = {
-                "weights": weights,
-                "buckets": buckets,
-                "slippage_bps": eff_slippage_bps,
-                "signal_day": day,
-            }
-            if int(config.execution_lag_days or 0) <= 0:
-                _execute_rebalance(plan, day_prices, day)
             else:
-                pending_rebalance = plan
-                continue
-
-            for tr in []:  # placeholder stripped below
-                trade_rows.append(
-                    {
-                        "date": day,
-                        "side": tr.side,
-                        "ticker": tr.ticker,
-                        "shares": tr.shares,
-                        "price": tr.price,
-                        "amount": tr.amount,
-                        "note": tr.note,
-                    }
+                picks = recommend_weights(
+                    tradable,
+                    top_n=config.top_n,
+                    core_weight=config.core_weight,
+                    satellite_weight=config.satellite_weight,
+                    max_position_pct=config.max_position_pct,
+                    macro_tilt=config.macro_tilt,
                 )
+                weights = dict(zip(picks["ticker"], picks["target_weight"]))
+                buckets = dict(zip(picks["ticker"], picks.get("bucket", "core")))
+                if config.max_adv_order_pct > 0 and day_adv:
+                    equity_now = float(portfolio.total_value(day_prices))
+                    weights = _cap_weights_by_adv(
+                        weights, equity_now, day_adv, float(config.max_adv_order_pct)
+                    )
+
+                eff_slippage_bps = config.costs.slippage_bps
+                if config.costs.dynamic_slippage and adv_20 is not None and day in adv_20.index:
+                    day_adv_mean = (
+                        float(adv_20.loc[day].mean()) if not adv_20.loc[day].empty else 1_000_000.0
+                    )
+                    order_size_est = portfolio.total_value(day_prices) / max(len(picks), 1)
+                    impact_factor = float(
+                        np.sqrt(order_size_est / max(day_adv_mean, 100_000.0))
+                    )
+                    eff_slippage_bps = config.costs.slippage_bps + float(
+                        config.costs.slippage_gamma * impact_factor * 10_000.0
+                    )
+                    eff_slippage_bps = min(eff_slippage_bps, 150.0)
+
+                plan = {
+                    "weights": weights,
+                    "buckets": buckets,
+                    "slippage_bps": eff_slippage_bps,
+                    "signal_day": day,
+                }
+                if int(config.execution_lag_days or 0) <= 0:
+                    _execute_planned_rebalance(
+                        portfolio, plan, day_prices, day, config, trade_rows
+                    )
+                else:
+                    pending_rebalance = plan
 
         equity = portfolio.total_value(day_prices)
         equity_rows.append(
@@ -676,6 +685,35 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 "cash": portfolio.cash,
                 "n_positions": len(portfolio.positions),
             }
+        )
+
+    if pending_rebalance is not None and equity_rows:
+        last_day = pd.Timestamp(all_days[-1]).normalize()
+        last_px_map = close.loc[last_day].dropna().to_dict() if last_day in close.index else last_px
+        _execute_planned_rebalance(
+            portfolio, pending_rebalance, last_px_map, last_day, config, trade_rows
+        )
+        equity_rows[-1]["equity"] = portfolio.total_value(last_px_map)
+        equity_rows[-1]["cash"] = portfolio.cash
+        equity_rows[-1]["n_positions"] = len(portfolio.positions)
+
+    if pending_dividends and equity_rows:
+        extra = 0.0
+        for d in pending_dividends:
+            extra += float(d["net_amount"])
+            div_rows.append(
+                {
+                    "date": equity_rows[-1]["date"],
+                    "ticker": d["ticker"],
+                    "amount": d["net_amount"],
+                    "shares": d["shares"],
+                }
+            )
+        portfolio.cash += extra
+        equity_rows[-1]["cash"] = portfolio.cash
+        equity_rows[-1]["equity"] = float(equity_rows[-1]["equity"]) + extra
+        notes.append(
+            "Proventos ainda em liquidação no último pregão foram creditados no encerramento."
         )
 
     equity_curve = pd.DataFrame(equity_rows).set_index("date").sort_index()
@@ -705,6 +743,8 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
         "min_daily_volume_brl": config.min_daily_volume_brl,
         "max_adv_order_pct": config.max_adv_order_pct,
         "adv_excluded_count": adv_excluded_count,
+        "n_piotroski_veto": n_piotroski_veto,
+        "execution_lag_days": int(config.execution_lag_days or 0),
         "costs_enabled": config.costs.enabled,
         "cost_fee_bps": config.costs.fee_bps,
         "cost_slippage_bps": config.costs.slippage_bps,

@@ -1,0 +1,5 @@
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "$0")")"
+export PATH="$HERE/usr/bin:$PATH"
+cd "$HERE/usr/bin/TradingDash" || exit 1
+exec "$HERE/usr/bin/TradingDash/TradingDash" "$@"

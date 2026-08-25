@@ -1,0 +1,75 @@
+name: Binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  linux-appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: PyInstaller
+        run: python packaging/build.py
+
+      - name: AppImage
+        run: |
+          set -euo pipefail
+          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps
+          cp -a dist/TradingDash AppDir/usr/bin/TradingDash
+          cp packaging/linux/AppRun AppDir/AppRun
+          chmod +x AppDir/AppRun AppDir/usr/bin/TradingDash/TradingDash
+          cp packaging/linux/tradingdash.desktop AppDir/tradingdash.desktop
+          cp assets/icon/TD_icon.png AppDir/tradingdash.png
+          cp assets/icon/TD_icon.png AppDir/usr/share/icons/hicolor/256x256/apps/tradingdash.png
+          curl -sL -o appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir TradingDash-x86_64.AppImage
+          mkdir -p dist-out
+          mv TradingDash-x86_64.AppImage dist-out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradingDash-linux-AppImage
+          path: dist-out/TradingDash-x86_64.AppImage
+
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: PyInstaller
+        run: python packaging/build.py
+
+      - name: Zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist-out | Out-Null
+          Compress-Archive -Path dist/TradingDash -DestinationPath dist-out/TradingDash-windows.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TradingDash-windows
+          path: dist-out/TradingDash-windows.zip

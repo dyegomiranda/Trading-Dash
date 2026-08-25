@@ -17,6 +17,12 @@ data/logs/*.jsonl
 data/scores/*.json
 !data/scores/.gitkeep
 *.log
+/dist/
+/build/
+/AppDir/
+*.AppImage
+TradingDash_0.1.spec
+TradingDash_0.1_linux.zip
 .DS_Store
 .agents/
 .claude/

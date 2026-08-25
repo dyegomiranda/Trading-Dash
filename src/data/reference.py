@@ -11,15 +11,11 @@ from __future__ import annotations
 
 import json
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
-import os
 
-# Caminho fixo para o cadastro de tickers, relativo à raiz do projeto.
-# Isso garante que o arquivo seja encontrado independentemente da pasta de dados
-# configurada em src.config (pasta .TradingDash oculta no Linux).
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-REFERENCE_PATH = _PROJECT_ROOT / "data" / "reference" / "b3_tickers.json"
+from src.config import REFERENCE_DIR
+
+REFERENCE_PATH = REFERENCE_DIR / "b3_tickers.json"
 
 
 def _norm(ticker: str) -> str:
