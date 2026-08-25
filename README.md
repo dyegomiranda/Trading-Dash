@@ -17,17 +17,11 @@ App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileir
 | **Minha carteira** | Capital editável, aplicar tese, alocar manualmente, projetar renda |
 | **Teste no passado** | “E se eu tivesse seguido a tese desde 2022?” — com guia antes do 1º teste |
 | **Guia do iniciante** | Dicionário, fontes de dados e a estratégia em português claro |
-| **Configurações** | Modo treino, fonte B3 experimental e inclinação por juros |
+| **Configurações** | Fonte B3 experimental (brapi) e inclinação por juros |
 
-### Modo treino vs Bolsa real
+A carteira é **sempre dinheiro fictício** (paper). Os preços e indicadores vêm da **bolsa real** (Yahoo Finance). Não há um segundo modo com números inventados — treinar no app já é usar dados de mercado, sem corretora.
 
-| | **Bolsa real (padrão)** | **Modo treino** |
-|--|------------------------|-----------------|
-| Nome / setor | Yahoo + cadastro B3 local | Cadastro B3 local (**não inventa setor**) |
-| Preços e indicadores | Yahoo Finance | **Sintéticos — nunca para dinheiro real** |
-| Quando usar | Análise / simulação com dados de mercado | Só aprender a interface |
-
-> **Aviso de confiabilidade:** o app é MVP. Mesmo em Bolsa real, o Yahoo é gratuito e falível. Valide tickers, setores e números em RI/CVM/Status Invest antes de qualquer decisão. Cadastro de referência: `data/reference/b3_tickers.json` (atualizável com `scripts/refresh_b3_metadata.py`).
+> **Aviso de confiabilidade:** o app é MVP. O Yahoo é gratuito e falível. Valide tickers, setores e números em RI/CVM/Status Invest antes de qualquer decisão. Cadastro de referência: `data/reference/b3_tickers.json` (atualizável com `scripts/refresh_b3_metadata.py`).
 
 ---
 
@@ -87,11 +81,11 @@ real, é preciso um host com disco (ex.: render/fly.io + volume, ou Docker + bin
 
 ## Uso rápido (iniciante)
 
-1. **Início** — tour curto; a primeira visita já entra no **Modo treino**.  
+1. **Início** — tour curto; a primeira visita já usa a **bolsa real**.  
 2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome.  
 3. **Minha carteira** — ajuste o capital se quiser e clique em **Montar carteira com a tese**.  
 4. **Renda esperada** — 3 cenários (sem inventar yield se a carteira estiver vazia).  
-5. **Teste no passado** (opcional) — ensaio do motor com o retrato de hoje, não o balanço de 2022.
+5. **Teste no passado** (opcional) — ensaio com preços reais; compare primeiro com o IDIV, não com o CDI.
 
 ---
 

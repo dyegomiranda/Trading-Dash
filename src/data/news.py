@@ -89,6 +89,9 @@ def _fetch_yfinance_news(tickers: list[str], limit: int = 8) -> list[dict[str, A
     items: list[dict[str, Any]] = []
     try:
         import yfinance as yf
+        from src.data.yf_quiet import silence_yfinance
+
+        silence_yfinance()
     except Exception:
         return []
 

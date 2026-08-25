@@ -79,7 +79,7 @@ def assess_row_quality(row: pd.Series | dict[str, Any]) -> dict[str, Any]:
 
     flags: list[str] = []
     if is_synthetic:
-        flags.append("números de treino (não use para decidir dinheiro real)")
+        flags.append("números ilustrativos (não use para decidir dinheiro real)")
     if price is None or price <= 0:
         flags.append("sem preço válido")
     if dy is None:
@@ -95,7 +95,7 @@ def assess_row_quality(row: pd.Series | dict[str, Any]) -> dict[str, Any]:
 
     if is_synthetic:
         level = "treino"
-        label = "Modo treino"
+        label = "Números ilustrativos"
     elif completeness >= 0.75 and price and price > 0 and dy is not None:
         level = "boa"
         label = "Dados ok"
@@ -190,7 +190,7 @@ def coverage_summary(df: pd.DataFrame) -> dict[str, Any]:
     dy_cov = with_dy / n if n else 0.0
 
     if synthetic == n:
-        trust_level, trust_label = "treino", "Modo treino — números ilustrativos"
+        trust_level, trust_label = "treino", "Números ilustrativos (testes/offline)"
     elif price_cov >= 0.8 and dy_cov >= 0.6 and avg_comp >= 0.55:
         trust_level, trust_label = "boa", "Cobertura boa para estudar a tese"
     elif price_cov >= 0.5 and dy_cov >= 0.35:

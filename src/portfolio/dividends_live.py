@@ -295,7 +295,7 @@ def sync_paper_dividends(
     elif hist is None or hist.empty:
         msg = (
             "Nenhum dividendo encontrado na fonte neste período. "
-            "Tente de novo ou use Modo treino."
+            "Tente de novo em alguns minutos."
         )
     else:
         msg = "Nenhum dividendo novo para creditar."

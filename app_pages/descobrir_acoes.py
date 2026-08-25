@@ -149,12 +149,12 @@ if need_load:
             st.session_state["provider"] = provider
     except Exception as e:
         st.error(f"Não deu para carregar os dados: {e}")
-        st.info("Tente **Modo treino** na barra lateral para carregar na hora.")
+        st.info("Clique em **Atualizar dados** na barra e tente de novo em alguns segundos.")
         st.stop()
 
 scored_df = st.session_state.get("scored_df")
 if scored_df is None or getattr(scored_df, "empty", True):
-    st.warning("Sem dados de mercado. Clique em **Recalcular lista** ou ligue o Modo treino.")
+    st.warning("Sem dados de mercado. Clique em **Recalcular lista** ou **Atualizar dados**.")
     st.stop()
 
 if "quality_level" not in scored_df.columns:

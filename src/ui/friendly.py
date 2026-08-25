@@ -118,8 +118,8 @@ ACTION_LABELS: dict[str, str] = {
 
 GLOSSARY: list[tuple[str, str]] = [
     (
-        "Modo treino",
-        "Interruptor da barra. Ligado: o app usa números ilustrativos para você aprender. Desligado: busca a bolsa (Yahoo).",
+        "Conta de treino",
+        "O dinheiro da carteira é fictício. Os preços e indicadores vêm da bolsa (Yahoo).",
     ),
     (
         "Bolsa real",
@@ -194,8 +194,8 @@ GLOSSARY: list[tuple[str, str]] = [
         "A pior “descida” do patrimônio no período — útil para entender o estômago necessário.",
     ),
     (
-        "Modo treino (Demo)",
-        "Dados inventados mas realistas, para aprender o app sem internet e sem demora.",
+        "Números ilustrativos",
+        "Usados só em testes automáticos, offline. No app você vê a bolsa.",
     ),
     (
         "Dados da bolsa (Yahoo)",
@@ -315,14 +315,11 @@ def render_data_source_help() -> None:
     with st.expander("O que é “fonte de dados”?", icon=":material/help:"):
         st.markdown(
             """
-**Modo treino (recomendado para começar)**  
-Usa empresas e números de exemplo. É rápido, funciona offline e serve para aprender o fluxo.
+**Bolsa real**  
+Preços e indicadores do Yahoo Finance. Podem atrasar, faltar ou divergir da CVM — é gratuito.
 
-**Dados da bolsa**  
-Tenta puxar informações reais do mercado brasileiro. Pode demorar e, às vezes, vir incompleto  
-(é gratuito e nem sempre perfeito).
-
-Dica: pratique primeiro no **modo treino**. Depois, se quiser, mude para dados da bolsa.
+**Conta de treino**  
+O dinheiro é fictício. Você pratica o fluxo com dados de mercado, sem corretora.
 """
         )
 

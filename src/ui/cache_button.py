@@ -13,7 +13,7 @@ def render_refresh_control(*, key: str, compact: bool = True) -> None:
 
     help_txt = (
         "Apaga os números guardados e busca de novo na fonte. "
-        "Use se a lista parecer velha ou depois de mudar o modo treino."
+        "Use se a lista parecer velha ou depois de um erro da bolsa."
     )
     clicked = st.button(
         "Atualizar dados",

@@ -185,7 +185,7 @@ def narrative_thesis(
         f"Agora o app encontrou **{n_suggestions} sugestões**"
         + (f" (nota média ~{avg_score:.0f})" if avg_score is not None else "")
         + f". Exemplos no topo: **{tops}**.\n\n"
-        f"Fonte: **{'modo treino' if provider == 'demo' else 'bolsa (Yahoo + cadastro B3)'}**. "
+        f"Fonte: **{'números ilustrativos' if provider == 'demo' else 'bolsa (Yahoo + cadastro B3)'}**. "
         "Use **Montar carteira com a tese** para aplicar em dinheiro de treino."
     )
     system = (

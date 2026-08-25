@@ -101,9 +101,12 @@ with st.sidebar:
     )
     include_historical = st.toggle(
         "Incluir tickers que saíram da B3",
-        value=True,
-        key="bt_hist_univ",
-        help="Evita fingir que só existiu quem está listado hoje (viés de sobrevivência).",
+        value=False,
+        key="bt_hist_univ_off",
+        help=(
+            "Ligado: tenta papéis antigos (LAME, BTOW, etc.) para reduzir viés de sobrevivência. "
+            "O Yahoo costuma não ter esses tickers e polui o terminal — deixe desligado no uso normal."
+        ),
     )
     with st.expander("Balanços e liquidez", icon=":material/database:"):
         _pit_on_help = (
@@ -475,27 +478,16 @@ um atalho offline, não DFP/ITR oficiais.
 """
     )
 
-    c1, c2 = st.columns(2, gap="medium")
-    with c1, st.container(border=True):
-        st.markdown("#### O que é **Modo treino**?")
+    with st.container(border=True):
+        st.markdown("#### O que este teste usa")
         st.markdown(
             """
-- Usa um **mercado simulado** (números realistas, mas inventados).
-- É **rápido**, funciona offline e é ótimo para **aprender o fluxo**.
-- Os resultados **não** representam a B3 de verdade.
-
-**Use na primeira vez.** Depois, se quiser, mude para bolsa real.
-"""
-        )
-    with c2, st.container(border=True):
-        st.markdown("#### O que é **Bolsa real**?")
-        st.markdown(
-            """
-- Busca **preços e dividendos históricos** de ações brasileiras (Yahoo Finance, tickers `.SA`).
+- **Preços e dividendos reais** da bolsa (Yahoo Finance, tickers `.SA`).
+- **Dinheiro fictício** — você não opera na corretora.
 - Pode ser **lento** e, às vezes, incompleto (fonte gratuita).
 - O score de qualidade usa o JSON point-in-time quando ligado (semente ou CVM) + DY TTM do dia.
 
-Útil para experimentar, **sem** ser um backtest de auditoria.
+Não é um backtest de auditoria. Serve para ver se o **fluxo da tese** faz sentido no passado.
 """
         )
 
@@ -513,30 +505,29 @@ um atalho offline, não DFP/ITR oficiais.
 
     m1, m2, m3 = st.columns(3)
     with m1, st.container(border=True):
-        st.markdown("##### 1. Escolha a fonte")
-        st.caption("Modo treino = seguro e rápido.")
+        st.markdown("##### 1. Datas e capital")
+        st.caption("Barra lateral → início, fim, capital fictício.")
     with m2, st.container(border=True):
-        st.markdown("##### 2. Ajuste datas e capital")
-        st.caption("Barra lateral → início, fim, capital.")
+        st.markdown("##### 2. Amostra líquida")
+        st.caption("Comece pelas ~40 empresas mais negociadas, reajuste trimestral.")
     with m3, st.container(border=True):
         st.markdown("##### 3. Clique em Rodar")
-        st.caption("Depois explore os gráficos e tabelas.")
+        st.caption("Depois compare com o IDIV, não só com o CDI.")
 
     with st.expander("O que cada configuração significa?", icon=":material/help:"):
         st.markdown(
             f"""
 | Controle | Significado |
 |----------|-------------|
-| **Fonte de dados** | Treino (simulado) ou bolsa real (Yahoo) |
 | **Datas** | Período da “viagem no tempo” |
 | **Capital fictício** | Dinheiro de mentira no dia inicial (agora: **{format_brl(float(initial_cash))}**) |
 | **Quantas ações manter** | Tamanho da carteira em cada reajuste (Top N) |
 | **Frequência** | Mensal, trimestral (padrão) ou anual |
 | **Nota mínima** | Filtro de qualidade (0–100); mais alto = mais exigente |
-| **Universo** | Amostra rápida (~40) ou lista ampla; tickers que saíram entram por padrão |
-| **Custos** | Corretagem 15 bps + slippage 10 + JCP 25% do provento + IR 15% no ganho |
+| **Universo** | Amostra líquida (~40) ou lista ampla; papéis que saíram ficam **desligados** no uso normal |
+| **Custos** | Corretagem 15 bps + slippage 10 + JCP 25% do provento + IR 15% no ganho (isenção PF R$ 20 mil/mês) |
 
-**Sugestão de primeiro teste:** Modo treino · amostra rápida · trimestral · 2022 → hoje · capital R$ 100.000.
+**Sugestão de primeiro teste:** amostra rápida · trimestral · 2022 → hoje · capital R$ 100.000.
 """
         )
 
@@ -678,20 +669,20 @@ if ibov_r is not None or cdi_r is not None or idiv_r is not None:
     xs_idiv = m.get("excess_vs_idiv")
     row: list[tuple] = [
         (
-            "Ibovespa (mesmo período)",
-            format_pct(ibov_r) if ibov_r is not None else "—",
-            None,
-            None,
-        ),
-        (
-            "CDI (mesmo período)",
-            format_pct(cdi_r) if cdi_r is not None else "—",
-            None,
-            None,
-        ),
-        (
-            "IDIV (mesmo período)",
+            "IDIV (índice de dividendos)",
             format_pct(idiv_r) if idiv_r is not None else "—",
+            None,
+            None,
+        ),
+        (
+            "Vs IDIV",
+            format_pct(xs_idiv) if xs_idiv is not None else "—",
+            "acima" if (xs_idiv or 0) >= 0 else "abaixo",
+            "up" if (xs_idiv or 0) >= 0 else "down",
+        ),
+        (
+            "Ibovespa",
+            format_pct(ibov_r) if ibov_r is not None else "—",
             None,
             None,
         ),
@@ -701,38 +692,42 @@ if ibov_r is not None or cdi_r is not None or idiv_r is not None:
             "acima" if (xs_ibov or 0) >= 0 else "abaixo",
             "up" if (xs_ibov or 0) >= 0 else "down",
         ),
-    ]
-    if len(row) < 5:
-        row.append(
-            (
-                "Vs CDI",
-                format_pct(xs_cdi) if xs_cdi is not None else "—",
-                "acima" if (xs_cdi or 0) >= 0 else "abaixo",
-                "up" if (xs_cdi or 0) >= 0 else "down",
-            )
-        )
-    row.append(
         (
-            "Vs IDIV",
-            format_pct(xs_idiv) if xs_idiv is not None else "—",
-            "acima" if (xs_idiv or 0) >= 0 else "abaixo",
-            "up" if (xs_idiv or 0) >= 0 else "down",
-        )
-    )
+            "Vs CDI",
+            format_pct(xs_cdi) if xs_cdi is not None else "—",
+            "acima" if (xs_cdi or 0) >= 0 else "abaixo",
+            "up" if (xs_cdi or 0) >= 0 else "down",
+        ),
+    ]
     render_kpi_row(row)
     bm_meta = m.get("benchmark_meta") or {}
     st.caption(
-        f"Fontes dos benchmarks · Ibovespa: {bm_meta.get('ibov_source', '—')} · "
-        f"CDI: {bm_meta.get('cdi_source', '—')} · "
-        f"IDIV: {bm_meta.get('idiv_source', '—')}"
+        f"Fontes · IDIV: {bm_meta.get('idiv_source', '—')} · "
+        f"Ibovespa: {bm_meta.get('ibov_source', '—')} · "
+        f"CDI: {bm_meta.get('cdi_source', '—')}"
     )
-    st.caption(
-        "Ficar abaixo do CDI **não prova que a tese é ruim**. De 2022 em diante a Selic "
-        "ficou elevada, então o CDI acumulado é um alvo difícil para ações de dividendo. "
-        "O IR de 15% na venda só vale para PF se as vendas no mês passam de R$ 20 mil — "
-        "em contas de R$ 10 mil o modelo agora respeita essa isenção. "
-        "Corretagem, slippage e giro mensal ainda pesam no resultado."
-    )
+    if (m.get("total_return") or 0) > 0 and (xs_cdi or 0) < 0:
+        st.info(
+            "Você **ganhou dinheiro** no período, mas **menos que o CDI**. "
+            "Isso é comum com Selic alta: renda fixa (CDI) foi um alvo difícil para ações. "
+            "A tese Quality Dividend **não tenta copiar o Ibovespa** nem bater o CDI — "
+            "o índice mais próximo é o **IDIV** (empresas que pagam dividendo). "
+            "Giro mensal, corretagem e papéis ilíquidos puxam o resultado para baixo; "
+            "prefira amostra líquida e reajuste trimestral.",
+            icon=":material/info:",
+        )
+    elif (xs_idiv or 0) < 0:
+        st.caption(
+            "Abaixo do IDIV: a tese deveria andar perto do índice de dividendos. "
+            "Universo amplo, papéis que saíram da B3 e reajuste mensal costumam piorar o ensaio. "
+            "IR de 15% na venda só vale para PF se as vendas no mês passam de R$ 20 mil."
+        )
+    else:
+        st.caption(
+            "O IDIV é a comparação da tese (dividendos). Ibovespa mistura commodities e bancos "
+            "com pesos enormes; o CDI é renda fixa — com Selic alta, ações de qualidade "
+            "podem render positivo e ainda assim perder do CDI."
+        )
 
 # Curva com benchmarks
 eq = result.equity_curve

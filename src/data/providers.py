@@ -505,6 +505,9 @@ class YFinanceDataProvider(DataProvider):
     name: ProviderName = "yfinance"
 
     def __init__(self) -> None:
+        from src.data.yf_quiet import silence_yfinance
+
+        silence_yfinance()
         self.settings = get_settings()
 
     def get_fundamentals(self, tickers: list[str] | None = None) -> pd.DataFrame:

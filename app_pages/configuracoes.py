@@ -19,36 +19,12 @@ page_setup()
 render_page_header("Configurações", "Um lugar só para os ajustes do programa")
 
 provider = get_session_provider()
-treino = provider == "demo"
 
 st.markdown("##### De onde vêm os números")
-c1, c2 = st.columns(2)
-with c1, st.container(border=True):
-    st.markdown(":material/school: **Modo treino**")
-    st.caption("Números ilustrativos para aprender. Sem espera da bolsa.")
-    if st.button(
-        "Usar modo treino",
-        type="primary" if treino else "secondary",
-        width="stretch",
-        key="cfg_treino",
-        disabled=treino,
-    ):
-        request_session_provider("demo")
-        st.rerun()
-with c2, st.container(border=True):
-    st.markdown(":material/monitoring: **Bolsa real**")
-    st.caption("Preço e indicadores do Yahoo. Podem atrasar ou faltar.")
-    if st.button(
-        "Usar bolsa real",
-        type="primary" if not treino else "secondary",
-        width="stretch",
-        key="cfg_bolsa",
-        disabled=not treino and provider == "yfinance",
-    ):
-        request_session_provider("yfinance")
-        st.rerun()
-
-st.caption("O interruptor **Modo treino** na barra faz a mesma coisa — vale em todas as páginas.")
+st.caption(
+    "O app usa a **bolsa real**. O dinheiro da carteira é fictício — "
+    "você treina com preços de mercado, sem corretora e sem números inventados."
+)
 
 st.markdown("##### Fonte extra da B3 (opcional)")
 with st.container(border=True):
@@ -60,9 +36,7 @@ with st.container(border=True):
             "No plano grátis: preço e dividendo. Quase sem ROE nem dívida — "
             "a nota de qualidade da tese fica pela metade."
         )
-        if treino:
-            st.caption("Desligue o modo treino para escolher esta fonte.")
-        elif provider == "brapi":
+        if provider == "brapi":
             if st.button("Voltar para Yahoo", width="stretch", key="cfg_brapi_off"):
                 request_session_provider("yfinance")
                 st.rerun()
@@ -71,9 +45,7 @@ with st.container(border=True):
                 request_session_provider("brapi")
                 st.rerun()
     with right:
-        if treino:
-            st.caption("Modo treino manda agora.")
-        elif provider == "brapi":
+        if provider == "brapi":
             st.success("Ativa agora", icon=":material/science:")
         else:
             st.caption("Desligada · o app usa Yahoo")

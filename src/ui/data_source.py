@@ -46,16 +46,25 @@ def format_provider_label(x: str) -> str:
         return "Bolsa real (Yahoo Finance)"
     if x == "brapi":
         return "Experimental — dados da B3 (brapi.dev)"
-    return "Modo treino (números ilustrativos)"
+    return "Números ilustrativos (testes)"
+
+
+ALLOW_DEMO_KEY = "allow_demo_provider"
 
 
 def get_session_provider() -> str:
     _apply_pending_provider()
     val = st.session_state.get(SESSION_PROVIDER_KEY)
+    # Modo treino saiu da UI: sessões antigas em demo migram para a bolsa,
+    # salvo testes/preflight que marcam allow_demo_provider.
+    if val == "demo" and not st.session_state.get(ALLOW_DEMO_KEY):
+        val = st.session_state.get(REAL_PROVIDER_KEY) or "yfinance"
+        st.session_state[SESSION_PROVIDER_KEY] = val
+        return str(val)
     if val in PROVIDER_OPTIONS:
         return str(val)
-    st.session_state[SESSION_PROVIDER_KEY] = "demo"
-    return "demo"
+    st.session_state[SESSION_PROVIDER_KEY] = "yfinance"
+    return "yfinance"
 
 
 def get_session_macro() -> str:
@@ -76,7 +85,7 @@ def get_session_macro() -> str:
 def get_provider_badge(provider: str) -> tuple[str, str]:
     """Retorna (texto_badge, tipo_badge) para o cabeçalho."""
     if provider == "demo":
-        return ("⚡ Modo Treino", "demo")
+        return ("Ilustrativo", "demo")
     elif provider == "brapi":
         return ("🔬 Brapi (B3)", "warn")
     return ("● Bolsa Real (B3)", "live")
@@ -101,43 +110,28 @@ def render_clean_header(
 
 
 def render_data_quality_banner(provider: str) -> None:
-    """Caption curto sob o cabeçalho — o badge já diz o modo."""
+    """Caption curto sob o cabeçalho — o badge já diz a fonte."""
     if provider == "demo":
         st.caption(
-            "Modo treino: números ilustrativos. Desligue o interruptor **Modo treino** "
-            "na barra para usar a bolsa."
+            "Números ilustrativos (só testes/offline). No app o padrão é a bolsa real."
         )
     elif provider == "brapi":
         st.caption(
             "Fonte experimental da B3: quase não traz ROE nem dívida. Notas podem ficar incompletas."
         )
+    else:
+        st.caption(
+            "Conta de treino com dinheiro fictício, usando preços e indicadores da bolsa."
+        )
 
 
 def render_global_mode_toggle() -> str:
-    """Interruptor único na barra — vale em todas as páginas."""
-    _apply_pending_provider()
-    current = get_session_provider()
-    if SIDEBAR_TREINO_KEY not in st.session_state:
-        st.session_state[SIDEBAR_TREINO_KEY] = current == "demo"
-
-    treino = st.toggle(
-        "Modo treino",
-        key=SIDEBAR_TREINO_KEY,
-        help="Ligado: números ilustrativos para aprender. "
-        "Desligado: preços e indicadores da bolsa (Yahoo).",
-    )
-    if treino and current != "demo":
-        request_session_provider("demo")
-        st.rerun()
-    if not treino and current == "demo":
-        request_session_provider(st.session_state.get(REAL_PROVIDER_KEY) or "yfinance")
-        st.rerun()
-
+    """Caption da fonte na barra — o dinheiro no app é sempre fictício."""
     provider = get_session_provider()
-    if provider == "demo":
-        st.caption("Números de estudo · não são da bolsa")
-    elif provider == "brapi":
+    if provider == "brapi":
         st.caption("Bolsa · fonte experimental B3")
+    elif provider == "demo":
+        st.caption("Números ilustrativos · só testes")
     else:
         st.caption("Bolsa real · Yahoo Finance")
     return provider
@@ -168,19 +162,16 @@ def macro_selectbox() -> str:
 
 
 def render_sources_guide() -> None:
-    """Texto do Guia: o que é cada fonte, em linguagem de leigo."""
-    c1, c2 = st.columns(2)
-    with c1, st.container(border=True):
-        st.markdown(":material/school: **Modo treino**")
-        st.caption("Números inventados, estáveis, para aprender os botões. Nunca para dinheiro real.")
-    with c2, st.container(border=True):
-        st.markdown(":material/monitoring: **Bolsa real**")
-        st.caption("Preço e indicadores do Yahoo. Podem atrasar, faltar ou divergir da CVM.")
+    """Texto do Guia: de onde vêm os números."""
+    with st.container(border=True):
+        st.markdown(":material/monitoring: **Bolsa real (Yahoo Finance)**")
+        st.caption(
+            "Preço, dividendo e indicadores de mercado. Podem atrasar, faltar ou divergir da CVM. "
+            "O dinheiro da carteira continua fictício — você treina com dados reais, sem corretora."
+        )
     with st.container(border=True):
         st.markdown(":material/science: **Fonte experimental da B3 (brapi.dev)**")
         st.caption(
-            "A brapi é uma empresa que junta dados da bolsa brasileira. "
-            "No plano grátis ela entrega preço e dividendo, mas quase não traz "
-            "ROE nem dívida — e a tese precisa desses dois. Por isso é opcional "
-            "e fica em Configurações, não no interruptor principal."
+            "A brapi junta dados da bolsa brasileira. No plano grátis entrega preço e dividendo, "
+            "mas quase não traz ROE nem dívida — e a tese precisa desses dois. Opcional, em Configurações."
         )

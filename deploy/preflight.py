@@ -6,7 +6,7 @@ Uso (da raiz do repo, igual ao CI/Cloud):
 O que checa:
   1. Dependências instaladas (requirements.txt resolvem).
   2. Referência B3 (data/reference/b3_tickers.json) está versionada no git
-     — sem isso, o "Modo treino" e os nomes/setores quebram no servidor.
+     — sem isso, nomes e setores quebram no servidor.
   3. Todos os módulos de src/ importáveis (py_compile de rede-pronto).
   4. Cada página em app_pages/ importa (syntaticamente) sem rede.
   5. O entrypoint app.py SOBE pelo harness AppTest do Streamlit com a fonte
@@ -107,15 +107,16 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001
             check(f"py_compile {page.name}", False, str(e)[:160])
 
-    # 5) App sobe offline com fonte demo
+    # 5) App sobe offline com fonte demo (só o harness; a UI não oferece esse modo)
     print("\n5) Boot do app (AppTest, fonte=demo, offline)")
     try:
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30)
-        # força "Modo treino" para o boot não depender de rede
         with contextlib.suppress(Exception):
-            at.session_state["home_provider"] = "demo"
+            at.session_state["allow_demo_provider"] = True
+            at.session_state["app_provider"] = "demo"
+            at.session_state["onboarding_done"] = True
         at.run()
         if at.exception:
             errs = [str(e.value) for e in at.exception]

@@ -19,8 +19,8 @@ def render_trust_strip(
     """Faixa curta: de onde vêm os dados e quão completos estão."""
     if provider == "demo":
         st.warning(
-            "**Modo treino:** as notas e rankings usam números **ilustrativos**. "
-            "Sirvem para aprender o app. Para estudar com cara de mercado, mude para **Bolsa real**.",
+            "Estas notas usam números **ilustrativos** (só testes/offline). "
+            "No app o padrão é a bolsa real.",
             icon=":material/school:",
         )
         return

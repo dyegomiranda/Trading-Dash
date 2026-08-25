@@ -176,7 +176,7 @@ except Exception as e:
     st.error(f"Não deu para carregar o mercado: {e}")
     st.info(
         "Sua carteira de treino ainda aparece abaixo. "
-        "Para dados na hora, escolha **Modo treino** na barra lateral."
+        "Clique em **Atualizar dados** na barra e tente de novo."
     )
 
 render_trust_strip(provider=provider, coverage=coverage)
@@ -741,9 +741,9 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
         )
         if provider == "demo":
             st.warning(
-                "Você está no **modo treino**. A carteira montada usa números ilustrativos. "
-                "Para sugestões com cara de mercado, mude para **Bolsa real**.",
-                icon=":material/school:",
+                "Números ilustrativos (só testes/offline). "
+                "A montagem no app usa a bolsa real.",
+                icon=":material/info:",
             )
         if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
             st.warning(
@@ -785,7 +785,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                                 "Nenhuma ação passou no filtro da tese "
                                 "(ROE, dívida, payout, DY). "
                                 "Não montei o livro com o universo sem filtro. "
-                                "Tente Modo treino ou o filtro frouxo em Descubra ações."
+                                "Afrouxe o filtro em Descubra ações ou atualize os dados."
                             ),
                         }
                         st.rerun()
@@ -1296,7 +1296,9 @@ que você definir abaixo.
             f"Taxa inicial de dividendo (base): ~{start_yield:.1%} (teto {settings_income.projection_max_yield:.0%})",
             "Preço das ações fica de lado (foco em renda, não em valorização)",
             "Três faixas: P10 cauteloso / P50 base / P90 animado — nenhum é garantia",
-            "Fonte de dados: " + ("modo treino" if provider == "demo" else "bolsa (Yahoo + cadastro B3)"),
+            "Fonte de dados: " + (
+                "números ilustrativos" if provider == "demo" else "bolsa (Yahoo + cadastro B3)"
+            ),
         ],
         title="Premissas da renda esperada",
     )
@@ -1520,7 +1522,7 @@ if section == "more":
     st.markdown("##### Dividendos creditados")
     with st.container(border=True):
         st.caption(
-            "O app consulta a fonte de dados (Bolsa real ou modo treino) e coloca no caixa "
+            "O app consulta a bolsa e coloca no caixa "
             "os pagamentos em que você já tinha as ações. Não repete o mesmo dia+ticker."
         )
         if st.button(

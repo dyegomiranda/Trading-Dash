@@ -6,7 +6,6 @@ import pandas as pd
 import streamlit as st
 
 from src.data.news import fetch_headlines
-from src.data.providers import is_realtime_provider
 from src.portfolio.paper import load_portfolio, list_portfolios
 from src.services import (
     format_brl,
@@ -84,35 +83,44 @@ recs = scored
 prices: dict = {}
 news = pd.DataFrame()
 
-_load_msg = (
-    "Carregando mercado… na primeira vez pode levar até meio minuto; depois vem do cache."
-    if is_realtime_provider(provider)
-    else "Carregando overview do modo treino…"
-)
+_load_msg = "Carregando mercado… na primeira vez pode levar até meio minuto; depois vem do cache."
 _boot = st.empty()
-_boot.html(
-    "<div class='td-boot' role='status' aria-live='polite'>"
-    "<div class='td-boot-ring'></div>"
-    f"<p class='td-boot-msg'>{_load_msg}</p>"
-    "</div>"
-)
 _load_error: Exception | None = None
-try:
-    result = _scored(provider)
-    scored = result.scored
-    filtered = result.filtered
-    recs = recommend_weights(
-        filtered,
-        top_n=10,
-        macro_tilt=macro_tilt_from_override(get_session_macro()),
-    )
-    prices = prices_dict_from_fundamentals(scored)
-except Exception as e:
-    _load_error = e
-    scored = pd.DataFrame()
-    recs = scored
-finally:
-    _boot.empty()
+# st.spinner envia o delta ao navegador DURANTE o trabalho;
+# HTML criado e apagado no mesmo run nunca aparece na tela.
+with (
+    _boot.container(
+        height=560,
+        horizontal_alignment="center",
+        vertical_alignment="center",
+        key="home_boot",
+    ),
+    st.spinner(_load_msg, show_time=True),
+):
+    try:
+        result = _scored(provider)
+        scored = result.scored
+        filtered = result.filtered
+        recs = recommend_weights(
+            filtered,
+            top_n=10,
+            macro_tilt=macro_tilt_from_override(get_session_macro()),
+        )
+        prices = prices_dict_from_fundamentals(scored)
+        watch_boot = (
+            recs["ticker"].head(6).tolist()
+            if not recs.empty and "ticker" in recs.columns
+            else ["ITUB4", "PETR4", "VALE3"]
+        )
+        try:
+            news = fetch_headlines(watch_boot, provider="yfinance", limit=6, timeout_sec=12.0)
+        except Exception:
+            news = pd.DataFrame()
+    except Exception as e:
+        _load_error = e
+        scored = pd.DataFrame()
+        recs = scored
+_boot.empty()
 
 if not _header_shown:
     render_clean_header(_home_title, _home_sub, provider=provider)
@@ -126,15 +134,6 @@ if not portfolio.positions:
 
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)
-watch = (
-    recs["ticker"].head(6).tolist()
-    if not recs.empty and "ticker" in recs.columns
-    else ["ITUB4", "PETR4", "VALE3"]
-)
-try:
-    news = fetch_headlines(watch, provider="yfinance", limit=6, timeout_sec=12.0)
-except Exception:
-    news = pd.DataFrame()
 
 # Jornada + KPIs
 has_pos = not holdings.empty

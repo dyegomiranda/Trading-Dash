@@ -290,7 +290,7 @@ def resolve_successor(ticker: str) -> str:
 def is_tradable(ticker: str) -> bool:
     meta = get_ticker_meta(ticker)
     status = meta.get("status") or "unknown"
-    return status not in ("delisted_or_renamed",)
+    return status not in ("delisted_or_renamed", "historical")
 
 
 def active_universe(tickers: list[str]) -> list[str]:
@@ -300,10 +300,12 @@ def active_universe(tickers: list[str]) -> list[str]:
     for t in tickers:
         nt = _norm(t)
         meta = get_ticker_meta(nt)
-        if meta.get("status") == "delisted_or_renamed":
-            nt = resolve_successor(nt)
-            meta = get_ticker_meta(nt)
-        if meta.get("status") == "delisted_or_renamed":
+        if meta.get("status") in ("delisted_or_renamed", "historical"):
+            succ = meta.get("successor")
+            if succ:
+                nt = _norm(str(succ))
+                meta = get_ticker_meta(nt)
+        if not is_tradable(nt):
             continue
         if nt not in seen:
             seen.add(nt)

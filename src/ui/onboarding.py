@@ -96,15 +96,11 @@ Não é promessa de lucro — é um **guia guiado** para aprender a tese com cal
         elif step == 1:
             st.markdown(
                 """
-**Duas fontes de dados**
+**De onde vêm os números**
 
-| Fonte | Quando usar |
-|-------|-------------|
-| **Bolsa real** | Estudar com preços/indicadores de mercado (podem falhar ou atrasar) |
-| **Modo treino** | Aprender a interface na hora, com números ilustrativos |
+O app usa **preços e indicadores da bolsa** (Yahoo Finance). A carteira é de **dinheiro fictício**: você treina o fluxo sem corretora, mas com dados de mercado.
 
-O app mostra **qualidade dos dados** e **premissas**.
-Se algo estiver incompleto, a nota da empresa perde força — de propósito.
+A fonte pode atrasar ou faltar — é gratuita. Se um indicador não vier, a nota da empresa perde força, de propósito.
 """
             )
         elif step == 2:
@@ -112,12 +108,12 @@ Se algo estiver incompleto, a nota da empresa perde força — de propósito.
                 """
 **Caminho recomendado**
 
-1. Fique no **Modo treino** nesta primeira visita (já está ligado)
-2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome
-3. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil de treino)
-4. **Renda esperada** — 3 cenários, sem mágica
+1. **Descubra ações** — as 4 notas da tese e o porquê de cada nome
+2. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil fictícios)
+3. **Renda esperada** — 3 cenários, sem mágica
+4. **Teste no passado** (opcional) — como a tese se comportaria com preços reais
 
-Depois, se quiser: **Teste no passado** (ensaio com o retrato de hoje) e o **Guia**.
+Depois, o **Guia** se alguma palavra escapar.
 """
             )
         else:
@@ -125,9 +121,9 @@ Depois, se quiser: **Teste no passado** (ensaio com o retrato de hoje) e o **Gui
                 """
 **Checklist rápido**
 
-- [ ] Entendi que é **treino** até eu validar fora do app
-- [ ] Vou começar no **Modo treino** e só depois pedir Bolsa real
+- [ ] Entendi que o dinheiro é **fictício** e os preços são da **bolsa**
 - [ ] O botão que monta o livro é **Montar carteira com a tese**
+- [ ] Vou validar qualquer nome em RI/CVM antes de dinheiro real
 
 Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
 """
@@ -149,19 +145,19 @@ Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
                 st.rerun()
         else:
             if st.button(
-                "Começar no modo treino",
+                "Começar com a bolsa",
                 type="primary",
                 width="stretch",
                 key="ob_done",
             ):
                 mark_onboarding_done()
                 st.session_state["onboarding_step"] = 0
-                request_session_provider("demo")
+                request_session_provider("yfinance")
                 st.rerun()
     with c3:
         if st.button("Pular tour", width="stretch", key="ob_skip"):
             mark_onboarding_done()
-            request_session_provider("demo")
+            request_session_provider("yfinance")
             st.rerun()
 
     return True
@@ -187,8 +183,8 @@ def render_learning_dashboard() -> None:
     # Define os marcos com descrições e ícones
     milestone_definitions = {
         "understand_training": {
-            "title": "Entende o modo treino",
-            "description": "Soube diferenciar modo treino (dados ilustrativos) da bolsa real",
+            "title": "Entende a conta de treino",
+            "description": "Soube que o dinheiro é fictício e os preços vêm da bolsa",
             "icon": ":material/school:",
         },
         "know_data_sources": {

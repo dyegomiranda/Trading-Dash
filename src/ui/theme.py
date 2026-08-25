@@ -1042,37 +1042,26 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 /* Hide Streamlit default footer clutter a bit */
 footer {{ visibility: hidden; }}
 
-/* Boot: spinner no centro da tela em branco (Início, 1ª carga) */
-.td-boot {{
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 10050 !important;
+/* Spinner nativo no centro da Início (st.spinner dentro de .st-key-home_boot) */
+.st-key-home_boot {{
+  min-height: 70vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}}
+.st-key-home_boot [data-testid="stSpinner"] {{
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  background: rgba(7, 11, 20, 0.97) !important;
-  pointer-events: none !important;
+  gap: 1rem !important;
+  width: 100% !important;
+  text-align: center !important;
+  padding: 6rem 1.25rem !important;
 }}
-.td-boot-ring {{
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  border: 3px solid rgba(167, 139, 250, 0.18);
-  border-top-color: {COLORS['primary']};
-  animation: td-spin 0.8s linear infinite;
-}}
-.td-boot-msg {{
-  margin: 1.15rem 1.5rem 0 1.5rem;
-  color: {COLORS['muted']};
-  font-size: 0.95rem;
-  text-align: center;
-  max-width: 28rem;
-  letter-spacing: 0.01em;
-}}
-@keyframes td-spin {{
-  from {{ transform: rotate(0deg); }}
-  to {{ transform: rotate(360deg); }}
+.st-key-home_boot [data-testid="stSpinner"] svg {{
+  width: 3rem !important;
+  height: 3rem !important;
 }}
 </style>
 """
