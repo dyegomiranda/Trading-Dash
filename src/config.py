@@ -128,9 +128,9 @@ class Settings(BaseSettings):
     # Projeção de renda: teto de taxa de dividendo no longo prazo
     projection_max_yield: float = 0.10
     yfinance_timeout: int = 20
-    # Limite de tickers por fetch Yahoo (evita travar a UI)
-    yfinance_max_tickers: int = Field(default=40, alias="YFINANCE_MAX_TICKERS")
-    yfinance_workers: int = Field(default=8, alias="YFINANCE_WORKERS")
+    # Limite de tickers por fetch Yahoo (permite até o universo completo da B3)
+    yfinance_max_tickers: int = Field(default=400, alias="YFINANCE_MAX_TICKERS")
+    yfinance_workers: int = Field(default=12, alias="YFINANCE_WORKERS")
     yfinance_ticker_timeout: float = Field(default=4.0, alias="YFINANCE_TICKER_TIMEOUT")
     news_timeout_sec: float = Field(default=8.0, alias="NEWS_TIMEOUT_SEC")
     # Regime macro: "auto" (busca Selic/IPCA no Banco Central) | "expansionary" |

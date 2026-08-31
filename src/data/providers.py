@@ -535,13 +535,14 @@ class YFinanceDataProvider(DataProvider):
                 seen.add(nt)
                 tickers_resolved.append(nt)
 
-        max_n = int(getattr(self.settings, "yfinance_max_tickers", 40) or 40)
+        max_n = int(getattr(self.settings, "yfinance_max_tickers", 400) or 400)
         if len(tickers_resolved) > max_n:
-            # prioriza core scan se a lista veio full
+            # prioriza core scan se a lista veio full e excedeu o teto
             core = get_universe(mode="core")
             ordered = [t for t in core if t in set(tickers_resolved)]
             rest = [t for t in tickers_resolved if t not in set(ordered)]
             tickers_resolved = (ordered + rest)[:max_n]
+
 
         from src.data.ttl import ttl_for
         from src.monitoring import coverage_event, timed
