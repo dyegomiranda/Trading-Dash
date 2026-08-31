@@ -246,10 +246,10 @@ def portfolio_journey_state(
     if not has_capital:
         return 0, -1
     if not has_positions:
-        return 2, 0  # capital ok; ainda montando (pular “escolher” se já está na carteira)
+        return 2, 1  # Capital definido e ações exploradas; passo atual é Montar carteira
     if not viewed_income:
-        return 3, 2
-    return 3, 3
+        return 3, 2  # Carteira montada com sucesso! Próximo passo é explorar Renda & Riscos
+    return 3, 3  # Todos os 4 passos concluídos!
 
 
 

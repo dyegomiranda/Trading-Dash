@@ -192,3 +192,37 @@ def test_wallet_tickers_from_portfolio():
     assert wallet_tickers == ["PETR4", "VALE3"]
 
 
+def test_portfolio_income_contribution_persistence():
+    from src.portfolio.paper import PaperPortfolio
+
+    p = PaperPortfolio(name="test_p", user_income=12000.0, monthly_contribution=2500.0)
+    data = p.to_dict()
+    assert data["user_income"] == 12000.0
+    assert data["monthly_contribution"] == 2500.0
+
+    restored = PaperPortfolio.from_dict(data)
+    assert restored.user_income == 12000.0
+    assert restored.monthly_contribution == 2500.0
+
+
+def test_portfolio_journey_state_sync():
+    from src.ui.friendly import portfolio_journey_state
+
+    # 1. Sem capital
+    cur, done = portfolio_journey_state(has_capital=False, has_positions=False)
+    assert (cur, done) == (0, -1)
+
+    # 2. Com capital, sem posições (próximo é montar carteira)
+    cur, done = portfolio_journey_state(has_capital=True, has_positions=False)
+    assert (cur, done) == (2, 1)
+
+    # 3. Com capital e posições, mas não visualizou renda ainda
+    cur, done = portfolio_journey_state(has_capital=True, has_positions=True, viewed_income=False)
+    assert (cur, done) == (3, 2)
+
+    # 4. Com tudo concluído
+    cur, done = portfolio_journey_state(has_capital=True, has_positions=True, viewed_income=True)
+    assert (cur, done) == (3, 3)
+
+
+

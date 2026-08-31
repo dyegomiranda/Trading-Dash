@@ -33,7 +33,7 @@ from src.ui.components import (
     render_plain_help,
     render_thesis_pillars,
 )
-from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
+from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe, portfolio_journey_state
 from src.ui.onboarding import render_onboarding_if_needed, render_learning_dashboard
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
@@ -133,11 +133,14 @@ holdings = portfolio.holdings_frame(prices)
 
 # Jornada + KPIs
 has_pos = not holdings.empty
-render_journey(
-    JOURNEY_STEPS,
-    current=2 if has_pos else (0 if float(summary.get("equity") or 0) < 100 else 1),
-    completed_through=2 if has_pos else (0 if float(summary.get("equity") or 0) >= 100 else -1),
+has_cap = float(summary.get("equity") or 0) >= 100
+viewed_inc = bool(st.session_state.get("viewed_income", False))
+cur_step, done_step = portfolio_journey_state(
+    has_capital=has_cap,
+    has_positions=has_pos,
+    viewed_income=viewed_inc,
 )
+render_journey(JOURNEY_STEPS, current=cur_step, completed_through=done_step)
 render_plain_help(
     "Seu caminho em 4 passos",
     """

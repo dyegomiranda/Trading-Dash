@@ -63,7 +63,7 @@ from src.ui.data_source import (
     render_clean_header,
     render_data_quality_banner,
 )
-from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
+from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe, portfolio_journey_state
 from src.ui.refresh import soft_refresh
 
 from src.ui.shell import page_setup
@@ -83,16 +83,25 @@ with st.sidebar:
     _saved = list_portfolios()
     if not _saved:
         _saved = ["paper-main"]
-    if "pf_select" in st.session_state and st.session_state["pf_select"] not in _saved:
-        st.session_state["pf_select"] = _saved[0]
+    current_active = (
+        st.session_state.get("pf_active_name")
+        or st.session_state.get("pf_select")
+        or _saved[0]
+    )
+    if current_active not in _saved:
+        current_active = _saved[0]
+    active_idx = _saved.index(current_active)
+
     portfolio_name = st.selectbox(
         "Carteira ativa",
         options=_saved,
-        key="pf_select",
+        index=active_idx,
+        key="pf_select_box",
         help="Cada carteira tem caixa e ações próprios.",
     )
     if portfolio_name != st.session_state.get("pf_active_name"):
         st.session_state["pf_active_name"] = portfolio_name
+        st.session_state["pf_select"] = portfolio_name
 
     _confirm_key = f"pf_del_confirm_{portfolio_name}"
     _can_del = st.button(
@@ -196,17 +205,13 @@ summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)
 has_positions = not holdings.empty
 has_capital = float(summary.get("equity") or 0) >= 100
-viewed_income = bool(st.session_state.get("pf_viewed_income"))
+viewed_income = bool(st.session_state.get("viewed_income") or st.session_state.get("pf_viewed_income"))
 
-# 0 capital · 1 escolher · 2 montar · 3 renda
-if not has_capital:
-    journey_current, journey_done = 0, -1
-elif not has_positions:
-    journey_current, journey_done = 2, 0
-elif not viewed_income:
-    journey_current, journey_done = 3, 2
-else:
-    journey_current, journey_done = 3, 3
+journey_current, journey_done = portfolio_journey_state(
+    has_capital=has_capital,
+    has_positions=has_positions,
+    viewed_income=viewed_income,
+)
 
 render_journey(JOURNEY_STEPS, current=journey_current, completed_through=journey_done)
 
@@ -319,17 +324,25 @@ if portfolio.positions:
             icon=":material/warning:",
         )
 
-# Abas persistentes: st.tabs volta sempre para a 1ª no rerun (ex.: ao digitar renda).
-# segmented_control + session_state mantém o usuário na seção em que estava.
-_SECTION_LABELS = {
-    "overview": "Visão geral",
-    "build": "Montar carteira",
-    "income": "Renda esperada & Metas",
-    "news": "Radar de Notícias & Riscos",
-    "more": "Detalhes",
-}
-if "pf_section" not in st.session_state:
-    st.session_state["pf_section"] = "overview"
+# Abas contextuais: quando a carteira já tem ações, a prioridade máxima é Visão Geral e Renda Esperada & Metas.
+# Montar carteira passa a ser 'Ajustar / Nova Carteira' no final, mantendo o visual limpo e focado no acompanhamento.
+if has_positions:
+    _SECTION_LABELS = {
+        "overview": "Visão geral",
+        "income": "Renda esperada & Metas",
+        "news": "Radar de Notícias & Riscos",
+        "build": "Ajustar / Nova Carteira",
+        "more": "Detalhes",
+    }
+else:
+    _SECTION_LABELS = {
+        "build": "Montar carteira",
+        "overview": "Visão geral",
+        "more": "Detalhes",
+    }
+
+if "pf_section" not in st.session_state or st.session_state["pf_section"] not in _SECTION_LABELS:
+    st.session_state["pf_section"] = "overview" if has_positions else "build"
 
 section = st.segmented_control(
     "Seção da carteira",
@@ -339,7 +352,11 @@ section = st.segmented_control(
     help="Ao editar valores, você permanece nesta seção (não volta sozinho para Visão geral).",
 )
 if section is None:
-    section = st.session_state.get("pf_section") or "overview"
+    section = st.session_state.get("pf_section") or ("overview" if has_positions else "build")
+
+if section == "income":
+    st.session_state["viewed_income"] = True
+    st.session_state["pf_viewed_income"] = True
 
 
 # ─── Visão geral ────────────────────────────────────────────────────────────
@@ -665,6 +682,20 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                     "O app **não vende sozinho**. Você decide na aba Montar carteira."
                 )
 
+        if has_positions:
+            st.markdown("---")
+            ov_col1, ov_col2 = st.columns([1.2, 1])
+            with ov_col1:
+                if st.button("🎯 Ver Renda Esperada & Metas de Longo Prazo ➔", type="primary", width="stretch", key="ov_to_income"):
+                    st.session_state["pf_section"] = "income"
+                    st.session_state["viewed_income"] = True
+                    st.session_state["pf_viewed_income"] = True
+                    st.rerun()
+            with ov_col2:
+                if st.button("📰 Acessar Radar de Notícias & Riscos ➔", width="stretch", key="ov_to_news"):
+                    st.session_state["pf_section"] = "news"
+                    st.rerun()
+
 # ─── Montar carteira ────────────────────────────────────────────────────────
 if section == "build":
     render_plain_help(
@@ -833,13 +864,16 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         for t in trades
                     ]
                     if trades:
+                        st.session_state["pf_section"] = "overview"
+                        st.session_state["viewed_income"] = False
+                        st.session_state["pf_viewed_income"] = False
                         st.session_state["pf_flash"] = {
                             "kind": "success",
                             "msg": (
-                                f"Carteira montada: {len(trades)} ordens · "
+                                f"🎉 Carteira montada com sucesso: {len(trades)} ordens · "
                                 f"{len(portfolio.positions)} empresas · "
-                                f"total {format_brl(after['equity'])}. "
-                                "Agora abra a aba Renda esperada."
+                                f"total {format_brl(after['equity'])}! "
+                                "Veja a distribuição abaixo e siga para Renda esperada & Metas."
                             ),
                             "details": details,
                         }
@@ -1068,8 +1102,12 @@ que você definir abaixo.
             "A renda líquida só ajuda a **sugerir** o aporte (5% / 10% / 15%). "
             "O que entra na simulação da carteira é **somente o valor do aporte**."
         )
-        if "pf_user_income" not in st.session_state:
-            st.session_state["pf_user_income"] = 8_000.0
+        # Inicialização persistente da carteira salva
+        if "pf_user_income" not in st.session_state or st.session_state.get("_loaded_pf") != portfolio.name:
+            st.session_state["_loaded_pf"] = portfolio.name
+            st.session_state["pf_user_income"] = float(
+                portfolio.user_income if portfolio.user_income is not None else 8_000.0
+            )
 
         ic1, ic2 = st.columns([1, 1.2])
         with ic1:
@@ -1090,7 +1128,10 @@ que você definir abaixo.
                 key="pf_sug_leve",
                 help="Cerca de 5% da renda — ritmo suave.",
             ):
-                st.session_state["pf_monthly_contrib"] = float(suggestions["leve"])
+                val = float(suggestions["leve"])
+                st.session_state["pf_monthly_contrib"] = val
+                portfolio.monthly_contribution = val
+                save_portfolio(portfolio)
                 st.rerun()
             if s2.button(
                 f"Recomendado · {format_brl(suggestions['recomendado'])}",
@@ -1099,7 +1140,10 @@ que você definir abaixo.
                 key="pf_sug_rec",
                 help="Cerca de 10% da renda — meta clássica de investimento.",
             ):
-                st.session_state["pf_monthly_contrib"] = float(suggestions["recomendado"])
+                val = float(suggestions["recomendado"])
+                st.session_state["pf_monthly_contrib"] = val
+                portfolio.monthly_contribution = val
+                save_portfolio(portfolio)
                 st.rerun()
             if s3.button(
                 f"Forte · {format_brl(suggestions['forte'])}",
@@ -1107,13 +1151,18 @@ que você definir abaixo.
                 key="pf_sug_forte",
                 help="Cerca de 15% da renda — só se couber no orçamento.",
             ):
-                st.session_state["pf_monthly_contrib"] = float(suggestions["forte"])
+                val = float(suggestions["forte"])
+                st.session_state["pf_monthly_contrib"] = val
+                portfolio.monthly_contribution = val
+                save_portfolio(portfolio)
                 st.rerun()
             st.caption(suggestions["blurb"])
 
         if "pf_monthly_contrib" not in st.session_state:
             st.session_state["pf_monthly_contrib"] = float(
-                suggestions["recomendado"] if user_income > 0 else 500.0
+                portfolio.monthly_contribution
+                if portfolio.monthly_contribution is not None
+                else (suggestions["recomendado"] if user_income > 0 else 500.0)
             )
         # Mantém o slider dentro do max se a renda mudar
         slider_max = max(
@@ -1133,6 +1182,16 @@ que você definir abaixo.
             key="pf_monthly_contrib",
             help="Todo mês o modelo assume que este valor entra na carteira da tese.",
         )
+
+        # Salva na carteira se houve alteração do usuário
+        if (
+            portfolio.user_income != float(user_income)
+            or portfolio.monthly_contribution != float(monthly_contrib)
+        ):
+            portfolio.user_income = float(user_income)
+            portfolio.monthly_contribution = float(monthly_contrib)
+            save_portfolio(portfolio)
+
         if user_income and user_income > 0:
             pct_of_income = monthly_contrib / user_income
             st.caption(
@@ -1500,6 +1559,18 @@ que você definir abaixo.
                     hide_index=True,
                 )
 
+    if has_positions:
+        st.markdown("---")
+        inc_col1, inc_col2 = st.columns([1, 1])
+        with inc_col1:
+            if st.button("⬅ Voltar para Visão Geral", width="stretch", key="inc_to_overview"):
+                st.session_state["pf_section"] = "overview"
+                st.rerun()
+        with inc_col2:
+            if st.button("📰 Acompanhar Radar de Notícias & Sentimento ➔", type="primary", width="stretch", key="inc_to_news"):
+                st.session_state["pf_section"] = "news"
+                st.rerun()
+
 
 # ─── Radar de Notícias & Riscos ─────────────────────────────────────────────
 if section == "news":
@@ -1509,11 +1580,23 @@ if section == "news":
     if not wallet_tickers:
         wallet_tickers = ["ITUB4", "PETR4", "VALE3", "BBAS3", "TAEE11"]
         st.info("Sua carteira ainda está vazia. Exibindo notícias das principais empresas da B3:")
-    
+
     with st.spinner("Buscando notícias e analisando sentimento..."):
         news_df = fetch_headlines(wallet_tickers, provider=provider if isinstance(provider, str) else getattr(provider, "name", "demo"), limit=12)
-    
+
     render_news_feed_cards(news_df)
+
+    if has_positions:
+        st.markdown("---")
+        news_col1, news_col2 = st.columns([1, 1])
+        with news_col1:
+            if st.button("⬅ Voltar para Renda Esperada", width="stretch", key="news_to_inc"):
+                st.session_state["pf_section"] = "income"
+                st.rerun()
+        with news_col2:
+            if st.button("📊 Ir para Visão Geral ➔", type="primary", width="stretch", key="news_to_ov"):
+                st.session_state["pf_section"] = "overview"
+                st.rerun()
 
 
 # ─── Detalhes ───────────────────────────────────────────────────────────────
