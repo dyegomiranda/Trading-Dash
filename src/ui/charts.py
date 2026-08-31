@@ -30,13 +30,13 @@ _LAYOUT: dict[str, Any] = {
     "paper_bgcolor": "rgba(0,0,0,0)",
     "plot_bgcolor": "rgba(0,0,0,0)",
     "font": {"color": "#E8EDF7", "family": "Inter, system-ui, sans-serif", "size": 12},
-    "margin": {"l": 10, "r": 10, "t": 36, "b": 10},
+    "margin": {"l": 55, "r": 20, "t": 55, "b": 45},
     "legend": {
         "orientation": "h",
         "yanchor": "bottom",
-        "y": -0.22,
-        "xanchor": "center",
-        "x": 0.5,
+        "y": 1.02,
+        "xanchor": "right",
+        "x": 1.0,
         "bgcolor": "rgba(0,0,0,0)",
         "font": {"size": 11, "color": "#94A3B8"},
     },
@@ -44,18 +44,20 @@ _LAYOUT: dict[str, Any] = {
 
 
 def _base_layout(title: str | None = None, height: int = 320, **extra: Any) -> dict[str, Any]:
-    """Monta um único dict de layout — sem kwargs duplicados no update_layout."""
+    """Monta um único dict de layout com título à esquerda e legenda à direita no topo."""
     layout: dict[str, Any] = {**_LAYOUT, "height": height}
     if title:
         layout["title"] = {
             "text": title,
             "font": {
-                "size": 14,
+                "size": 13,
                 "color": "#CBD5E1",
                 "family": "Inter, system-ui, sans-serif",
             },
-            "x": 0.02,
+            "x": 0.01,
             "xanchor": "left",
+            "y": 0.98,
+            "yanchor": "top",
         }
     layout.update(extra)
     return layout
@@ -68,9 +70,9 @@ def donut_allocation(
     center_title: str = "Total",
     center_value: str = "",
     title: str = "Alocação",
-    height: int = 440,
+    height: int = 340,
 ) -> go.Figure:
-    """Rosca com linha do pedaço até o nome + %. Centro alinhado no miolo."""
+    """Rosca equilibrada, sem sobreposição de rótulos e com fatias limpas."""
     raw = [
         (str(lab), float(val))
         for lab, val in zip(labels, values)
@@ -79,7 +81,6 @@ def donut_allocation(
     if not raw:
         raw = [("—", 1.0)]
     raw.sort(key=lambda kv: kv[1], reverse=True)
-    # Cada fatia fica visível — não agrupar em "Outros" (some a composição real).
     pie_labels = [lab for lab, _ in raw]
     pie_values = [val for _, val in raw]
 
@@ -107,29 +108,32 @@ def donut_allocation(
             go.Pie(
                 labels=slice_labels,
                 values=pie_values,
-                hole=0.52,
+                hole=0.55,
                 sort=False,
                 direction="clockwise",
+                domain={"x": [0.04, 0.96], "y": [0.04, 0.96]},
                 textinfo="label+percent",
-                textposition="outside",
-                texttemplate="%{label}<br>%{percent:.0%}",
-                textfont={"size": 12, "color": "#E2E8F0"},
+                textposition="auto",
+                insidetextorientation="horizontal",
+                texttemplate="%{label} %{percent:.0%}",
+                textfont={"size": 11, "color": "#FFFFFF"},
                 hovertext=hover_labels,
-                hovertemplate="<b>%{hovertext}</b><br>%{percent:.0%}<br>R$ %{value:,.2f}<extra></extra>",
+                hovertemplate="<b>%{hovertext}</b><br>%{percent:.1%}<br>R$ %{value:,.2f}<extra></extra>",
                 marker={
                     "colors": colors,
-                    "line": {"color": "#070B14", "width": 2},
+                    "line": {"color": "#070B14", "width": 1.5},
                 },
             )
         ]
     )
     annotations = []
     if center_value:
+        font_main = 15 if height >= 320 else 13
         annotations.append(
             {
                 "text": (
-                    f"<span style='font-size:11px;color:#94A3B8'>{center_title}</span>"
-                    f"<br><span style='font-size:16px;font-weight:700;color:#F8FAFC'>{center_value}</span>"
+                    f"<span style='font-size:10px;color:#94A3B8'>{center_title}</span>"
+                    f"<br><span style='font-size:{font_main}px;font-weight:700;color:#F8FAFC'>{center_value}</span>"
                 ),
                 "x": 0.5,
                 "y": 0.5,
@@ -141,14 +145,15 @@ def donut_allocation(
                 "align": "center",
             }
         )
+    top_margin = 52 if title else 24
     fig.update_layout(
         **_base_layout(
             title=title,
-            height=max(height, 440),
+            height=max(height, 260),
             showlegend=False,
-            margin={"l": 72, "r": 72, "t": 48, "b": 28},
+            margin={"l": 24, "r": 24, "t": top_margin, "b": 24},
             annotations=annotations,
-            uniformtext={"minsize": 10, "mode": "hide"},
+            uniformtext={"minsize": 9, "mode": "hide"},
         )
     )
     return fig
@@ -160,8 +165,9 @@ def sector_bars(
     title: str = "Por setor",
     height: int = 340,
 ) -> go.Figure:
-    """Barras horizontais de alocação por setor."""
+    """Barras horizontais de alocação por setor com espaçamento garantido para nomes longos."""
     df = sector_df.sort_values("value", ascending=True)
+    eff_height = max(height, len(df) * 36 + 65)
     fig = go.Figure(
         go.Bar(
             x=df["value"],
@@ -178,24 +184,31 @@ def sector_bars(
             },
             text=[f"{float(p):.0%}" for p in df["pct"]],
             textposition="outside",
-            textfont={"color": "#94A3B8", "size": 11},
+            cliponaxis=False,
+            textfont={"color": "#CBD5E1", "size": 11},
             hovertemplate="<b>%{y}</b><br>R$ %{x:,.2f}<extra></extra>",
         )
     )
     fig.update_layout(
         **_base_layout(
             title=title,
-            height=height,
+            height=eff_height,
             showlegend=False,
-            margin={"l": 10, "r": 50, "t": 36, "b": 10},
+            margin={"l": 135, "r": 55, "t": 52, "b": 25},
             xaxis={
                 "showgrid": True,
-                "gridcolor": "rgba(36,48,68,0.65)",
+                "gridcolor": "rgba(36,48,68,0.55)",
                 "zeroline": False,
                 "color": "#64748B",
+                "automargin": True,
                 "title": "",
             },
-            yaxis={"showgrid": False, "color": "#94A3B8", "title": ""},
+            yaxis={
+                "showgrid": False,
+                "color": "#CBD5E1",
+                "automargin": True,
+                "title": "",
+            },
         )
     )
     return fig
@@ -331,26 +344,28 @@ def income_area(
             title=title,
             height=360,
             showlegend=True,
-            margin={"l": 48, "r": 16, "t": 40, "b": 56},
+            margin={"l": 55, "r": 20, "t": 55, "b": 45},
             xaxis={
-                "title": "Anos a partir de agora",
+                "title": {"text": "Anos a partir de agora", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
                 "dtick": 1,
             },
             yaxis={
-                "title": f"Dividendos por {unit} (R$)",
+                "title": {"text": f"Dividendos por {unit} (R$)", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
             },
             legend={
                 "orientation": "h",
                 "yanchor": "bottom",
-                "y": -0.28,
-                "xanchor": "center",
-                "x": 0.5,
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1.0,
                 "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11, "color": "#94A3B8"},
             },
@@ -399,26 +414,28 @@ def income_scenarios_chart(
             title=title,
             height=380,
             showlegend=True,
-            margin={"l": 48, "r": 16, "t": 40, "b": 64},
+            margin={"l": 55, "r": 20, "t": 55, "b": 45},
             xaxis={
-                "title": "Anos a partir de agora",
+                "title": {"text": "Anos a partir de agora", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
                 "dtick": 1,
             },
             yaxis={
-                "title": "Dividendos por mês (R$)",
+                "title": {"text": "Dividendos por mês (R$)", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
             },
             legend={
                 "orientation": "h",
                 "yanchor": "bottom",
-                "y": -0.32,
-                "xanchor": "center",
-                "x": 0.5,
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1.0,
                 "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11, "color": "#94A3B8"},
             },
@@ -433,12 +450,7 @@ def snowball_chart(
     *,
     title: str = "Bola de neve: reinvestir dividendos vs sacar",
 ) -> go.Figure:
-    """Compara o capital no tempo reinvestindo os dividendos vs sacando-os.
-
-    ``with_reinvest`` é a projeção base (reinvest=True); ``without_reinvest``
-    é a mesma simulação com reinvest=False. A diferença entre as duas curvas
-    no último ano = ganho aproximado do efeito “bola de neve”.
-    """
+    """Compara o capital no tempo reinvestindo os dividendos vs sacando-os."""
     fig = go.Figure()
     base = with_reinvest if with_reinvest is not None and not getattr(with_reinvest, "empty", True) else pd.DataFrame()
     other = without_reinvest if without_reinvest is not None and not getattr(without_reinvest, "empty", True) else pd.DataFrame()
@@ -490,26 +502,28 @@ def snowball_chart(
             title=title,
             height=340,
             showlegend=True,
-            margin={"l": 48, "r": 16, "t": 40, "b": 56},
+            margin={"l": 55, "r": 20, "t": 55, "b": 45},
             xaxis={
-                "title": "Anos a partir de agora",
+                "title": {"text": "Anos a partir de agora", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
                 "dtick": 1,
             },
             yaxis={
-                "title": "Capital na carteira (R$)",
+                "title": {"text": "Capital na carteira (R$)", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
             },
             legend={
                 "orientation": "h",
                 "yanchor": "bottom",
-                "y": -0.28,
-                "xanchor": "center",
-                "x": 0.5,
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1.0,
                 "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11, "color": "#94A3B8"},
             },
@@ -558,25 +572,27 @@ def equity_growth_area(
             height=340,
             showlegend=True,
             bargap=0.25,
-            margin={"l": 48, "r": 16, "t": 40, "b": 56},
+            margin={"l": 55, "r": 20, "t": 55, "b": 45},
             xaxis={
-                "title": "Anos a partir de agora",
+                "title": {"text": "Anos a partir de agora", "standoff": 10},
                 "showgrid": False,
                 "color": "#64748B",
+                "automargin": True,
                 "dtick": 1,
             },
             yaxis={
-                "title": "Capital na carteira (R$)",
+                "title": {"text": "Capital na carteira (R$)", "standoff": 10},
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
             },
             legend={
                 "orientation": "h",
                 "yanchor": "bottom",
-                "y": -0.28,
-                "xanchor": "center",
-                "x": 0.5,
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1.0,
                 "bgcolor": "rgba(0,0,0,0)",
                 "font": {"size": 11, "color": "#94A3B8"},
             },
@@ -600,6 +616,14 @@ def score_bars(df: pd.DataFrame, *, title: str = "Notas") -> go.Figure:
             "Base": "#A78BFA",
             "Complemento": "#38BDF8",
         },
+        text="score_total" if "score_total" in plot.columns else None,
+    )
+    fig.update_traces(
+        texttemplate="%{text:.0f}",
+        textposition="inside",
+        insidetextanchor="middle",
+        textfont={"color": "#FFFFFF", "size": 11, "family": "Inter, sans-serif"},
+        marker_line_width=0,
     )
     fig.update_layout(
         **_base_layout(
@@ -607,17 +631,26 @@ def score_bars(df: pd.DataFrame, *, title: str = "Notas") -> go.Figure:
             height=320,
             showlegend=True,
             bargap=0.25,
-            margin={"l": 40, "r": 10, "t": 36, "b": 40},
-            xaxis={"title": "", "color": "#64748B", "showgrid": False},
+            margin={"l": 48, "r": 20, "t": 55, "b": 35},
+            xaxis={"title": "", "color": "#94A3B8", "showgrid": False, "automargin": True},
             yaxis={
-                "title": "Nota",
+                "title": {"text": "Nota", "standoff": 8},
                 "color": "#64748B",
                 "gridcolor": "rgba(36,48,68,0.55)",
-                "range": [0, 100],
+                "range": [0, 105],
+                "automargin": True,
+            },
+            legend={
+                "orientation": "h",
+                "yanchor": "bottom",
+                "y": 1.02,
+                "xanchor": "right",
+                "x": 1.0,
+                "bgcolor": "rgba(0,0,0,0)",
+                "font": {"size": 11, "color": "#94A3B8"},
             },
         )
     )
-    fig.update_traces(marker_line_width=0)
     return fig
 
 
@@ -677,18 +710,20 @@ def price_history_chart(
             title=title or f"{ticker} · preço",
             height=300,
             showlegend=False,
-            margin={"l": 40, "r": 16, "t": 36, "b": 40},
+            margin={"l": 55, "r": 20, "t": 48, "b": 35},
             xaxis={
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
+                "automargin": True,
                 "title": "",
             },
             yaxis={
                 "showgrid": True,
                 "gridcolor": "rgba(36,48,68,0.55)",
                 "color": "#64748B",
-                "title": "R$",
+                "automargin": True,
+                "title": {"text": "R$", "standoff": 8},
             },
         )
     )

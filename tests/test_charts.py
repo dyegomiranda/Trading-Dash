@@ -20,7 +20,7 @@ def test_donut_labels_on_slices_with_percent():
     fig = donut_allocation(["ITUB4", "WEGE3", "TAEE11"], [40.0, 35.0, 25.0])
     pie = fig.data[0]
     assert pie.textinfo == "label+percent"
-    assert pie.textposition == "outside"
+    assert pie.textposition == "auto"
     assert "ITUB4" in list(pie.labels)
     assert fig.layout.showlegend is False
     center_xs = [a.x for a in (fig.layout.annotations or [])]
@@ -54,3 +54,34 @@ def test_pillar_means_none_when_missing():
     assert d == 70.0
     assert h is None
     assert v == 50.0
+
+
+def test_chart_spacing_and_legend_alignment():
+    from src.ui.charts import sector_bars, score_bars, income_area, price_history_chart
+
+    # 1. sector_bars
+    s_df = pd.DataFrame({"sector": ["Utilidade Pública", "Financeiro"], "value": [1000.0, 2000.0], "pct": [0.33, 0.67]})
+    s_fig = sector_bars(s_df)
+    assert s_fig.layout.margin.l >= 120
+    assert s_fig.layout.yaxis.automargin is True
+
+    # 2. score_bars
+    sc_df = pd.DataFrame({"ticker": ["PETR4", "VALE3"], "score_total": [85.0, 78.0], "bucket": ["core", "core"]})
+    sc_fig = score_bars(sc_df)
+    assert sc_fig.layout.legend.y >= 1.0
+    assert sc_fig.layout.legend.x == 1.0
+    assert sc_fig.data[0].textposition == "inside"
+
+    # 3. income_area
+    inc_df = pd.DataFrame({"year": [1, 2, 3], "projected_monthly_income": [100.0, 200.0, 300.0]})
+    inc_fig = income_area(inc_df)
+    assert inc_fig.layout.legend.y >= 1.0
+    assert inc_fig.layout.legend.x == 1.0
+    assert inc_fig.layout.xaxis.title.standoff >= 10
+
+    # 4. price_history_chart
+    p_df = pd.DataFrame({"date": ["2026-01-01", "2026-01-02"], "close": [30.0, 31.0]})
+    p_fig = price_history_chart(p_df, ticker="PETR4")
+    assert p_fig.layout.yaxis.automargin is True
+    assert p_fig.layout.margin.t >= 45
+

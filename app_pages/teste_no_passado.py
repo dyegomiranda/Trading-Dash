@@ -801,20 +801,26 @@ fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     height=400,
-    margin={"l": 40, "r": 16, "t": 40, "b": 40},
+    margin={"l": 55, "r": 20, "t": 55, "b": 45},
     title={
         "text": "Patrimônio: tese × benchmarks",
-        "font": {"size": 14, "color": "#CBD5E1"},
+        "font": {"size": 13, "color": "#CBD5E1"},
+        "x": 0.01,
+        "xanchor": "left",
+        "y": 0.98,
+        "yanchor": "top",
     },
     font={"color": "#94A3B8", "family": "Inter, sans-serif"},
-    xaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B"},
-    yaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B"},
+    xaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B", "automargin": True},
+    yaxis={"gridcolor": "rgba(36,48,68,0.55)", "color": "#64748B", "automargin": True},
     legend={
         "orientation": "h",
         "yanchor": "bottom",
         "y": 1.02,
-        "x": 0,
+        "xanchor": "right",
+        "x": 1.0,
         "bgcolor": "rgba(0,0,0,0)",
+        "font": {"size": 11, "color": "#94A3B8"},
     },
 )
 with st.container(border=True):
@@ -949,11 +955,11 @@ volatilidade produziria se o comportamento se repetisse.
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             height=340,
-            margin={"l": 40, "r": 16, "t": 20, "b": 30},
+            margin={"l": 55, "r": 20, "t": 48, "b": 45},
             font={"color": "#94A3B8", "family": "Inter, sans-serif"},
-            xaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": "Dias úteis futuros"},
-            yaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": "Patrimônio simulado (R$)"},
-            legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0},
+            xaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": {"text": "Dias úteis futuros", "standoff": 10}, "automargin": True},
+            yaxis={"gridcolor": "rgba(36,48,68,0.55)", "title": {"text": "Patrimônio simulado (R$)", "standoff": 10}, "automargin": True},
+            legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1.0, "bgcolor": "rgba(0,0,0,0)"},
         )
         st.plotly_chart(mc_fig, width="stretch", config={"displayModeBar": False})
         st.caption(
