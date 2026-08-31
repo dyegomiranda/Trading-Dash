@@ -129,8 +129,6 @@ def render_stock_detail_card(
     bucket = str(scored_row.get("bucket") or "")
     quality_level = str(scored_row.get("quality_level") or "treino")
     quality_label = str(scored_row.get("quality_label") or "")
-    quality_flags = scored_row.get("quality_flags") or ""
-    reject_reason = str(scored_row.get("reject_reason") or "")
     sector = str(scored_row.get("sector") or "—")
     name = str(scored_row.get("name") or ticker)
 
@@ -204,27 +202,74 @@ def render_stock_detail_card(
         for lbl, val in indicators
     )
 
-    # Risks
-    risks_html = ""
+    # Genuine Fundamental Risks Detection
     risk_tags = []
-    if quality_flags:
-        for flag in str(quality_flags).split(","):
-            flag = flag.strip()
-            if flag:
-                risk_tags.append(flag)
-    if reject_reason and reject_reason != "nan":
-        for reason in reject_reason.split(","):
-            reason = reason.strip()
-            if reason:
-                risk_tags.append(reason)
+    
+    # High leverage risk
+    debt_val = scored_row.get("net_debt_ebitda")
+    if debt_val is not None:
+        try:
+            if float(debt_val) > 3.5:
+                risk_tags.append(f"Alavancagem alta (Dív. Líq/EBITDA {float(debt_val):.1f}x)")
+        except (ValueError, TypeError):
+            pass
+            
+    # High payout risk
+    payout_val = scored_row.get("payout")
+    if payout_val is not None:
+        try:
+            p_flt = float(payout_val)
+            if p_flt > 0.95:
+                risk_tags.append(f"Payout elevado ({p_flt*100 if p_flt<=1.0 else p_flt:.0f}%)")
+        except (ValueError, TypeError):
+            pass
+
+    # Negative ROE (loss)
+    roe_val = scored_row.get("roe")
+    if roe_val is not None:
+        try:
+            if float(roe_val) < 0:
+                risk_tags.append("Prejuízo recente (ROE negativo)")
+        except (ValueError, TypeError):
+            pass
+
+    # Dividend trap risk
+    dy_val = scored_row.get("dividend_yield")
+    if dy_val is not None and payout_val is not None:
+        try:
+            if float(dy_val) > 0.14 and float(payout_val) > 0.90:
+                risk_tags.append("Possível armadilha de dividendos (yield alto com payout esticado)")
+        except (ValueError, TypeError):
+            pass
+
+    # Negative FCF
+    fcf_val = scored_row.get("fcf_yield")
+    if fcf_val is not None:
+        try:
+            if float(fcf_val) < 0:
+                risk_tags.append("Fluxo de caixa livre negativo")
+        except (ValueError, TypeError):
+            pass
+
+    # Stretched valuation
+    pe_val = scored_row.get("pe")
+    if pe_val is not None:
+        try:
+            if float(pe_val) > 35:
+                risk_tags.append(f"Múltiplo P/L esticado ({float(pe_val):.1f}x)")
+        except (ValueError, TypeError):
+            pass
+
     if risk_tags:
-        tags = "".join(f'<span class="td-risk-tag">{html.escape(t)}</span>' for t in risk_tags[:6])
-        risks_html = f'<div class="td-risks">{tags}</div>'
+        tags = "".join(f'<span class="td-risk-tag">{html.escape(t)}</span>' for t in risk_tags[:4])
+        risks_html = f'<div class="td-risks" style="margin-top:0.5rem;"><span style="font-size:0.75rem;color:#FCA5A5;font-weight:600;margin-right:0.3rem;">Pontos de atenção:</span>{tags}</div>'
+    else:
+        risks_html = '<div style="font-size:0.75rem;color:#4ADE80;margin-top:0.4rem;">✅ Fundamentos sólidos — nenhum alerta crítico identificado.</div>'
 
     full_html = f"""
 <div class="td-stock-detail">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-    <span style="font-size:0.8rem;color:#94A3B8;">Nota geral: <strong style="color:#F8FAFC;font-size:1rem;">{score_total:.0f}</strong>/100</span>
+    <span style="font-size:0.8rem;color:#94A3B8;">Nota geral da tese: <strong style="color:#F8FAFC;font-size:1rem;">{score_total:.0f}</strong>/100</span>
     {badge_html}
   </div>
   <div class="td-score-row">

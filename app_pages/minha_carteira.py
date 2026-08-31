@@ -209,15 +209,18 @@ try:
             if missing_pos:
                 try:
                     extra_fund = get_provider(provider).get_fundamentals(missing_pos)
+                    if extra_fund is None or extra_fund.empty or ("roe" in extra_fund.columns and extra_fund["roe"].isna().all()):
+                        extra_fund = get_provider("yfinance").get_fundamentals(missing_pos)
                     if extra_fund is not None and not extra_fund.empty:
-                        fundamentals = pd.concat([fundamentals, extra_fund], ignore_index=True)
+                        fundamentals = pd.concat([fundamentals, extra_fund], ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")
                         extra_scored = score_universe(extra_fund).scored
                         if extra_scored is not None and not extra_scored.empty:
-                            scored_table = pd.concat([scored_table, extra_scored], ignore_index=True)
+                            scored_table = pd.concat([scored_table, extra_scored], ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")
                 except Exception:
                     pass
 
         if not scored_table.empty:
+            scored_table = scored_table.drop_duplicates(subset=["ticker"], keep="last")
             scored_table = enrich_fundamentals_quality(scored_table)
         prices = prices_dict_from_fundamentals(
             scored_table if not scored_table.empty else fundamentals
