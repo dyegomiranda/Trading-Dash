@@ -1808,6 +1808,2446 @@
       "sector": "Consumer Cyclical",
       "industry": "Restaurants",
       "source": "yfinance"
+    },
+    "BSLI3": {
+      "ticker": "BSLI3",
+      "status": "active",
+      "name": "BRB BANCO DE BRASILIA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BSLI4": {
+      "ticker": "BSLI4",
+      "status": "active",
+      "name": "BRB BANCO DE BRASILIA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "ELET5": {
+      "ticker": "ELET5",
+      "status": "active",
+      "name": "CENTRAIS ELET BRAS S.A. - ELETROBRAS",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEBR3": {
+      "ticker": "CEBR3",
+      "status": "active",
+      "name": "COMPANHIA ENERGÉTICA DE BRASÍLIA - CEB",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEBR6": {
+      "ticker": "CEBR6",
+      "status": "active",
+      "name": "COMPANHIA ENERGÉTICA DE BRASÍLIA - CEB",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEBR5": {
+      "ticker": "CEBR5",
+      "status": "active",
+      "name": "COMPANHIA ENERGÉTICA DE BRASÍLIA - CEB",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "AESO3": {
+      "ticker": "AESO3",
+      "status": "active",
+      "name": "Auren Operações S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ARML3": {
+      "ticker": "ARML3",
+      "status": "active",
+      "name": "ARMAC LOCAÇÃO, LOGÍSTICA E SERVIÇOS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "CMFA3": {
+      "ticker": "CMFA3",
+      "status": "active",
+      "name": "CIMS S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CMFA4": {
+      "ticker": "CMFA4",
+      "status": "active",
+      "name": "CIMS S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "TELB3": {
+      "ticker": "TELB3",
+      "status": "active",
+      "name": "TELEC BRASILEIRAS S.A. TELEBRAS",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "TELB4": {
+      "ticker": "TELB4",
+      "status": "active",
+      "name": "TELEC BRASILEIRAS S.A. TELEBRAS",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "FICT3": {
+      "ticker": "FICT3",
+      "status": "active",
+      "name": "FICTOR ALIMENTOS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "STKF3": {
+      "ticker": "STKF3",
+      "status": "active",
+      "name": "STATKRAFT ENERGIAS RENOVAVEIS S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ENGI3": {
+      "ticker": "ENGI3",
+      "status": "active",
+      "name": "ENERGISA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ENGI4": {
+      "ticker": "ENGI4",
+      "status": "active",
+      "name": "ENERGISA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "VSPT3": {
+      "ticker": "VSPT3",
+      "status": "active",
+      "name": "FERROVIA CENTRO-ATLANTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "VSPT4": {
+      "ticker": "VSPT4",
+      "status": "active",
+      "name": "FERROVIA CENTRO-ATLANTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "CRTE3": {
+      "ticker": "CRTE3",
+      "status": "active",
+      "name": "CONC RIO-TERESOPOLIS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "LIPR3": {
+      "ticker": "LIPR3",
+      "status": "active",
+      "name": "ELETROBRÁS PARTICIPAÇÕES S.A. - ELETROPAR",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "BBML3": {
+      "ticker": "BBML3",
+      "status": "active",
+      "name": "BBM Logística S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MRSA3": {
+      "ticker": "MRSA3",
+      "status": "active",
+      "name": "MRS LOGISTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MRSA5": {
+      "ticker": "MRSA5",
+      "status": "active",
+      "name": "MRS LOGISTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MRSA6": {
+      "ticker": "MRSA6",
+      "status": "active",
+      "name": "MRS LOGISTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "FIGE3": {
+      "ticker": "FIGE3",
+      "status": "active",
+      "name": "INVESTIMENTOS BEMGE S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "FIGE4": {
+      "ticker": "FIGE4",
+      "status": "active",
+      "name": "INVESTIMENTOS BEMGE S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "QVQP3": {
+      "ticker": "QVQP3",
+      "status": "active",
+      "name": "524 PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "CSUD3": {
+      "ticker": "CSUD3",
+      "status": "active",
+      "name": "CSU DIGITAL S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "PEAB3": {
+      "ticker": "PEAB3",
+      "status": "active",
+      "name": "CIA PARTICIPACOES ALIANCA DA BAHIA",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "PEAB4": {
+      "ticker": "PEAB4",
+      "status": "active",
+      "name": "CIA PARTICIPACOES ALIANCA DA BAHIA",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "OPTS3": {
+      "ticker": "OPTS3",
+      "status": "active",
+      "name": "SUL 116 PARTICIPACOES S.A.",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "OPSE3": {
+      "ticker": "OPSE3",
+      "status": "active",
+      "name": "SUDESTE S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "UPKP3": {
+      "ticker": "UPKP3",
+      "status": "active",
+      "name": "UPTICK PARTICIPACOES S.A. - EM LIQUIDAÇÃO",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "DEXP4": {
+      "ticker": "DEXP4",
+      "status": "active",
+      "name": "DEXXOS PARTICIPAÇÕES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "YBRA3": {
+      "ticker": "YBRA3",
+      "status": "active",
+      "name": "YBYRÁ CAPITAL S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "YBRA4": {
+      "ticker": "YBRA4",
+      "status": "active",
+      "name": "YBYRÁ CAPITAL S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "FIQE3": {
+      "ticker": "FIQE3",
+      "status": "active",
+      "name": "Unifique Telecomunicações S.A.",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "EMAE3": {
+      "ticker": "EMAE3",
+      "status": "active",
+      "name": "EMAE - EMPRESA METROP.AGUAS ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "EMAE4": {
+      "ticker": "EMAE4",
+      "status": "active",
+      "name": "EMAE - EMPRESA METROP.AGUAS ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "EKTR3": {
+      "ticker": "EKTR3",
+      "status": "active",
+      "name": "ELEKTRO REDES S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "EKTR4": {
+      "ticker": "EKTR4",
+      "status": "active",
+      "name": "ELEKTRO REDES S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "MNZC3": {
+      "ticker": "MNZC3",
+      "status": "active",
+      "name": "TERMINAL GARAGEM MENEZES CORTES S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "STPB3": {
+      "ticker": "STPB3",
+      "status": "active",
+      "name": "SANTOS BRASIL PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "BETP3": {
+      "ticker": "BETP3",
+      "status": "active",
+      "name": "BETAPART PARTICIPACOES S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "OPGM3": {
+      "ticker": "OPGM3",
+      "status": "active",
+      "name": "GAMA PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "PDGR3": {
+      "ticker": "PDGR3",
+      "status": "active",
+      "name": "PDG REALTY S.A. EMPREEND E PARTICIPACOES",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "PRPT3": {
+      "ticker": "PRPT3",
+      "status": "active",
+      "name": "PROMPT PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "GEPA3": {
+      "ticker": "GEPA3",
+      "status": "active",
+      "name": "RIO PARANAPANEMA ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "GEPA4": {
+      "ticker": "GEPA4",
+      "status": "active",
+      "name": "RIO PARANAPANEMA ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ISAE3": {
+      "ticker": "ISAE3",
+      "status": "active",
+      "name": "ISA ENERGIA BRASIL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ISAE4": {
+      "ticker": "ISAE4",
+      "status": "active",
+      "name": "ISA ENERGIA BRASIL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "TPIS3": {
+      "ticker": "TPIS3",
+      "status": "active",
+      "name": "TPI - TRIUNFO PARTICIP. E INVEST. S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "DTCY3": {
+      "ticker": "DTCY3",
+      "status": "active",
+      "name": "DTCOM - DIRECT TO COMPANY S.A.",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "LIGT3": {
+      "ticker": "LIGT3",
+      "status": "active",
+      "name": "LIGHT S.A. - Em Recuperação Judicial",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ENMT3": {
+      "ticker": "ENMT3",
+      "status": "active",
+      "name": "ENERGISA MATO GROSSO-DISTRIBUIDORA DE ENERGIA S/A",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "ENMT4": {
+      "ticker": "ENMT4",
+      "status": "active",
+      "name": "ENERGISA MATO GROSSO-DISTRIBUIDORA DE ENERGIA S/A",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "IVPR3": {
+      "ticker": "IVPR3",
+      "status": "active",
+      "name": "INVESTIMENTOS E PARTICIP. EM INFRA S.A. - INVEPAR",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "IVPR4": {
+      "ticker": "IVPR4",
+      "status": "active",
+      "name": "INVESTIMENTOS E PARTICIP. EM INFRA S.A. - INVEPAR",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "BRAP3": {
+      "ticker": "BRAP3",
+      "status": "active",
+      "name": "BRADESPAR S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "CABI3": {
+      "ticker": "CABI3",
+      "status": "active",
+      "name": "CABINDA PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "ATMP3": {
+      "ticker": "ATMP3",
+      "status": "active",
+      "name": "ATMA PARTICIPAÇÕES S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Technology",
+      "industry": "Software - Application",
+      "source": "cvm_fca"
+    },
+    "ENEV3": {
+      "ticker": "ENEV3",
+      "status": "active",
+      "name": "ENEVA S.A",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "BIOM3": {
+      "ticker": "BIOM3",
+      "status": "active",
+      "name": "BIOMM S.A.",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "source": "cvm_fca"
+    },
+    "FRIO3": {
+      "ticker": "FRIO3",
+      "status": "active",
+      "name": "METALFRIO SOLUTIONS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "CELP3": {
+      "ticker": "CELP3",
+      "status": "active",
+      "name": "EQUATORIAL PARÁ DISTRIBUIDORA DE ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CELP5": {
+      "ticker": "CELP5",
+      "status": "active",
+      "name": "EQUATORIAL PARÁ DISTRIBUIDORA DE ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CELP6": {
+      "ticker": "CELP6",
+      "status": "active",
+      "name": "EQUATORIAL PARÁ DISTRIBUIDORA DE ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "BAZA3": {
+      "ticker": "BAZA3",
+      "status": "active",
+      "name": "BCO AMAZONIA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BPAR3": {
+      "ticker": "BPAR3",
+      "status": "active",
+      "name": "BCO ESTADO DO PARA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "ALOS3": {
+      "ticker": "ALOS3",
+      "status": "active",
+      "name": "ALLOS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "PGMN3": {
+      "ticker": "PGMN3",
+      "status": "active",
+      "name": "EMPREENDIMENTOS PAGUE MENOS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTCA3": {
+      "ticker": "CTCA3",
+      "status": "active",
+      "name": "CTC - CENTRO DE TECNOLOGIA CANAVIEIRA S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "COCE3": {
+      "ticker": "COCE3",
+      "status": "active",
+      "name": "CIA ENERGETICA DO CEARA - COELCE",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "COCE5": {
+      "ticker": "COCE5",
+      "status": "active",
+      "name": "CIA ENERGETICA DO CEARA - COELCE",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "BNBR3": {
+      "ticker": "BNBR3",
+      "status": "active",
+      "name": "BCO NORDESTE DO BRASIL S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "SGPS3": {
+      "ticker": "SGPS3",
+      "status": "active",
+      "name": "SPRINGS GLOBAL PARTICIPACOES S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CRDE3": {
+      "ticker": "CRDE3",
+      "status": "active",
+      "name": "FICA EMPREENDIMENTOS IMOBILIÁRIOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "TAEE3": {
+      "ticker": "TAEE3",
+      "status": "active",
+      "name": "TRANSMISSORA ALIANÇA DE ENERGIA ELÉTRICA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "LPSB3": {
+      "ticker": "LPSB3",
+      "status": "active",
+      "name": "LPS BRASIL - CONSULTORIA DE IMOVEIS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "023175": {
+      "ticker": "023175",
+      "status": "active",
+      "name": "IGUA SANEAMENTO S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "DESK3": {
+      "ticker": "DESK3",
+      "status": "active",
+      "name": "DESKTOP S.A.",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "CEED3": {
+      "ticker": "CEED3",
+      "status": "active",
+      "name": "CIA ESTADUAL DE DISTRIB ENER ELET-CEEE-D",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEED4": {
+      "ticker": "CEED4",
+      "status": "active",
+      "name": "CIA ESTADUAL DE DISTRIB ENER ELET-CEEE-D",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "RNEW3": {
+      "ticker": "RNEW3",
+      "status": "active",
+      "name": "RENOVA ENERGIA S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "RNEW4": {
+      "ticker": "RNEW4",
+      "status": "active",
+      "name": "RENOVA ENERGIA S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "RNEW11": {
+      "ticker": "RNEW11",
+      "status": "active",
+      "name": "RENOVA ENERGIA S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "GPAR3": {
+      "ticker": "GPAR3",
+      "status": "active",
+      "name": "CIA CELG DE PARTICIPACOES - CELGPAR",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "PTCA3": {
+      "ticker": "PTCA3",
+      "status": "active",
+      "name": "PRÁTICA PRODUTOS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "NEXP3": {
+      "ticker": "NEXP3",
+      "status": "active",
+      "name": "Nexpe Participações S.A",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "GSHP3": {
+      "ticker": "GSHP3",
+      "status": "active",
+      "name": "GENERAL SHOPPING E OUTLETS DO BRASIL BRASIL S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "SYNE3": {
+      "ticker": "SYNE3",
+      "status": "active",
+      "name": "SYN PROP & TECH S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "25585": {
+      "ticker": "25585",
+      "status": "active",
+      "name": "CSN MINERAÇÃO S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "OSXB3": {
+      "ticker": "OSXB3",
+      "status": "active",
+      "name": "OSX BRASIL S.A. - Em Recuperação Judicial",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "KLAS3": {
+      "ticker": "KLAS3",
+      "status": "active",
+      "name": "KALLAS INCORPORAÇÕES E CONSTRUÇÕES S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "TECN3": {
+      "ticker": "TECN3",
+      "status": "active",
+      "name": "TECHNOS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ELMD3": {
+      "ticker": "ELMD3",
+      "status": "active",
+      "name": "ELETROMIDIA S.A.",
+      "sector": "Technology",
+      "industry": "Software - Application",
+      "source": "cvm_fca"
+    },
+    "INNC3": {
+      "ticker": "INNC3",
+      "status": "active",
+      "name": "INC EMPREENDIMENTOS IMOBILIÁRIOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "AFLT3": {
+      "ticker": "AFLT3",
+      "status": "active",
+      "name": "AFLUENTE TRANSMISSÃO DE ENERGIA ELÉTRICA S/A",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "BRBI11": {
+      "ticker": "BRBI11",
+      "status": "active",
+      "name": "BR ADVISORY PARTNERS PARTICIPAÇÕES S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "APER3": {
+      "ticker": "APER3",
+      "status": "active",
+      "name": "ALPER CONSULTORIA E CORRETORA DE SEGUROS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "MDNE3": {
+      "ticker": "MDNE3",
+      "status": "active",
+      "name": "MOURA DUBEUX ENGENHARIA S/A",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "BRAV3": {
+      "ticker": "BRAV3",
+      "status": "active",
+      "name": "Brava Energia S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "DMVF3": {
+      "ticker": "DMVF3",
+      "status": "active",
+      "name": "D1000 VAREJO FARMA PARTICIPAÇÕES S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "MELK3": {
+      "ticker": "MELK3",
+      "status": "active",
+      "name": "Melnick Desenvolvimento Imobiliário S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "VVEO3": {
+      "ticker": "VVEO3",
+      "status": "active",
+      "name": "CM Hospitalar S.A",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "BGIP3": {
+      "ticker": "BGIP3",
+      "status": "active",
+      "name": "BCO ESTADO DE SERGIPE S.A. - BANESE",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BGIP4": {
+      "ticker": "BGIP4",
+      "status": "active",
+      "name": "BCO ESTADO DE SERGIPE S.A. - BANESE",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "KRSA3": {
+      "ticker": "KRSA3",
+      "status": "active",
+      "name": "Kora Saúde Participações S.A.",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "source": "cvm_fca"
+    },
+    "NINJ3": {
+      "ticker": "NINJ3",
+      "status": "active",
+      "name": "REAG Investimentos S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "WEST3": {
+      "ticker": "WEST3",
+      "status": "active",
+      "name": "WESTWING COMÉRCIO VAREJISTA S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "HBRE3": {
+      "ticker": "HBRE3",
+      "status": "active",
+      "name": "HBR Realty Empreendimentos Imobiliários S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "SNSY3": {
+      "ticker": "SNSY3",
+      "status": "active",
+      "name": "SANSUY S.A. INDUSTRIA DE PLASTICOS",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "SNSY5": {
+      "ticker": "SNSY5",
+      "status": "active",
+      "name": "SANSUY S.A. INDUSTRIA DE PLASTICOS",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "SNSY6": {
+      "ticker": "SNSY6",
+      "status": "active",
+      "name": "SANSUY S.A. INDUSTRIA DE PLASTICOS",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "CRPG3": {
+      "ticker": "CRPG3",
+      "status": "active",
+      "name": "TRONOX PIGMENTOS DO BRASIL S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "CRPG6": {
+      "ticker": "CRPG6",
+      "status": "active",
+      "name": "TRONOX PIGMENTOS DO BRASIL S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "CRPG5": {
+      "ticker": "CRPG5",
+      "status": "active",
+      "name": "TRONOX PIGMENTOS DO BRASIL S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "CEEB3": {
+      "ticker": "CEEB3",
+      "status": "active",
+      "name": "CIA ELETRICIDADE EST. DA BAHIA - COELBA",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEEB5": {
+      "ticker": "CEEB5",
+      "status": "active",
+      "name": "CIA ELETRICIDADE EST. DA BAHIA - COELBA",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CEEB6": {
+      "ticker": "CEEB6",
+      "status": "active",
+      "name": "CIA ELETRICIDADE EST. DA BAHIA - COELBA",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "FESA3": {
+      "ticker": "FESA3",
+      "status": "active",
+      "name": "CIA FERRO LIGAS DA BAHIA - FERBASA",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "AZZA3": {
+      "ticker": "AZZA3",
+      "status": "active",
+      "name": "AZZAS 2154 S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "AVLL3": {
+      "ticker": "AVLL3",
+      "status": "active",
+      "name": "ALPHAVILLE S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "ENJU3": {
+      "ticker": "ENJU3",
+      "status": "active",
+      "name": "ENJOEI S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "MMAQ3": {
+      "ticker": "MMAQ3",
+      "status": "active",
+      "name": "MINASMAQUINAS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MMAQ4": {
+      "ticker": "MMAQ4",
+      "status": "active",
+      "name": "MINASMAQUINAS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "RPAD3": {
+      "ticker": "RPAD3",
+      "status": "active",
+      "name": "ALFA HOLDINGS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "RPAD6": {
+      "ticker": "RPAD6",
+      "status": "active",
+      "name": "ALFA HOLDINGS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "RPAD5": {
+      "ticker": "RPAD5",
+      "status": "active",
+      "name": "ALFA HOLDINGS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "CRIV3": {
+      "ticker": "CRIV3",
+      "status": "active",
+      "name": "FINANCEIRA ALFA S.A.- CRED FINANC E INVS",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "CRIV4": {
+      "ticker": "CRIV4",
+      "status": "active",
+      "name": "FINANCEIRA ALFA S.A.- CRED FINANC E INVS",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BMEB3": {
+      "ticker": "BMEB3",
+      "status": "active",
+      "name": "BCO MERCANTIL DO BRASIL S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BMEB4": {
+      "ticker": "BMEB4",
+      "status": "active",
+      "name": "BCO MERCANTIL DO BRASIL S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRGE3": {
+      "ticker": "BRGE3",
+      "status": "active",
+      "name": "CONSORCIO ALFA DE ADMINISTRACAO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRGE5": {
+      "ticker": "BRGE5",
+      "status": "active",
+      "name": "CONSORCIO ALFA DE ADMINISTRACAO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRGE6": {
+      "ticker": "BRGE6",
+      "status": "active",
+      "name": "CONSORCIO ALFA DE ADMINISTRACAO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRGE11": {
+      "ticker": "BRGE11",
+      "status": "active",
+      "name": "CONSORCIO ALFA DE ADMINISTRACAO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "CEDO3": {
+      "ticker": "CEDO3",
+      "status": "active",
+      "name": "CIA FIACAO TECIDOS CEDRO CACHOEIRA",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CEDO4": {
+      "ticker": "CEDO4",
+      "status": "active",
+      "name": "CIA FIACAO TECIDOS CEDRO CACHOEIRA",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "DOTZ3": {
+      "ticker": "DOTZ3",
+      "status": "active",
+      "name": "Dotz S.A.",
+      "sector": "Technology",
+      "industry": "Software - Application",
+      "source": "cvm_fca"
+    },
+    "GRAO3": {
+      "ticker": "GRAO3",
+      "status": "active",
+      "name": "Humberg Agribrasil Comércio e Exportação de Grãos S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "BRIT3": {
+      "ticker": "BRIT3",
+      "status": "active",
+      "name": "BRISANET PARTICIPAÇÕES S.A.",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "ALLD3": {
+      "ticker": "ALLD3",
+      "status": "active",
+      "name": "ALLIED TECNOLOGIA S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "OFSA3": {
+      "ticker": "OFSA3",
+      "status": "active",
+      "name": "OUROFINO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "VTRU3": {
+      "ticker": "VTRU3",
+      "status": "active",
+      "name": "VITRU BRASIL EMPREENDIMENTOS, PARTICIPAÇÕES E COMÉRCIO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "AGXY3": {
+      "ticker": "AGXY3",
+      "status": "active",
+      "name": "Agrogalaxy Participações S.A. - Em Recuperação Judicial",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTSA3": {
+      "ticker": "CTSA3",
+      "status": "active",
+      "name": "CIA TECIDOS SANTANENSE em Recuperação Judicial",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTSA4": {
+      "ticker": "CTSA4",
+      "status": "active",
+      "name": "CIA TECIDOS SANTANENSE em Recuperação Judicial",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "MOVI11": {
+      "ticker": "MOVI11",
+      "status": "active",
+      "name": "MOVIDA PARTICIPACOES SA",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "PASS3": {
+      "ticker": "PASS3",
+      "status": "active",
+      "name": "Compass Gás e Energia S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "PASS5": {
+      "ticker": "PASS5",
+      "status": "active",
+      "name": "Compass Gás e Energia S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "PASS6": {
+      "ticker": "PASS6",
+      "status": "active",
+      "name": "Compass Gás e Energia S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "FHER3": {
+      "ticker": "FHER3",
+      "status": "active",
+      "name": "FERTILIZANTES HERINGER S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "CTNM3": {
+      "ticker": "CTNM3",
+      "status": "active",
+      "name": "CIA TECIDOS NORTE DE MINAS COTEMINAS",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTNM4": {
+      "ticker": "CTNM4",
+      "status": "active",
+      "name": "CIA TECIDOS NORTE DE MINAS COTEMINAS",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ATED3": {
+      "ticker": "ATED3",
+      "status": "active",
+      "name": "Atom Educação e Editora S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "LAVV3": {
+      "ticker": "LAVV3",
+      "status": "active",
+      "name": "Lavvi Empreendimentos Imobiliários S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "MILS3": {
+      "ticker": "MILS3",
+      "status": "active",
+      "name": "MILLS LOCAÇÃO, SERVIÇOS E LOGÍSTICA S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "BEES3": {
+      "ticker": "BEES3",
+      "status": "active",
+      "name": "BANESTES S.A. - BCO EST ESPIRITO SANTO",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BEES4": {
+      "ticker": "BEES4",
+      "status": "active",
+      "name": "BANESTES S.A. - BCO EST ESPIRITO SANTO",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "SCAR3": {
+      "ticker": "SCAR3",
+      "status": "active",
+      "name": "SAO CARLOS EMPREEND E PARTICIPACOES S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "NRTQ3": {
+      "ticker": "NRTQ3",
+      "status": "active",
+      "name": "NORTEC QUÍMICA S.A.",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "source": "cvm_fca"
+    },
+    "MBLY3": {
+      "ticker": "MBLY3",
+      "status": "active",
+      "name": "MOBLY S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "JFEN3": {
+      "ticker": "JFEN3",
+      "status": "active",
+      "name": "JOAO FORTES ENGENHARIA S.A. - Em Recuperação Judicial",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "MERC3": {
+      "ticker": "MERC3",
+      "status": "active",
+      "name": "Mercantil Financeira S.A. - Crédito, Financiamento e Investi",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "MERC4": {
+      "ticker": "MERC4",
+      "status": "active",
+      "name": "Mercantil Financeira S.A. - Crédito, Financiamento e Investi",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BHIA3": {
+      "ticker": "BHIA3",
+      "status": "active",
+      "name": "Grupo Casas Bahia S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CBEE3": {
+      "ticker": "CBEE3",
+      "status": "active",
+      "name": "AMPLA ENERGIA E SERVICOS S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "MOAR3": {
+      "ticker": "MOAR3",
+      "status": "active",
+      "name": "MONTEIRO ARANHA S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "VLID3": {
+      "ticker": "VLID3",
+      "status": "active",
+      "name": "VALID SOLUÇÕES S.A.",
+      "sector": "Technology",
+      "industry": "Software - Application",
+      "source": "cvm_fca"
+    },
+    "PORT3": {
+      "ticker": "PORT3",
+      "status": "active",
+      "name": "Wilson Sons S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "HOOT4": {
+      "ticker": "HOOT4",
+      "status": "active",
+      "name": "HOTEIS OTHON S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "WLMM3": {
+      "ticker": "WLMM3",
+      "status": "active",
+      "name": "WLM PART. E COMÉRCIO DE MÁQUINAS E VEÍCULOS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "WLMM4": {
+      "ticker": "WLMM4",
+      "status": "active",
+      "name": "WLM PART. E COMÉRCIO DE MÁQUINAS E VEÍCULOS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "SOND3": {
+      "ticker": "SOND3",
+      "status": "active",
+      "name": "SONDOTECNICA ENGENHARIA SOLOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "SOND6": {
+      "ticker": "SOND6",
+      "status": "active",
+      "name": "SONDOTECNICA ENGENHARIA SOLOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "SOND5": {
+      "ticker": "SOND5",
+      "status": "active",
+      "name": "SONDOTECNICA ENGENHARIA SOLOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "RPMG3": {
+      "ticker": "RPMG3",
+      "status": "active",
+      "name": "REFINARIA DE PETROLEOS MANGUINHOS S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "TKNO3": {
+      "ticker": "TKNO3",
+      "status": "active",
+      "name": "TEKNO S.A. - INDUSTRIA E COMERCIO",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "TKNO4": {
+      "ticker": "TKNO4",
+      "status": "active",
+      "name": "TEKNO S.A. - INDUSTRIA E COMERCIO",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "GGBR3": {
+      "ticker": "GGBR3",
+      "status": "active",
+      "name": "GERDAU S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "CEGR3": {
+      "ticker": "CEGR3",
+      "status": "active",
+      "name": "CIA DISTRIB DE GAS DO RIO DE JANEIRO-CEG",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "UNIP3": {
+      "ticker": "UNIP3",
+      "status": "active",
+      "name": "UNIPAR CARBOCLORO S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "UNIP5": {
+      "ticker": "UNIP5",
+      "status": "active",
+      "name": "UNIPAR CARBOCLORO S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "BMIN3": {
+      "ticker": "BMIN3",
+      "status": "active",
+      "name": "BCO MERCANTIL DE INVESTIMENTOS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BMIN4": {
+      "ticker": "BMIN4",
+      "status": "active",
+      "name": "BCO MERCANTIL DE INVESTIMENTOS S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "QUSW3": {
+      "ticker": "QUSW3",
+      "status": "active",
+      "name": "QUALITY SOFTWARE S.A.",
+      "sector": "Technology",
+      "industry": "Software - Application",
+      "source": "cvm_fca"
+    },
+    "IFCM11": {
+      "ticker": "IFCM11",
+      "status": "active",
+      "name": "INFRACOMMERCE CXAAS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "HMOB3": {
+      "ticker": "HMOB3",
+      "status": "active",
+      "name": "HMOBI Participações S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "LAND3": {
+      "ticker": "LAND3",
+      "status": "active",
+      "name": "Terra Santa Propriedades Agrícolas S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "BRKM3": {
+      "ticker": "BRKM3",
+      "status": "active",
+      "name": "BRASKEM S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "BRKM6": {
+      "ticker": "BRKM6",
+      "status": "active",
+      "name": "BRASKEM S.A.",
+      "sector": "Energy",
+      "industry": "Oil & Gas Integrated",
+      "source": "cvm_fca"
+    },
+    "SRNA3": {
+      "ticker": "SRNA3",
+      "status": "active",
+      "name": "SERENA ENERGIA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "PFRM3": {
+      "ticker": "PFRM3",
+      "status": "active",
+      "name": "PROFARMA DISTRIB PROD FARMACEUTICOS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "BAHI3": {
+      "ticker": "BAHI3",
+      "status": "active",
+      "name": "BAHEMA EDUCAÇÃO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "VSTE3": {
+      "ticker": "VSTE3",
+      "status": "active",
+      "name": "VESTE S.A. ESTILO",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "BOBR3": {
+      "ticker": "BOBR3",
+      "status": "active",
+      "name": "BOMBRIL S.A.",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "source": "cvm_fca"
+    },
+    "BOBR4": {
+      "ticker": "BOBR4",
+      "status": "active",
+      "name": "BOMBRIL S.A.",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "source": "cvm_fca"
+    },
+    "NUTR3": {
+      "ticker": "NUTR3",
+      "status": "active",
+      "name": "NUTRIPLANT INDUSTRIA E COMERCIO S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "IGTA3": {
+      "ticker": "IGTA3",
+      "status": "active",
+      "name": "IGUATEMI EMPRESA DE SHOPPING CENTERS S.A",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "EUCA3": {
+      "ticker": "EUCA3",
+      "status": "active",
+      "name": "EUCATEX S.A. INDUSTRIA E COMERCIO",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "EUCA4": {
+      "ticker": "EUCA4",
+      "status": "active",
+      "name": "EUCATEX S.A. INDUSTRIA E COMERCIO",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "BMKS3": {
+      "ticker": "BMKS3",
+      "status": "active",
+      "name": "BICICLETAS MONARK S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "WHRL3": {
+      "ticker": "WHRL3",
+      "status": "active",
+      "name": "WHIRLPOOL S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "WHRL4": {
+      "ticker": "WHRL4",
+      "status": "active",
+      "name": "WHIRLPOOL S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "PPAR3": {
+      "ticker": "PPAR3",
+      "status": "active",
+      "name": "POLPAR S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "PMAM3": {
+      "ticker": "PMAM3",
+      "status": "active",
+      "name": "PARANAPANEMA S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "SLED3": {
+      "ticker": "SLED3",
+      "status": "active",
+      "name": "SARAIVA LIVREIROS S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "SLED4": {
+      "ticker": "SLED4",
+      "status": "active",
+      "name": "SARAIVA LIVREIROS S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ALPK3": {
+      "ticker": "ALPK3",
+      "status": "active",
+      "name": "ALLPARK EMPREENDIMENTOS, PARTICIPAÇÕES E SERVIÇOS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "IGTI3": {
+      "ticker": "IGTI3",
+      "status": "active",
+      "name": "IGUATEMI S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "IGTI4": {
+      "ticker": "IGTI4",
+      "status": "active",
+      "name": "IGUATEMI S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "NEMO3": {
+      "ticker": "NEMO3",
+      "status": "active",
+      "name": "SUZANO HOLDING S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "NEMO5": {
+      "ticker": "NEMO5",
+      "status": "active",
+      "name": "SUZANO HOLDING S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "NEMO6": {
+      "ticker": "NEMO6",
+      "status": "active",
+      "name": "SUZANO HOLDING S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "MSPA3": {
+      "ticker": "MSPA3",
+      "status": "active",
+      "name": "CIA MELHORAMENTOS DE SAO PAULO",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "MSPA4": {
+      "ticker": "MSPA4",
+      "status": "active",
+      "name": "CIA MELHORAMENTOS DE SAO PAULO",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "BRIV3": {
+      "ticker": "BRIV3",
+      "status": "active",
+      "name": "BCO ALFA DE INVESTIMENTO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRIV4": {
+      "ticker": "BRIV4",
+      "status": "active",
+      "name": "BCO ALFA DE INVESTIMENTO S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BDLL3": {
+      "ticker": "BDLL3",
+      "status": "active",
+      "name": "BARDELLA S.A. INDUSTRIAS MECANICAS EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "BDLL4": {
+      "ticker": "BDLL4",
+      "status": "active",
+      "name": "BARDELLA S.A. INDUSTRIAS MECANICAS EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "USIM3": {
+      "ticker": "USIM3",
+      "status": "active",
+      "name": "USINAS SID DE MINAS GERAIS S.A.-USIMINAS",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "USIM6": {
+      "ticker": "USIM6",
+      "status": "active",
+      "name": "USINAS SID DE MINAS GERAIS S.A.-USIMINAS",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "CALI3": {
+      "ticker": "CALI3",
+      "status": "active",
+      "name": "CONSTRUTORA ADOLPHO LINDENBERG S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "CALI11": {
+      "ticker": "CALI11",
+      "status": "active",
+      "name": "CONSTRUTORA ADOLPHO LINDENBERG S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "MGEL3": {
+      "ticker": "MGEL3",
+      "status": "active",
+      "name": "MANGELS INDUSTRIAL S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "MGEL4": {
+      "ticker": "MGEL4",
+      "status": "active",
+      "name": "MANGELS INDUSTRIAL S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "ALPA3": {
+      "ticker": "ALPA3",
+      "status": "active",
+      "name": "ALPARGATAS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ESTR4": {
+      "ticker": "ESTR4",
+      "status": "active",
+      "name": "MANUFATURA DE BRINQUEDOS ESTRELA S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "CAMB3": {
+      "ticker": "CAMB3",
+      "status": "active",
+      "name": "CAMBUCI S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ETER3": {
+      "ticker": "ETER3",
+      "status": "active",
+      "name": "ETERNIT S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "APTI3": {
+      "ticker": "APTI3",
+      "status": "active",
+      "name": "SIDERURGICA J. L. ALIPERTI S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "APTI4": {
+      "ticker": "APTI4",
+      "status": "active",
+      "name": "SIDERURGICA J. L. ALIPERTI S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "022055": {
+      "ticker": "022055",
+      "status": "active",
+      "name": "MARISA LOJAS S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "AZEV3": {
+      "ticker": "AZEV3",
+      "status": "active",
+      "name": "AZEVEDO E TRAVASSOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "AZEV11": {
+      "ticker": "AZEV11",
+      "status": "active",
+      "name": "AZEVEDO E TRAVASSOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "AZEV4": {
+      "ticker": "AZEV4",
+      "status": "active",
+      "name": "AZEVEDO E TRAVASSOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "BALM3": {
+      "ticker": "BALM3",
+      "status": "active",
+      "name": "BAUMER S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "BALM4": {
+      "ticker": "BALM4",
+      "status": "active",
+      "name": "BAUMER S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "ITSA3": {
+      "ticker": "ITSA3",
+      "status": "active",
+      "name": "ITAÚSA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "ITSA4": {
+      "ticker": "ITSA4",
+      "status": "active",
+      "name": "ITAÚSA S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "CGAS3": {
+      "ticker": "CGAS3",
+      "status": "active",
+      "name": "CIA GAS DE SAO PAULO - COMGAS",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "CGAS5": {
+      "ticker": "CGAS5",
+      "status": "active",
+      "name": "CIA GAS DE SAO PAULO - COMGAS",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "AHEB3": {
+      "ticker": "AHEB3",
+      "status": "active",
+      "name": "SAO PAULO TURISMO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "AHEB5": {
+      "ticker": "AHEB5",
+      "status": "active",
+      "name": "SAO PAULO TURISMO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "AHEB6": {
+      "ticker": "AHEB6",
+      "status": "active",
+      "name": "SAO PAULO TURISMO S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "PINE3": {
+      "ticker": "PINE3",
+      "status": "active",
+      "name": "BCO PINE S.A",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "RDNI3": {
+      "ticker": "RDNI3",
+      "status": "active",
+      "name": "RNI NEGÓCIOS IMOBILIÁRIOS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "VIVR3": {
+      "ticker": "VIVR3",
+      "status": "active",
+      "name": "VIVER INCORPORADORA E CONSTRUTORA S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "CPLE5": {
+      "ticker": "CPLE5",
+      "status": "active",
+      "name": "CIA PARANAENSE DE ENERGIA - COPEL",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "SAPR3": {
+      "ticker": "SAPR3",
+      "status": "active",
+      "name": "CIA SANEAMENTO DO PARANA - SANEPAR",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "OIBR4": {
+      "ticker": "OIBR4",
+      "status": "active",
+      "name": "OI S.A. - EM RECUPERAÇÃO JUDICIAL",
+      "sector": "Communication Services",
+      "industry": "Telecom Services",
+      "source": "cvm_fca"
+    },
+    "INEP3": {
+      "ticker": "INEP3",
+      "status": "active",
+      "name": "INEPAR S.A. INDUSTRIA E CONSTRUCOES EM RECUPERACAO JUDICIAL",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "CASN4": {
+      "ticker": "CASN4",
+      "status": "active",
+      "name": "CIA CATARINENSE DE AGUAS E SANEAM.-CASAN",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Water",
+      "source": "cvm_fca"
+    },
+    "TEKA3": {
+      "ticker": "TEKA3",
+      "status": "active",
+      "name": "TEKA-TECELAGEM KUEHNRICH S.A. - Em Recuperação Judicial",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "TEKA4": {
+      "ticker": "TEKA4",
+      "status": "active",
+      "name": "TEKA-TECELAGEM KUEHNRICH S.A. - Em Recuperação Judicial",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTKA3": {
+      "ticker": "CTKA3",
+      "status": "active",
+      "name": "KARSTEN S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CTKA4": {
+      "ticker": "CTKA4",
+      "status": "active",
+      "name": "KARSTEN S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "EALT3": {
+      "ticker": "EALT3",
+      "status": "active",
+      "name": "ELECTRO ACO ALTONA S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "EALT4": {
+      "ticker": "EALT4",
+      "status": "active",
+      "name": "ELECTRO ACO ALTONA S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "TRXR3": {
+      "ticker": "TRXR3",
+      "status": "active",
+      "name": "TEXTIL RENAUXVIEW S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "TXRX4": {
+      "ticker": "TXRX4",
+      "status": "active",
+      "name": "TEXTIL RENAUXVIEW S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CLSC3": {
+      "ticker": "CLSC3",
+      "status": "active",
+      "name": "CENTRAIS ELET DE SANTA CATARINA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "CLSC4": {
+      "ticker": "CLSC4",
+      "status": "active",
+      "name": "CENTRAIS ELET DE SANTA CATARINA S.A.",
+      "sector": "Utilities",
+      "industry": "Utilities - Regulated Electric",
+      "source": "cvm_fca"
+    },
+    "DOHL3": {
+      "ticker": "DOHL3",
+      "status": "active",
+      "name": "DOHLER S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "DOHL4": {
+      "ticker": "DOHL4",
+      "status": "active",
+      "name": "DOHLER S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "MWET3": {
+      "ticker": "MWET3",
+      "status": "active",
+      "name": "WETZEL S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "MWET4": {
+      "ticker": "MWET4",
+      "status": "active",
+      "name": "WETZEL S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "SHUL3": {
+      "ticker": "SHUL3",
+      "status": "active",
+      "name": "SCHULZ S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "RSUL3": {
+      "ticker": "RSUL3",
+      "status": "active",
+      "name": "METALURGICA RIOSULENSE S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "RSUL4": {
+      "ticker": "RSUL4",
+      "status": "active",
+      "name": "METALURGICA RIOSULENSE S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MTSA3": {
+      "ticker": "MTSA3",
+      "status": "active",
+      "name": "METISA METALURGICA TIMBOENSE S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "MTSA4": {
+      "ticker": "MTSA4",
+      "status": "active",
+      "name": "METISA METALURGICA TIMBOENSE S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "FRTA3": {
+      "ticker": "FRTA3",
+      "status": "active",
+      "name": "POMIFRUTAS S/A EM RECUPERACAO JUDICIAL",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "JOPA3": {
+      "ticker": "JOPA3",
+      "status": "active",
+      "name": "JOSAPAR-JOAQUIM OLIVEIRA S.A. - PARTICIP",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "JOPA4": {
+      "ticker": "JOPA4",
+      "status": "active",
+      "name": "JOSAPAR-JOAQUIM OLIVEIRA S.A. - PARTICIP",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "HBTS5": {
+      "ticker": "HBTS5",
+      "status": "active",
+      "name": "CIA HABITASUL DE PARTICIPACOES",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "MNDL3": {
+      "ticker": "MNDL3",
+      "status": "active",
+      "name": "MUNDIAL S.A. - PRODUTOS DE CONSUMO",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "POMO3": {
+      "ticker": "POMO3",
+      "status": "active",
+      "name": "MARCOPOLO S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "PTNT3": {
+      "ticker": "PTNT3",
+      "status": "active",
+      "name": "PETTENATI S.A. INDUSTRIA TEXTIL",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "PTNT4": {
+      "ticker": "PTNT4",
+      "status": "active",
+      "name": "PETTENATI S.A. INDUSTRIA TEXTIL",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "RAPT3": {
+      "ticker": "RAPT3",
+      "status": "active",
+      "name": "RANDON S.A. IMPLEMENTOS E PARTICIPACOES",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "LUPA3": {
+      "ticker": "LUPA3",
+      "status": "active",
+      "name": "LUPATECH S.A",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "MNPR3": {
+      "ticker": "MNPR3",
+      "status": "active",
+      "name": "MINUPAR PARTICIPACOES S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "UCAS3": {
+      "ticker": "UCAS3",
+      "status": "active",
+      "name": "UNICASA INDÚSTRIA DE MÓVEIS S.A.",
+      "sector": "Real Estate",
+      "industry": "Real Estate - Development",
+      "source": "cvm_fca"
+    },
+    "RCSL3": {
+      "ticker": "RCSL3",
+      "status": "active",
+      "name": "RECRUSUL S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "RCSL4": {
+      "ticker": "RCSL4",
+      "status": "active",
+      "name": "RECRUSUL S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "DMFN3": {
+      "ticker": "DMFN3",
+      "status": "active",
+      "name": "DM FINANCEIRA S.A. - CRÉDITO, FINANCIAMENTO E INVESTIMENTO",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "CGRA3": {
+      "ticker": "CGRA3",
+      "status": "active",
+      "name": "GRAZZIOTIN S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "CGRA4": {
+      "ticker": "CGRA4",
+      "status": "active",
+      "name": "GRAZZIOTIN S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "GOAU3": {
+      "ticker": "GOAU3",
+      "status": "active",
+      "name": "METALURGICA GERDAU S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "PATI3": {
+      "ticker": "PATI3",
+      "status": "active",
+      "name": "PANATLANTICA S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "PATI4": {
+      "ticker": "PATI4",
+      "status": "active",
+      "name": "PANATLANTICA S.A.",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "BRSR3": {
+      "ticker": "BRSR3",
+      "status": "active",
+      "name": "BCO ESTADO DO RIO GRANDE DO SUL S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "BRSR5": {
+      "ticker": "BRSR5",
+      "status": "active",
+      "name": "BCO ESTADO DO RIO GRANDE DO SUL S.A.",
+      "sector": "Financial Services",
+      "industry": "Banks - Regional",
+      "source": "cvm_fca"
+    },
+    "HETA3": {
+      "ticker": "HETA3",
+      "status": "active",
+      "name": "HERCULES S.A. FABRICA DE TALHERES",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "HETA4": {
+      "ticker": "HETA4",
+      "status": "active",
+      "name": "HERCULES S.A. FABRICA DE TALHERES",
+      "sector": "Basic Materials",
+      "industry": "Steel",
+      "source": "cvm_fca"
+    },
+    "TASA3": {
+      "ticker": "TASA3",
+      "status": "active",
+      "name": "TAURUS ARMAS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "TASA4": {
+      "ticker": "TASA4",
+      "status": "active",
+      "name": "TAURUS ARMAS S.A.",
+      "sector": "Industrials",
+      "industry": "Rental & Leasing Services",
+      "source": "cvm_fca"
+    },
+    "713854": {
+      "ticker": "713854",
+      "status": "active",
+      "name": "CEMEPE INVESTIMENTOS S.A.",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "source": "cvm_fca"
+    },
+    "BAUH3": {
+      "ticker": "BAUH3",
+      "status": "active",
+      "name": "EXCELSIOR ALIMENTOS S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "BAUH4": {
+      "ticker": "BAUH4",
+      "status": "active",
+      "name": "EXCELSIOR ALIMENTOS S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "LJQQ3": {
+      "ticker": "LJQQ3",
+      "status": "active",
+      "name": "Lojas Quero Quero S.A.",
+      "sector": "Consumer Cyclical",
+      "industry": "Specialty Retail",
+      "source": "cvm_fca"
+    },
+    "ODER3": {
+      "ticker": "ODER3",
+      "status": "active",
+      "name": "CONSERVAS ODERICH S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
+    },
+    "ODER4": {
+      "ticker": "ODER4",
+      "status": "active",
+      "name": "CONSERVAS ODERICH S.A.",
+      "sector": "Consumer Defensive",
+      "industry": "Farm Products",
+      "source": "cvm_fca"
     }
   }
 }

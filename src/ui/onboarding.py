@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import streamlit as st
 
-from src.config import THESIS_LABEL, THESIS_VERSION
-from src.ui.data_source import request_session_provider
 from src.ui.friendly import GLOSSARY
 
 
@@ -15,6 +13,7 @@ def _done() -> bool:
 
 def mark_onboarding_done() -> None:
     st.session_state["onboarding_done"] = True
+    st.session_state["tour_force_active"] = False
 
 
 def _get_learning_milestones() -> dict[str, bool]:
@@ -54,125 +53,187 @@ def _has_portfolio_positions() -> bool:
 
 
 def render_onboarding_if_needed() -> bool:
-    """Mostra o guia de onboarding com trilha de aprendizado se ainda não concluiu.
+    """Mostra o guia de onboarding com trilha de aprendizado se ainda não concluiu ou se foi forçado."""
+    is_forced = bool(st.session_state.get("tour_force_active", False))
+    if not is_forced:
+        if _done():
+            return False
+        if _has_portfolio_positions():
+            mark_onboarding_done()
+            return False
 
-    Returns
-    -------
-    True se o onboarding está ativo (páginas podem encurtar o resto).
-    """
-    if _done():
-        return False
-    if _has_portfolio_positions():
-        mark_onboarding_done()
-        return False
-
-    st.markdown("### Bem-vindo ao TradingDash")
-    st.caption(
-        f"{THESIS_LABEL} v{THESIS_VERSION} · conta de treino com dinheiro de mentira"
+    st.markdown(
+        """
+<div class="td-hero-glass" style="margin-bottom:1.5rem;">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <div style="font-size:0.8rem; font-weight:700; color:#818CF8; text-transform:uppercase; letter-spacing:0.05em;">Tour Guiado Rápido</div>
+      <div style="font-size:1.75rem; font-weight:800; color:#F8FAFC; margin-top:0.2rem;">Bem-vindo ao TradingDash</div>
+      <div style="font-size:0.9rem; color:#94A3B8; margin-top:0.25rem;">Aprenda a investir em dividendos na B3 com dinheiro de treino e inteligência visual</div>
+    </div>
+    <div style="background:rgba(56, 189, 248, 0.12); border:1px solid rgba(56, 189, 248, 0.3); border-radius:999px; padding:0.35rem 0.9rem; font-size:0.82rem; color:#38BDF8; font-weight:600;">
+      🎮 100% Simulação Segura
+    </div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
     step = int(st.session_state.get("onboarding_step", 0))
     steps = [
-        "A ideia em 30 segundos",
-        "De onde vêm os números",
-        "Seu caminho no app",
-        "Pronto para começar",
+        "1. A ideia em 30 segundos",
+        "2. De onde vêm os números",
+        "3. Seu caminho guiado",
+        "4. Pronto para começar",
     ]
 
-    st.progress((step + 1) / len(steps), text=f"Passo {step + 1} de {len(steps)}: {steps[step]}")
+    st.progress((step + 1) / len(steps), text=f"Etapa {step + 1} de {len(steps)}: {steps[step]}")
 
     with st.container(border=True):
         if step == 0:
             st.markdown(
                 """
-**O que este app faz por você**
-
-Ajuda a **estudar e treinar** uma carteira de ações brasileiras focada em:
-
-1. Empresas de **qualidade** (negócio sólido)
-2. **Dividendos** sustentáveis (renda possível sem vender a ação)
-3. **Diversificação** (várias empresas, limite por setor)
-4. Tudo primeiro em **conta de treino** (sem corretora)
-
-Não é promessa de lucro — é um **guia guiado** para aprender a tese com calma.
-"""
+<div style="padding:0.5rem 0;">
+  <h4 style="color:#F8FAFC; margin-bottom:0.5rem;">🎯 O que o TradingDash faz por você</h4>
+  <p style="color:#94A3B8; font-size:0.9rem; margin-bottom:1.25rem;">
+    Ele elimina a complexidade do mercado financeiro e ajuda você a montar uma <b>carteira de dividendos inteligentes</b> baseada em 4 pilares:
+  </p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.85rem;">
+    <div style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem;">
+      <div style="font-size:1.25rem; margin-bottom:0.3rem;">🏢</div>
+      <div style="font-weight:700; color:#34D399; font-size:0.95rem;">Qualidade Comprovada</div>
+      <div style="font-size:0.8rem; color:#94A3B8; margin-top:0.25rem;">Negócios sólidos e lucrativos (bancos, energia, saneamento).</div>
+    </div>
+    <div style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem;">
+      <div style="font-size:1.25rem; margin-bottom:0.3rem;">💰</div>
+      <div style="font-weight:700; color:#38BDF8; font-size:0.95rem;">Dividendos Sustentáveis</div>
+      <div style="font-size:0.8rem; color:#94A3B8; margin-top:0.25rem;">Renda periódica pingando sem precisar vender suas ações.</div>
+    </div>
+    <div style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem;">
+      <div style="font-size:1.25rem; margin-bottom:0.3rem;">🛡️</div>
+      <div style="font-weight:700; color:#818CF8; font-size:0.95rem;">Saúde Financeira</div>
+      <div style="font-size:0.8rem; color:#94A3B8; margin-top:0.25rem;">Empresas com dívidas sob controle e caixas confortáveis.</div>
+    </div>
+    <div style="background:rgba(17,24,39,0.7); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.9rem;">
+      <div style="font-size:1.25rem; margin-bottom:0.3rem;">⚖️</div>
+      <div style="font-weight:700; color:#FBBF24; font-size:0.95rem;">Preço Justo</div>
+      <div style="font-size:0.8rem; color:#94A3B8; margin-top:0.25rem;">Evita comprar ações caras demais no topo do mercado.</div>
+    </div>
+  </div>
+</div>
+""",
+                unsafe_allow_html=True,
             )
         elif step == 1:
             st.markdown(
                 """
-**De onde vêm os números**
-
-O app usa **preços e indicadores da bolsa** (Yahoo Finance). A carteira é de **dinheiro fictício**: você treina o fluxo sem corretora, mas com dados de mercado.
-
-A fonte pode atrasar ou faltar — é gratuita. Se um indicador não vier, a nota da empresa perde força, de propósito.
-"""
+<div style="padding:0.5rem 0;">
+  <h4 style="color:#F8FAFC; margin-bottom:0.5rem;">📊 De onde vêm os números?</h4>
+  <p style="color:#94A3B8; font-size:0.9rem; margin-bottom:1.25rem;">
+    Transparência total: você não precisa arriscar dinheiro real para aprender.
+  </p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+    <div style="background:rgba(17,24,39,0.75); border:1px solid rgba(56,189,248,0.25); border-radius:14px; padding:1.1rem;">
+      <div style="font-size:1.1rem; font-weight:700; color:#38BDF8; margin-bottom:0.35rem;">🟢 Dados Reais da Bolsa (B3)</div>
+      <div style="font-size:0.84rem; color:#CBD5E1; line-height:1.4;">
+        Cotações diárias, dividendos históricos e balanços oficiais auditados das empresas listadas no Brasil.
+      </div>
+    </div>
+    <div style="background:rgba(17,24,39,0.75); border:1px solid rgba(52,211,153,0.25); border-radius:14px; padding:1.1rem;">
+      <div style="font-size:1.1rem; font-weight:700; color:#34D399; margin-bottom:0.35rem;">🎮 Dinheiro de Treino (Sem Risco)</div>
+      <div style="font-size:0.84rem; color:#CBD5E1; line-height:1.4;">
+        Você começa com <b>R$ 10.000 fictícios</b> para treinar montagem de carteira, aportes e simulações sem precisar vincular corretora.
+      </div>
+    </div>
+  </div>
+</div>
+""",
+                unsafe_allow_html=True,
             )
         elif step == 2:
             st.markdown(
                 """
-**Caminho recomendado**
-
-1. **Descubra ações** — as 4 notas da tese e o porquê de cada nome
-2. **Minha carteira** → clique em **Montar carteira com a tese** (R$ 10 mil fictícios)
-3. **Renda esperada** — 3 cenários, sem mágica
-4. **Teste no passado** (opcional) — como a tese se comportaria com preços reais
-
-Depois, o **Guia** se alguma palavra escapar.
-"""
+<div style="padding:0.5rem 0;">
+  <h4 style="color:#F8FAFC; margin-bottom:0.5rem;">🚀 Seu caminho dentro do aplicativo</h4>
+  <p style="color:#94A3B8; font-size:0.9rem; margin-bottom:1.25rem;">
+    A navegação foi desenhada para ser simples e fluida:
+  </p>
+  <div style="display:flex; flex-direction:column; gap:0.75rem;">
+    <div style="background:rgba(17,24,39,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:0.85rem 1rem; display:flex; align-items:center; gap:1rem;">
+      <span style="font-size:1.3rem; background:rgba(56,189,248,0.15); padding:0.4rem 0.7rem; border-radius:8px; font-weight:800; color:#38BDF8;">1</span>
+      <div>
+        <div style="color:#F8FAFC; font-weight:700; font-size:0.92rem;">Descubra Ações</div>
+        <div style="color:#94A3B8; font-size:0.8rem;">Explore até 369 empresas com diagnóstico visual de saúde financeira sem termos difíceis.</div>
+      </div>
+    </div>
+    <div style="background:rgba(17,24,39,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:0.85rem 1rem; display:flex; align-items:center; gap:1rem;">
+      <span style="font-size:1.3rem; background:rgba(52,211,153,0.15); padding:0.4rem 0.7rem; border-radius:8px; font-weight:800; color:#34D399;">2</span>
+      <div>
+        <div style="color:#F8FAFC; font-weight:700; font-size:0.92rem;">Minha Carteira</div>
+        <div style="color:#94A3B8; font-size:0.8rem;">Monte sua carteira com 1 clique e acompanhe o progresso das suas Metas de Liberdade Financeira.</div>
+      </div>
+    </div>
+    <div style="background:rgba(17,24,39,0.6); border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:0.85rem 1rem; display:flex; align-items:center; gap:1rem;">
+      <span style="font-size:1.3rem; background:rgba(129,140,248,0.15); padding:0.4rem 0.7rem; border-radius:8px; font-weight:800; color:#818CF8;">3</span>
+      <div>
+        <div style="color:#F8FAFC; font-weight:700; font-size:0.92rem;">Teste no Passado & Radar de Notícias</div>
+        <div style="color:#94A3B8; font-size:0.8rem;">Veja o ganho real acima da inflação (IPCA) e receba notícias dos seus ativos com análise de sentimento.</div>
+      </div>
+    </div>
+  </div>
+</div>
+""",
+                unsafe_allow_html=True,
             )
         else:
             st.markdown(
                 """
-**Checklist rápido**
-
-- [ ] Entendi que o dinheiro é **fictício** e os preços são da **bolsa**
-- [ ] O botão que monta o livro é **Montar carteira com a tese**
-- [ ] Vou validar qualquer nome em RI/CVM antes de dinheiro real
-
-Reabra este tour no **Início** (barra lateral) ou no **Guia do iniciante**.
-"""
-            )
-            st.success(
-                "Ao concluir, o app libera o painel completo. Você pode repetir o tour depois.",
-                icon=":material/celebration:",
+<div style="padding:0.5rem 0; text-align:center;">
+  <div style="font-size:2.5rem; margin-bottom:0.5rem;">🎉</div>
+  <h3 style="color:#F8FAFC; margin-bottom:0.4rem;">Tudo pronto para decolar!</h3>
+  <p style="color:#94A3B8; font-size:0.92rem; max-width:520px; margin:0 auto 1.5rem auto;">
+    Você está pronto para explorar o mercado e simular sua carteira com segurança. Você pode reiniciar este tour a qualquer momento.
+  </p>
+</div>
+""",
+                unsafe_allow_html=True,
             )
 
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
-        if step > 0 and st.button("Voltar", width="stretch", key="ob_back"):
+        if step > 0 and st.button("⬅ Voltar", width="stretch", key="ob_back"):
             st.session_state["onboarding_step"] = step - 1
             st.rerun()
     with c2:
         if step < len(steps) - 1:
-            if st.button("Continuar", type="primary", width="stretch", key="ob_next"):
+            if st.button("Próximo ➔", type="primary", width="stretch", key="ob_next"):
                 st.session_state["onboarding_step"] = step + 1
                 st.rerun()
         else:
             if st.button(
-                "Começar com a bolsa",
+                "🚀 Começar a Usar",
                 type="primary",
                 width="stretch",
                 key="ob_done",
             ):
                 mark_onboarding_done()
                 st.session_state["onboarding_step"] = 0
-                request_session_provider("yfinance")
                 st.rerun()
     with c3:
-        if st.button("Pular tour", width="stretch", key="ob_skip"):
+        if st.button("Fechar tour", width="stretch", key="ob_skip"):
             mark_onboarding_done()
-            request_session_provider("yfinance")
             st.rerun()
 
     return True
 
 
 def render_onboarding_reset_button() -> None:
-    """Botão discreto para refazer o tour."""
-    if st.button("Refazer tour de boas-vindas", key="ob_reset"):
+    """Botão para refazer o tour a qualquer momento."""
+    if st.button("Iniciar tour novamente", key="ob_reset", icon=":material/school:"):
+        st.session_state["tour_force_active"] = True
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
-        # Reset learning milestones too
         if "learning_milestones" in st.session_state:
             del st.session_state["learning_milestones"]
         st.rerun()

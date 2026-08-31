@@ -109,3 +109,35 @@ def test_render_news_feed_cards(monkeypatch):
     html_output = rendered[0]
     assert "Banco do Brasil lucra forte" in html_output
     assert "td-sentiment-pill positive" in html_output
+
+
+def test_tour_force_active(monkeypatch):
+    import streamlit as st
+    from src.ui.onboarding import mark_onboarding_done, render_onboarding_if_needed
+
+    st.session_state["onboarding_done"] = True
+    st.session_state["tour_force_active"] = True
+    monkeypatch.setattr(st, "markdown", lambda *a, **kw: None)
+    monkeypatch.setattr(st, "progress", lambda *a, **kw: None)
+    monkeypatch.setattr("src.ui.onboarding._has_portfolio_positions", lambda: True)
+
+    # When tour_force_active is True, it must render the tour even if positions exist
+    assert render_onboarding_if_needed() is True
+
+    mark_onboarding_done()
+    assert st.session_state.get("tour_force_active") is False
+    assert st.session_state.get("onboarding_done") is True
+
+
+def test_expanded_universe_369():
+    from src.data.universe import get_universe
+    from src.services import load_scored_universe
+
+    univ = get_universe(mode="full")
+    assert len(univ) >= 369
+
+    # Score exactly 369 tickers with demo provider
+    result = load_scored_universe(provider_name="demo", tickers=univ[:369])
+    assert result.scored is not None
+    assert len(result.scored) == 369
+

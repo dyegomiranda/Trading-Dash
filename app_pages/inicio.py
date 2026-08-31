@@ -29,6 +29,7 @@ from src.ui.components import (
     render_core_sectors_card,
     render_journey,
     render_kpi_row,
+    render_news_feed_cards,
     render_plain_help,
     render_thesis_pillars,
 )
@@ -42,21 +43,30 @@ page_setup()
 
 provider = get_session_provider()
 _home_title = "Início"
-_home_sub = "Comece aqui · caminho guiado para montar uma carteira de treino"
-
-if render_onboarding_if_needed():
-    render_clean_header(_home_title, _home_sub, provider=provider)
-    st.stop()
+_home_sub = "Painel principal · visão geral da carteira de treino e do mercado"
 
 render_clean_header(_home_title, _home_sub, provider=provider)
 render_data_quality_banner(provider)
 
+if render_onboarding_if_needed():
+    st.stop()
+
 with st.sidebar:
     if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
+        st.session_state["tour_force_active"] = True
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
         if "learning_milestones" in st.session_state:
             del st.session_state["learning_milestones"]
+        st.rerun()
+
+# Top Banner com atalho para rever tour guiado
+top_col1, top_col2 = st.columns([3, 1])
+with top_col2:
+    if st.button("▶ Rever Tour Guiado", key="top_tour_btn", help="Reabre o tour interativo passo a passo"):
+        st.session_state["tour_force_active"] = True
+        st.session_state["onboarding_done"] = False
+        st.session_state["onboarding_step"] = 0
         st.rerun()
 
 
@@ -268,27 +278,12 @@ with c1, st.container(border=True):
         )
 
 with c2, st.container(border=True):
-    st.markdown("##### Headlines reais")
-    st.caption("Matérias via Google News / Yahoo — clique para abrir a fonte.")
+    st.markdown("##### Radar de Notícias")
+    st.caption("Notícias recentes do mercado com análise visual de sentimento.")
     if news is None or news.empty:
-        st.warning(
-            "Não foi possível carregar notícias agora (rede/API). "
-            "Tente atualizar o overview."
-        )
+        st.caption("Nenhuma notícia recente disponível no momento.")
     else:
-        for _, row in news.iterrows():
-            tag = str(row.get("tag") or "mercado")
-            ticker = str(row.get("ticker") or "")
-            title = str(row.get("title") or "")
-            src = str(row.get("source") or "")
-            when = str(row.get("published") or "")
-            url = row.get("url")
-            head = f"**{ticker}** · {tag}" if ticker else tag
-            if url:
-                st.markdown(f"{head}  \n[{title}]({url})  \n*{src} · {when}*")
-            else:
-                st.markdown(f"{head}  \n{title}  \n*{src} · {when}*")
-            st.markdown("")
+        render_news_feed_cards(news)
 
 st.caption(
     "Overview em tempo de sessão · notícias de fontes públicas · "

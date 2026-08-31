@@ -210,9 +210,8 @@ def render_explain_card(title: str, value: str, body: str) -> None:
 
 
 def render_plain_help(title: str, body: str, *, icon: str = ":material/lightbulb:") -> None:
-    """Caixa leve de orientação (não usa st.info pesado)."""
-    with st.container(border=True):
-        st.markdown(f"**{icon} {title}**")
+    """Guia colapsável e discreto de orientação para não poluir a tela com texto."""
+    with st.expander(title, expanded=False, icon=icon):
         st.markdown(body)
 
 
@@ -335,9 +334,8 @@ def pillar_means(df) -> tuple[float | None, float | None, float | None, float | 
 
 
 def render_core_sectors_card() -> None:
-    """Setores da base da tese, em português — o que o iniciante precisa ver."""
-    with st.container(border=True):
-        st.markdown("##### Base da tese (~70%)")
+    """Setores da base da tese, em português — recolhível para manter a UI limpa."""
+    with st.expander("Composição setorial da tese (~70% Base / ~30% Complemento)", expanded=False, icon=":material/pie_chart:"):
         st.markdown(
             """
 A carteira **base** privilegia negócios mais previsíveis no Brasil:

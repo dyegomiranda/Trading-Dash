@@ -1235,6 +1235,102 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }}
+
+/* Animações Modernas & Transições Fluidas */
+@keyframes tdFadeInUp {{
+  0% {{
+    opacity: 0;
+    transform: translateY(12px);
+  }}
+  100% {{
+    opacity: 1;
+    transform: translateY(0);
+  }}
+}}
+
+@keyframes tdPulseGlow {{
+  0%, 100% {{
+    box-shadow: 0 0 15px rgba(129, 140, 248, 0.2);
+  }}
+  50% {{
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.35);
+  }}
+}}
+
+.main .block-container {{
+  animation: tdFadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}}
+
+.td-hero-glass {{
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.55) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  margin-bottom: 1.25rem;
+  animation: tdFadeInUp 0.3s ease-out;
+}}
+
+.td-quick-actions-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}}
+
+.td-quick-card {{
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}}
+.td-quick-card:hover {{
+  transform: translateY(-3px);
+  border-color: rgba(129, 140, 248, 0.45);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35), 0 0 15px rgba(129, 140, 248, 0.15);
+}}
+
+/* Microinterações de Botões e Métricas */
+.stButton > button {{
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-weight: 600 !important;
+}}
+.stButton > button:hover {{
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 6px 20px rgba(129, 140, 248, 0.25) !important;
+}}
+.stButton > button:active {{
+  transform: translateY(0px) !important;
+}}
+
+[data-testid="stMetric"] {{
+  background: rgba(17, 24, 39, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 14px !important;
+  padding: 0.85rem 1rem !important;
+  transition: all 0.2s ease !important;
+}}
+[data-testid="stMetric"]:hover {{
+  border-color: rgba(129, 140, 248, 0.35) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25) !important;
+}}
+
+[data-testid="stExpander"] {{
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(17, 24, 39, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  transition: border-color 0.2s ease !important;
+}}
+[data-testid="stExpander"]:hover {{
+  border-color: rgba(129, 140, 248, 0.3) !important;
+}}
 </style>
 
 """
