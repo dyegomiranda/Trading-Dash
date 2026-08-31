@@ -380,6 +380,12 @@ else:
         "more": "Detalhes",
     }
 
+def set_pf_section(sec: str) -> None:
+    st.session_state["_pending_pf_section"] = sec
+
+if "_pending_pf_section" in st.session_state:
+    st.session_state["pf_section"] = st.session_state.pop("_pending_pf_section")
+
 if "pf_section" not in st.session_state or st.session_state["pf_section"] not in _SECTION_LABELS:
     st.session_state["pf_section"] = "overview" if has_positions else "build"
 
@@ -418,7 +424,7 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
             icon=":material/arrow_forward:",
             key="pf_go_build",
         ):
-            st.session_state["pf_section"] = "build"
+            set_pf_section("build")
             st.rerun()
     else:
         st.markdown("##### Como seu dinheiro está dividido")
@@ -675,19 +681,19 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                             st.warning(f"**{item['title']}**: {item['message']}")
                             if st.button(item["action"], key=f"guidance_action_{hash(item['title'])}"):
                                 if item["action"] == "Montar carteira com a tese" or item["action"] == "Ver sugestões de rebalanceamento":
-                                    st.session_state["pf_section"] = "build"
+                                    set_pf_section("build")
                                     st.rerun()
                                 elif item["action"] == "Explore sugestões da tese":
-                                    st.session_state["pf_section"] = "overview"
+                                    set_pf_section("overview")
                                     st.rerun()
                         else:
                             st.info(f"**{item['title']}**: {item['message']}")
                             if st.button(item["action"], key=f"guidance_action_{hash(item['title'])}"):
                                 if item["action"] == "Montar carteira com a tese":
-                                    st.session_state["pf_section"] = "build"
+                                    set_pf_section("build")
                                     st.rerun()
                                 elif item["action"] == "Explore sugestões da tese":
-                                    st.session_state["pf_section"] = "overview"
+                                    set_pf_section("overview")
                                     st.rerun()
                 else:
                     st.success("✅ Sua carteira parece equilibrada! Continue monitorando e aprendendo.")
@@ -726,13 +732,13 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
             ov_col1, ov_col2 = st.columns([1.2, 1])
             with ov_col1:
                 if st.button("🎯 Ver Renda Esperada & Metas de Longo Prazo ➔", type="primary", width="stretch", key="ov_to_income"):
-                    st.session_state["pf_section"] = "income"
+                    set_pf_section("income")
                     st.session_state["viewed_income"] = True
                     st.session_state["pf_viewed_income"] = True
                     st.rerun()
             with ov_col2:
                 if st.button("📰 Acessar Radar de Notícias & Riscos ➔", width="stretch", key="ov_to_news"):
-                    st.session_state["pf_section"] = "news"
+                    set_pf_section("news")
                     st.rerun()
 
 # ─── Montar carteira ────────────────────────────────────────────────────────
@@ -969,7 +975,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                     for t in trades
                 ]
                 if trades:
-                    st.session_state["pf_section"] = "overview"
+                    set_pf_section("overview")
                     st.session_state["viewed_income"] = False
                     st.session_state["pf_viewed_income"] = False
                     st.session_state["pf_flash"] = {
@@ -1674,11 +1680,11 @@ que você definir abaixo.
         inc_col1, inc_col2 = st.columns([1, 1])
         with inc_col1:
             if st.button("⬅ Voltar para Visão Geral", width="stretch", key="inc_to_overview"):
-                st.session_state["pf_section"] = "overview"
+                set_pf_section("overview")
                 st.rerun()
         with inc_col2:
             if st.button("📰 Acompanhar Radar de Notícias & Sentimento ➔", type="primary", width="stretch", key="inc_to_news"):
-                st.session_state["pf_section"] = "news"
+                set_pf_section("news")
                 st.rerun()
 
 
@@ -1701,11 +1707,11 @@ if section == "news":
         news_col1, news_col2 = st.columns([1, 1])
         with news_col1:
             if st.button("⬅ Voltar para Renda Esperada", width="stretch", key="news_to_inc"):
-                st.session_state["pf_section"] = "income"
+                set_pf_section("income")
                 st.rerun()
         with news_col2:
             if st.button("📊 Ir para Visão Geral ➔", type="primary", width="stretch", key="news_to_ov"):
-                st.session_state["pf_section"] = "overview"
+                set_pf_section("overview")
                 st.rerun()
 
 

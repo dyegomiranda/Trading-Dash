@@ -22,19 +22,16 @@ from src.ui.data_source import (
     render_data_quality_banner,
 )
 from src.thesis.scoring import recommend_weights
-from src.ai.coach import narrative_thesis
 from src.ui.charts import holdings_donut
 from src.ui.components import (
     pillar_means,
     render_core_sectors_card,
-    render_journey,
     render_kpi_row,
     render_news_feed_cards,
-    render_plain_help,
     render_thesis_pillars,
 )
-from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe, portfolio_journey_state
-from src.ui.onboarding import render_onboarding_if_needed, render_learning_dashboard
+from src.ui.friendly import friendly_dataframe
+from src.ui.onboarding import render_onboarding_if_needed
 from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
 from src.ui.wizard import render_quick_wizard
@@ -59,21 +56,38 @@ if render_onboarding_if_needed():
     st.stop()
 
 with st.sidebar:
+    st.markdown("##### Qual carteira")
+    _saved = list_portfolios()
+    if not _saved:
+        _saved = ["paper-main"]
+    current_active = (
+        st.session_state.get("pf_active_name")
+        or st.session_state.get("pf_select")
+        or _saved[0]
+    )
+    if current_active not in _saved:
+        current_active = _saved[0]
+    active_idx = _saved.index(current_active)
+
+    selected_portfolio = st.selectbox(
+        "Carteira ativa",
+        options=_saved,
+        index=active_idx,
+        key="home_pf_select_box",
+        help="Cada carteira tem caixa e ações próprios.",
+    )
+    if selected_portfolio != current_active:
+        st.session_state["pf_active_name"] = selected_portfolio
+        st.session_state["pf_select"] = selected_portfolio
+        st.rerun()
+
+    st.markdown("---")
     if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
         st.session_state["tour_force_active"] = True
         st.session_state["onboarding_done"] = False
         st.session_state["onboarding_step"] = 0
         if "learning_milestones" in st.session_state:
             del st.session_state["learning_milestones"]
-        st.rerun()
-
-# Top Banner com atalho para rever tour guiado
-top_col1, top_col2 = st.columns([3, 1])
-with top_col2:
-    if st.button("▶ Rever Tour Guiado", key="top_tour_btn", help="Reabre o tour interativo passo a passo"):
-        st.session_state["tour_force_active"] = True
-        st.session_state["onboarding_done"] = False
-        st.session_state["onboarding_step"] = 0
         st.rerun()
 
 
@@ -93,15 +107,18 @@ def _cached_home_news(tickers_tuple: tuple[str, ...], provider_name: str) -> pd.
         return pd.DataFrame()
 
 
-# Carteira ativa (a mesma de Minha carteira)
+# Carteira ativa (sincronizada com Minha carteira)
 _active = (
-    st.session_state.get("pf_select")
-    or st.session_state.get("pf_active_name")
+    st.session_state.get("pf_active_name")
+    or st.session_state.get("pf_select")
     or "paper-main"
 )
 if _active not in list_portfolios() and _active != "paper-main":
     _active = "paper-main"
 portfolio = load_portfolio(_active)
+if not hasattr(portfolio, "meta") or portfolio.meta is None:
+    portfolio.meta = {}
+
 scored = pd.DataFrame()
 filtered = scored
 recs = scored
@@ -119,10 +136,25 @@ try:
             macro_tilt=macro_tilt_from_override(get_session_macro()),
         )
         prices = prices_dict_from_fundamentals(scored)
+
+        # Garante cotações reais para todas as posições da carteira atual (mesmo em universo amplo de 369 ações)
+        if portfolio.positions:
+            missing_pos = [t for t in portfolio.positions.keys() if t not in prices]
+            if missing_pos:
+                from src.data.provider import get_provider
+                prov = get_provider(provider)
+                extra_fund = prov.get_fundamentals(missing_pos)
+                if extra_fund is not None and not extra_fund.empty:
+                    prices.update(prices_dict_from_fundamentals(extra_fund))
+
         watch_boot = (
-            recs["ticker"].head(6).tolist()
-            if not recs.empty and "ticker" in recs.columns
-            else ["ITUB4", "PETR4", "VALE3"]
+            list(portfolio.positions.keys())[:6]
+            if portfolio.positions
+            else (
+                recs["ticker"].head(6).tolist()
+                if not recs.empty and "ticker" in recs.columns
+                else ["ITUB4", "PETR4", "VALE3"]
+            )
         )
         news = _cached_home_news(tuple(watch_boot), provider)
 except Exception as e:
@@ -134,73 +166,40 @@ except Exception as e:
 if not portfolio.positions:
     render_quick_wizard(_scored, provider)
 
-
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)
 
-# Jornada + KPIs
-has_pos = not holdings.empty
-has_cap = float(summary.get("equity") or 0) >= 100
-viewed_inc = bool(st.session_state.get("viewed_income", False))
-cur_step, done_step = portfolio_journey_state(
-    has_capital=has_cap,
-    has_positions=has_pos,
-    viewed_income=viewed_inc,
-)
-render_journey(JOURNEY_STEPS, current=cur_step, completed_through=done_step)
-render_plain_help(
-    "Seu caminho em 4 passos",
-    """
-1. **Descubra ações** — veja notas e o gráfico de preço em vários períodos  
-2. **Minha carteira** — clique em **Montar carteira com a tese** (R$ 10 mil de treino)  
-3. **Renda esperada** — entenda quanto poderia render em dividendos (estimativa)  
-4. **Teste no passado** (opcional) — veja como a ideia se comportaria historicamente  
-
-Tudo aqui é **conta de treino** (dinheiro de mentira), para aprender com segurança.
-""",
-)
-
-# Coach da tese (IA se XAI_API_KEY; senão texto local)
-try:
-    tops = (
-        recs["ticker"].astype(str).head(5).tolist()
-        if not recs.empty and "ticker" in recs.columns
-        else []
-    )
-    avg_sc = (
-        float(recs["score_total"].mean())
-        if not recs.empty and "score_total" in recs.columns
-        else None
-    )
-    narr = narrative_thesis(
-        n_suggestions=int(len(recs)),
-        avg_score=avg_sc,
-        top_tickers=tops,
-        provider=provider,
-    )
-    with st.container(border=True):
-        st.markdown("##### Coach da tese")
-        st.markdown(narr["text"])
-        st.caption(
-            "Texto com IA (SpaceXAI/xAI)"
-            if narr.get("source") == "ia"
-            else "Texto local · defina a variável de ambiente XAI_API_KEY para ativar a IA"
-        )
-except Exception:
-    pass
-
-# Learning dashboard for beginners
-if not st.session_state.get("onboarding_done", False):
-    render_learning_dashboard()
-    st.markdown("---")
+build_meta = portfolio.meta.get("build_settings", {}) if hasattr(portfolio, "meta") and portfolio.meta else {}
+n_analyzed = build_meta.get("total_analyzed", len(scored))
+n_suggestions = build_meta.get("total_approved", len(recs))
 
 pnl = float(summary.get("pnl") or 0)
 render_kpi_row(
     [
-        ("Dinheiro na conta de treino", format_brl(summary["equity"]), format_pct(summary.get("pnl_pct") or 0), "up" if pnl >= 0 else "down"),
-        ("Empresas na carteira", str(summary.get("n_positions") or 0), None, None),
-        ("Sugestões da tese agora", str(len(recs)), None, None),
-        ("Empresas analisadas", str(len(scored)), None, None),
+        (
+            "Dinheiro na conta de treino",
+            format_brl(summary["equity"]),
+            format_pct(summary.get("pnl_pct") or 0),
+            "up" if pnl >= 0 else "down",
+        ),
+        (
+            "Empresas na carteira",
+            str(summary.get("n_positions") or 0),
+            None,
+            None,
+        ),
+        (
+            "Sugestões da tese agora",
+            str(n_suggestions),
+            None,
+            None,
+        ),
+        (
+            "Empresas analisadas",
+            str(n_analyzed),
+            None,
+            None,
+        ),
     ]
 )
 
