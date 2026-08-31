@@ -1,162 +1,145 @@
 # TradingDash
 
-App em **Streamlit** para estudar a tese **Quality Dividend** na bolsa brasileira (B3): ranking de ações, carteira de treino (paper money), projeção de renda e simulação histórica.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Release: v0.2](https://img.shields.io/badge/release-v0.2-success.svg)](https://github.com/dyegomiranda/Trading-Dash/releases)
 
-> Ferramenta de estudo. **Não é recomendação de investimento.**
+A modern, educational **Streamlit** dashboard designed for Brazilian stock market (B3) investors following the **Quality Dividend** strategy. Build paper portfolios, explore 4-pillar thesis scoring, project passive dividend income with live inflation adjustments, and backtest historical performance with institutional-grade risk models.
 
-**Repositório:** https://github.com/dyegomiranda/Trading-Dash
-
----
-
-## O que o app faz
-
-| Página | Função |
-|--------|--------|
-| **Início** | Visão geral: patrimônio de treino, 4 notas da tese e **notícias reais** com links |
-| **Descubra ações** | Nota 0–100, pesos sugeridos e **gráfico histórico** de preço |
-| **Minha carteira** | Capital editável, aplicar tese, alocar manualmente, projetar renda |
-| **Teste no passado** | “E se eu tivesse seguido a tese desde 2022?” — com guia antes do 1º teste |
-| **Guia do iniciante** | Dicionário, fontes de dados e a estratégia em português claro |
-| **Configurações** | Fonte B3 experimental (brapi) e inclinação por juros |
-
-A carteira é **sempre dinheiro fictício** (paper). Os preços e indicadores vêm da **bolsa real** (Yahoo Finance). Não há um segundo modo com números inventados — treinar no app já é usar dados de mercado, sem corretora.
-
-> **Aviso de confiabilidade:** o app é MVP. O Yahoo é gratuito e falível. Valide tickers, setores e números em RI/CVM/Status Invest antes de qualquer decisão. Cadastro de referência: `data/reference/b3_tickers.json` (atualizável com `scripts/refresh_b3_metadata.py`).
+> ⚠️ **Educational & Paper Trading Tool:** This project is for research and study purposes only. **It does not constitute investment advice or buy/sell recommendations.**
 
 ---
 
-## Como rodar
+## 🌟 Key Features
+
+| Page / Feature | Description |
+|---|---|
+| **🏠 Home (Início)** | High-level portfolio overview, live B3 market news radar, and real-time **Economic Status (Regime Macro)** with official Central Bank (BCB) Selic & 12-month IPCA data. |
+| **🔍 Discover Stocks (Descubra ações)** | Comprehensive 0–100 scoring across the 4 thesis pillars, sector distributions, suggested weights, and interactive historical price charts. |
+| **💼 My Portfolio (Minha carteira)** | Paper portfolio tracker with thesis-driven allocation, automatic ON/PN share deduplication, detailed expandable stock cards (Quality, Dividends, Financial Health, Valuation), and live inflation-adjusted passive income projections. |
+| **⏳ Historical Testing (Teste no passado)** | Realistic backtesting engine from 2020–present featuring dynamic slippage, brokerage costs, cash dividend lags, Monte Carlo confidence intervals, stress scenarios, and **Nominal vs. Real Return (IPCA)** metrics. |
+| **📖 Beginner's Guide (Guia do iniciante)** | Clear glossary, thesis rules, indicator definitions, and practical steps for long-term dividend investing. |
+| **⚙️ Settings (Configurações)** | Market data provider toggles (Yahoo Finance / Brapi / Demo), custom macro tilts, and cache management. |
+
+---
+
+## 🏛️ The 4-Pillar Quality Dividend Thesis
+
+TradingDash evaluates every publicly traded company on B3 across four fundamental pillars:
+
+```mermaid
+graph TD
+    A["Composite Thesis Score (0–100)"] --> B["💎 1. Quality & Profitability<br/>(ROE, ROIC, Net & EBITDA Margins)"]
+    A --> C["💰 2. Dividend Track Record<br/>(Yield, Payout Ratio, 5Y Dividend CAGR, Regularity)"]
+    A --> D["🛡️ 3. Financial Health<br/>(Net Debt/EBITDA, Debt/Equity, Positive FCF)"]
+    A --> E["🏷️ 4. Fair Price & Valuation<br/>(P/E, P/B, EV/EBITDA, Margin of Safety)"]
+```
+
+- **Core Holdings (~70%):** Mature, cash-generative companies with proven dividend history, high barriers to entry, and low debt (e.g., Electric Utilities, Sanitation, Insurance, Major Banks).
+- **Satellite Holdings (~30%):** Resilient businesses with attractive valuations and strong growth potential.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Run Locally with Python
 
 ```bash
+# Clone repository
 git clone https://github.com/dyegomiranda/Trading-Dash.git
 cd Trading-Dash
+
+# Create and activate virtual environment
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/streamlit run app.py
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Launch application
+streamlit run app.py
 ```
 
-Abra o endereço local (geralmente `http://localhost:8501`).
+Then open `http://localhost:8501` in your browser.
 
-### Binários (sem instalar Python)
+---
 
-Na página [Releases](https://github.com/dyegomiranda/Trading-Dash/releases) (ou em **Actions → Binaries**, após um tag `v*` ou disparo manual):
+### 2. Standalone Desktop Binaries (No Python Required)
 
-| Sistema | Arquivo | Como usar |
-|---------|---------|-----------|
-| Linux | `TradingDash-x86_64.AppImage` | `chmod +x` e execute. Carteiras em `~/.local/share/TradingDash/` |
-| Windows | `TradingDash-windows.zip` | Extraia e rode `TradingDash.exe`. Carteiras em `%APPDATA%\TradingDash\` |
+Pre-built standalone executables are available on the [Releases](https://github.com/dyegomiranda/Trading-Dash/releases) page for each release tag (`v0.2`):
 
-Os dados da carteira **não saem do seu computador**.
+| Operating System | Binary Package | How to Run |
+|---|---|---|
+| **🐧 Linux** | `TradingDash-x86_64.AppImage` | Make executable (`chmod +x TradingDash-x86_64.AppImage`) and double-click or run from terminal. |
+| **🪟 Windows** | `TradingDash-windows.zip` | Extract the zip file and run `TradingDash.exe`. |
 
-**fish shell:** prefira `.venv/bin/streamlit run app.py`.  
-Para ativar o venv no fish: `source .venv/bin/activate.fish`.
+*Note: All portfolio data and local preferences remain securely stored on your local machine (`~/.local/share/TradingDash/` on Linux, `%APPDATA%\TradingDash\` on Windows).*
 
-### Deploy no Streamlit Community Cloud (para testar sem instalar)
+---
 
-**Antes de publicar**, rode o pre-flight local (mesmo “contrato” que o Cloud executa:
-`pip install -r requirements.txt` + `streamlit run app.py`, sem rede):
+### 3. Deploy to Streamlit Community Cloud
+
+1. Fork or push this repository to your GitHub account.
+2. Visit [share.streamlit.io](https://share.streamlit.io) and log in with GitHub.
+3. Click **New app** → Select your repository (`TradingDash`) and `main` branch.
+4. Set **Main file path** to `app.py`.
+5. *(Optional)* Add API secrets under **Settings → Secrets** (`BRAPI_TOKEN` for premium B3 feeds, `XAI_API_KEY` for AI assistant).
+6. Click **Deploy!**
+
+---
+
+## 📈 Macroeconomic Regime & Inflation Adjustments
+
+TradingDash integrates official Central Bank of Brazil (BCB SGS API) macroeconomic data to give users realistic projections:
+
+- **Economic Regimes:**
+  - 🔴 **Restrictive (High Real Interest Rates):** Defensive allocation favoring zero/low-debt utilities and high-margin cash cows.
+  - 🟡 **Cautious / Transition:** Balanced core & satellite positioning.
+  - 🟢 **Expansionary (Low Interest Rates):** Quality cyclical businesses and reinvestment opportunities.
+- **Inflation Real Returns:** All forward-looking income estimates and historical backtest results calculate both **Nominal Value** and **Real Purchasing Power Adjusted by Official IPCA**.
+
+---
+
+## 📁 Repository Structure
+
+```
+TradingDash/
+├── app.py                      # Main entrypoint and navigation
+├── app_pages/                  # Modular Streamlit application views
+│   ├── inicio.py               # Home dashboard & Macroeconomic Status
+│   ├── descobrir_acoes.py      # Stock screening & 4-pillar analysis
+│   ├── minha_carteira.py       # Portfolio builder & expandable stock cards
+│   ├── teste_no_passado.py     # Backtesting engine & inflation metrics
+│   ├── guia_iniciante.py       # Beginner documentation & glossary
+│   └── configuracoes.py        # System and data provider settings
+├── src/                        # Core engine & business logic
+│   ├── thesis/                 # Scoring algorithms, filters & macro models
+│   ├── data/                   # Data providers (Yahoo, Brapi, Demo, BCB)
+│   ├── portfolio/              # Paper portfolio state & trade executions
+│   ├── backtest/               # Quantitative simulation & risk analysis
+│   └── ui/                     # UI themes, components & interactive cards
+├── packaging/                  # PyInstaller spec and AppImage configurations
+├── tests/                      # Automated test suite (Pytest)
+└── data/                       # Reference metadata, caches & local portfolios
+```
+
+---
+
+## 🧪 Testing & Code Quality
+
+Run the test suite and linter locally:
 
 ```bash
-python deploy/preflight.py
-# deve terminar com "TUDO OK — pronto para deploy."
+# Run all automated tests
+PYTHONPATH=. pytest tests/
+
+# Run code linter
+ruff check app_pages/ src/ tests/
 ```
 
-Passos no painel:
-
-1. Repo no GitHub: `https://github.com/dyegomiranda/Trading-Dash`  
-2. Acesse [share.streamlit.io](https://share.streamlit.io) e faça login com GitHub  
-3. **New app** → selecione o repo → branch `main`  
-4. **Main file path:** `app.py`  
-5. **Secrets** (opcional): no painel **Settings → Secrets**, adicione
-   `BRAPI_TOKEN=...` (dados B3) e/ou `XAI_API_KEY=...` (coach com IA).
-   Tudo funciona sem elas; a fonte padrão é Yahoo.  
-6. Deploy  
-
-**O que esperar do free tier:** cache e carteiras paper (`data/cache`, `data/portfolio`)
-são **ephemeral** — reiniciam a cada cold start/rebuild. A cobertura de dados
-(cadastro B3) é versionada no git e **sobrevive** ao deploy. Se quiser persistência
-real, é preciso um host com disco (ex.: render/fly.io + volume, ou Docker + bind mount).
-
 ---
 
-## Uso rápido (iniciante)
+## 📄 License
 
-1. **Início** — tour curto; a primeira visita já usa a **bolsa real**.  
-2. **Descubra ações** — as 4 notas da tese e o porquê de cada nome.  
-3. **Minha carteira** — ajuste o capital se quiser e clique em **Montar carteira com a tese**.  
-4. **Renda esperada** — 3 cenários (sem inventar yield se a carteira estiver vazia).  
-5. **Teste no passado** (opcional) — ensaio com preços reais; compare primeiro com o IDIV, não com o CDI.
-
----
-
-## Tese (resumo)
-
-**Quality Dividend** — renda passiva com qualidade:
-
-- empresas sólidas (lucro e caixa consistentes)  
-- dividendos **sustentáveis** (não “high yield trap”)  
-- carteira **base** (~70%) + **complemento** (~30%)  
-
-### Regime macro (opcional)
-
-O app pode reorientar os pesos sugeridos conforme o ciclo de juros reais (Selic − IPCA 12m),
-usando dados públicos do **Banco Central (SGS)**:
-
-- **Desligado** (padrão) — comportamento atual, sem inclinação setorial.
-- **Automático** — classifica Selic real em *expansivo / cauteloso / restritivo* e aplica
-  inclinação setorial correspondente (mais defensivas em juros altos; mais crescimento em
-  juros baixos).
-- **Manual** — escolha direta: juros altos, juros baixos ou neutro.
-
-A inclinação é **transparente e reversível**: multiplica o peso de cada setor (range ±~15%),
-renormaliza para somar 100% e respeita os tetos por ação/setor — nunca cria nem exclui
-posições. Configure em **Regime macro** na barra lateral (vale na lista e em Montar carteira)
-ou via `MACRO_OVERRIDE` no `.env` (`off` | `auto` | `expansionary` | `cautious` | `restrictive`).
-A série usada é a **meta Selic (SGS 432)**, em % a.a.
-
----
-
-## Estrutura (visão rápida)
-
-```
-app.py              # entrada + menu (logo acima dos links)
-app_pages/          # telas do app
-src/                # scoring, dados, carteira, backtest, UI
-assets/             # logo e ícone
-PROJECT.md          # handoff técnico completo (para devs / outras IAs)
-```
-
-Para arquitetura, bugs já resolvidos e **backlog do que falta**, veja **[PROJECT.md](./PROJECT.md)**.
-
----
-
-## Confiabilidade da simulação (Fases A e B)
-
-- **No rebalance:** preço = fechamento daquele dia; dividend yield = TTM dos proventos já pagos (sem olhar o futuro).
-- **Custos ligados por padrão:** corretagem 15 bps, slippage 10 bps, ~25% do provento como JCP (15% na fonte), IR 15% no ganho de capital, atraso de 15 dias no crédito do dividendo.
-- **Liquidez (ADV):** exclui papéis pouco negociados e limita o tamanho da ordem.
-- **Monte Carlo:** reamostra **esta** curva (P10/P50/P90). Não é previsão do mercado.
-- **Walk-forward:** parte o período em treino (~70%) e teste (~30%). Opcional: teste cego que recomeça no corte.
-- **Splits/bonificação:** quantidade só muda se o preço do dia ainda for cru. O ensaio usa `close` (não `adj_close`) para não contar dividendo duas vezes. Subscrição não é exercida.
-- **Balanços point-in-time:** JSON gerado dos DFP/ITR da CVM (2020–2024, `origin=cvm_dfp_itr`). Só contas (ROE/margem/dívida). Para atualizar:
-
-```bash
-.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download
-.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --build
-```
-
-A CVM não publica preço nem yield — o motor continua usando o pregão do dia.
-
----
-
-## Limitações conhecidas
-
-- Fontes gratuitas de cotação podem falhar ou atrasar. brapi.dev é experimental (quase sem ROE/dívida no plano grátis).
-- A semente PIT **não** elimina look-ahead contábil. Só o parse CVM (`origin=cvm_dfp_itr`) cobre contas.
-- Ferramenta educacional / paper trading. **Não é recomendação de investimento.**
-
----
-
-## Licença
-
-Ver arquivo [LICENSE](./LICENSE).
+This project is open source and available under the [MIT License](./LICENSE).
