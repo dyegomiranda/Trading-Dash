@@ -39,6 +39,13 @@ from src.ui.shell import page_setup
 from src.ui.wallet import render_wallet_balance
 from src.ui.wizard import render_quick_wizard
 
+import importlib
+import src.ui.wallet
+import src.ui.theme
+
+importlib.reload(src.ui.wallet)
+importlib.reload(src.ui.theme)
+
 page_setup()
 
 provider = get_session_provider()

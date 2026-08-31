@@ -638,16 +638,27 @@ def delete_portfolio(name: str) -> bool:
 
 def save_portfolio(portfolio: PaperPortfolio) -> Path:
     path = portfolio_path(portfolio.name)
-    path.write_text(json.dumps(portfolio.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+    data = portfolio.to_dict()
+    if hasattr(portfolio, "meta") and portfolio.meta:
+        data["meta"] = dict(portfolio.meta)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
 
 
 def load_portfolio(name: str = "paper-main", create_if_missing: bool = True) -> PaperPortfolio:
     path = portfolio_path(name)
     if path.exists():
-        return PaperPortfolio.from_dict(json.loads(path.read_text(encoding="utf-8")))
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        p = PaperPortfolio.from_dict(raw)
+        if not hasattr(p, "meta") or p.meta is None:
+            p.meta = {}
+        if "meta" in raw and isinstance(raw["meta"], dict):
+            p.meta.update(raw["meta"])
+        return p
     if create_if_missing:
         p = PaperPortfolio.create(name=name)
+        if not hasattr(p, "meta") or p.meta is None:
+            p.meta = {}
         save_portfolio(p)
         return p
     raise FileNotFoundError(path)

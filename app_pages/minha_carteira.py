@@ -72,7 +72,13 @@ from src.ui.trust import render_friendly_safety_note, render_premises_box, rende
 from src.ui.wallet import render_asset_rows, render_wallet_balance
 
 import importlib
+import src.portfolio.paper
+import src.ui.charts
+import src.ui.theme
+
+importlib.reload(src.portfolio.paper)
 importlib.reload(src.ui.charts)
+importlib.reload(src.ui.theme)
 
 page_setup()
 provider = get_session_provider()
@@ -176,6 +182,8 @@ def _score_candidates(provider: str, limit: int = 80, min_score: float = 55.0):
 
 
 portfolio = load_portfolio(portfolio_name)
+if not hasattr(portfolio, "meta") or portfolio.meta is None:
+    portfolio.meta = {}
 fundamentals = pd.DataFrame()
 scored_table = fundamentals
 prices: dict = {}
@@ -810,6 +818,14 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
     saved_min_score = int(build_meta.get("min_score", int(settings.rebalance_min_score or 55)))
     saved_top_n = int(build_meta.get("top_n", 12))
 
+    # Sincroniza o session_state com as preferências salvas da carteira atual
+    _sync_key = f"_synced_sliders_{portfolio_name}"
+    if not st.session_state.get(_sync_key, False):
+        st.session_state["pf_build_univ_size"] = saved_univ
+        st.session_state["pf_build_min_score"] = saved_min_score
+        st.session_state["pf_top_n"] = saved_top_n
+        st.session_state[_sync_key] = True
+
     with st.form("build_thesis_form", border=True):
         if build_meta:
             st.caption(
@@ -929,6 +945,8 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                 )
 
                 # Persiste os parâmetros configurados na carteira
+                if not hasattr(portfolio, "meta") or portfolio.meta is None:
+                    portfolio.meta = {}
                 portfolio.meta["build_settings"] = {
                     "univ_size": int(build_univ_size),
                     "min_score": float(build_min_score),
@@ -937,6 +955,12 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                     "total_approved": len(scored.filtered),
                 }
                 save_portfolio(portfolio)
+
+                # Mantém os valores salvos refletidos na UI e no session_state
+                st.session_state["pf_build_univ_size"] = int(build_univ_size)
+                st.session_state["pf_build_min_score"] = int(build_min_score)
+                st.session_state["pf_top_n"] = int(top_n)
+                st.session_state[f"_synced_sliders_{portfolio_name}"] = True
 
                 st.session_state["pf_w_sig"] = None
                 after = portfolio.summary(px)
