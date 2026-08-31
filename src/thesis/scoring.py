@@ -444,6 +444,62 @@ def score_universe(
     )
 
 
+def _company_root(ticker: str) -> str:
+    t = str(ticker).strip().upper()
+    return t[:4] if len(t) >= 4 else t
+
+
+def _share_class_dividend_rank(ticker: str) -> int:
+    """Prioridade de classe de ação para estratégia de dividendos:
+    PN (4) e Units (11) têm maior liquidez e prioridade estatutária de proventos na B3.
+    """
+    t = str(ticker).strip().upper()
+    if t.endswith("4") or t.endswith("11"):
+        return 3
+    if t.endswith("5") or t.endswith("6"):
+        return 2
+    if t.endswith("3"):
+        return 1
+    return 0
+
+
+def deduplicate_company_share_classes(df: pd.DataFrame) -> pd.DataFrame:
+    """Garante no máximo UMA classe de ação por empresa na carteira.
+
+    Para estratégia de dividendos:
+    - Se houver ON (3) e PN (4/5/6) ou UNIT (11), prioriza a classe com melhor
+      yield ou com preferência de proventos/liquidez (PN/UNIT), evitando
+      duplicidade (ex.: nunca ter PETR3 e PETR4 na mesma carteira).
+    """
+    if df is None or df.empty or "ticker" not in df.columns:
+        return df
+
+    # Agrupa por raiz da empresa (4 primeiros caracteres)
+    groups: dict[str, list[int]] = {}
+    for idx, row in df.iterrows():
+        root = _company_root(str(row.get("ticker") or ""))
+        groups.setdefault(root, []).append(idx)
+
+    selected_indices: list[int] = []
+    for root, indices in groups.items():
+        if len(indices) == 1:
+            selected_indices.append(indices[0])
+        else:
+            def _eval(i: int):
+                row = df.loc[i]
+                sc = float(row.get("score_total") or 0.0)
+                dy = float(row.get("dividend_yield") or 0.0)
+                pr = _share_class_dividend_rank(str(row.get("ticker") or ""))
+                # Bonus de 2 pontos de score para PN/UNIT em proximidade
+                return (sc + (2.0 if pr >= 2 else 0.0), dy, pr)
+
+            best_idx = max(indices, key=_eval)
+            selected_indices.append(best_idx)
+
+    out = df.loc[sorted(selected_indices)].copy()
+    return out.reset_index(drop=True)
+
+
 def recommend_weights(
     ranked: pd.DataFrame,
     top_n: int = 15,
@@ -485,17 +541,27 @@ def recommend_weights(
         if not eligible.empty:
             work = eligible
 
+    # Deduplicação inteligente de ações da mesma empresa (ex: PETR3 vs PETR4)
+    work = deduplicate_company_share_classes(work)
+    if "score_total" in work.columns:
+        work = work.sort_values(by="score_total", ascending=False, kind="mergesort")
     work = work.reset_index(drop=True)
 
     # Teto de nomes por setor (~3 em uma lista de 15) — mais próximo de um livro iniciante
+    seen_companies: set[str] = set()
     if "sector" in work.columns and max_sector_pct > 0:
         max_per_sector = max(2, int(np.ceil(top_n * 0.20)))
         selected_idx: list[int] = []
         sector_count: dict[str, int] = {}
         for idx, row in work.iterrows():
+            t = str(row.get("ticker") or "")
+            comp = _company_root(t)
+            if comp in seen_companies:
+                continue
             sec = str(row.get("sector") or "Outros")
             if sector_count.get(sec, 0) >= max_per_sector:
                 continue
+            seen_companies.add(comp)
             selected_idx.append(idx)
             sector_count[sec] = sector_count.get(sec, 0) + 1
             if len(selected_idx) >= top_n:
@@ -505,6 +571,11 @@ def recommend_weights(
         else:
             picks = work.head(top_n).copy()
     else:
+        for idx, row in work.iterrows():
+            t = str(row.get("ticker") or "")
+            comp = _company_root(t)
+            if comp not in seen_companies:
+                seen_companies.add(comp)
         picks = work.head(top_n).copy()
 
     if "bucket" not in picks.columns:

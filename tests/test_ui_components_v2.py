@@ -141,3 +141,54 @@ def test_expanded_universe_369():
     assert result.scored is not None
     assert len(result.scored) == 369
 
+
+def test_recommend_weights_deduplicates_share_classes():
+    from src.thesis.scoring import recommend_weights
+
+    sample = pd.DataFrame([
+        {"ticker": "PETR3", "score_total": 92.0, "dividend_yield": 0.12, "sector": "Energy", "bucket": "core", "price": 38.0},
+        {"ticker": "PETR4", "score_total": 91.5, "dividend_yield": 0.125, "sector": "Energy", "bucket": "core", "price": 35.0},
+        {"ticker": "ITUB3", "score_total": 85.0, "dividend_yield": 0.055, "sector": "Financial Services", "bucket": "core", "price": 30.0},
+        {"ticker": "ITUB4", "score_total": 84.8, "dividend_yield": 0.060, "sector": "Financial Services", "bucket": "core", "price": 34.0},
+        {"ticker": "VALE3", "score_total": 88.0, "dividend_yield": 0.08, "sector": "Basic Materials", "bucket": "satellite", "price": 60.0},
+    ])
+
+    recs = recommend_weights(sample, top_n=5)
+    tickers = list(recs["ticker"])
+    assert "PETR4" in tickers
+    assert "PETR3" not in tickers
+    assert "ITUB4" in tickers
+    assert "ITUB3" not in tickers
+
+
+def test_render_goal_milestones_compound_interest(monkeypatch):
+    import streamlit as st
+    rendered = []
+    monkeypatch.setattr(st, "markdown", lambda text, **kwargs: rendered.append(text))
+
+    render_goal_milestones(
+        current_monthly_income=100.0,
+        starting_capital=5000.0,
+        monthly_contribution=2000.0,
+        avg_yield=0.07,
+    )
+    assert len(rendered) == 1
+    html_output = rendered[0]
+    # Meta 3 (R$ 5.000/m): ~18.0 anos com juros compostos (e não 40+ anos)
+    assert "Faltam ~18.0 anos" in html_output
+    # Meta 4 (R$ 20.000/m): ~34.8 anos com juros compostos (e não 164 anos)
+    assert "Faltam ~34.8 anos" in html_output
+
+
+def test_wallet_tickers_from_portfolio():
+    from src.portfolio.paper import PaperPortfolio, Position
+
+    p = PaperPortfolio(name="test")
+    p.positions["PETR4"] = Position(ticker="PETR4", shares=100, avg_price=35.0)
+    p.positions["VALE3"] = Position(ticker="VALE3", shares=50, avg_price=60.0)
+
+    # Verifies list(p.positions.keys()) extracts string tickers without AttributeError
+    wallet_tickers = list(p.positions.keys())
+    assert wallet_tickers == ["PETR4", "VALE3"]
+
+

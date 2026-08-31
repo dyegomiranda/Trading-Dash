@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 from collections.abc import Sequence
 from typing import Any
 
@@ -374,10 +375,28 @@ def render_goal_milestones(
         is_completed = current_monthly_income >= target_monthly
         is_active = not is_completed and (pct > 0 or target_monthly == 450.0)
 
-        # Estimativa simples de meses para atingir
-        needed_equity = max(0.0, target_equity - starting_capital)
-        months_est = int(needed_equity / max(monthly_contribution + (starting_capital * avg_yield / 12.0), 50.0)) if needed_equity > 0 else 0
-        years_est = round(months_est / 12.0, 1)
+        # Cálculo de tempo com juros compostos e reinvestimento de dividendos (Annuity Formula)
+        if starting_capital >= target_equity:
+            years_est = 0.0
+        else:
+            r_monthly = (1.0 + max(avg_yield, 0.01)) ** (1.0 / 12.0) - 1.0
+            pmt = max(monthly_contribution, 0.0)
+            pv = max(starting_capital, 0.0)
+            fv = target_equity
+
+            if pmt > 0 and r_monthly > 0:
+                num = fv * r_monthly + pmt
+                den = pv * r_monthly + pmt
+                if den > 0 and num > den:
+                    months_est = math.log(num / den) / math.log(1.0 + r_monthly)
+                    years_est = round(months_est / 12.0, 1)
+                else:
+                    years_est = 0.0
+            elif pv > 0 and r_monthly > 0:
+                months_est = math.log(fv / pv) / math.log(1.0 + r_monthly)
+                years_est = round(months_est / 12.0, 1)
+            else:
+                years_est = 0.0
 
         cls = "completed" if is_completed else ("active" if is_active else "")
         status_text = "✅ Conquistada!" if is_completed else f"Faltam ~{years_est} anos (com aportes)" if years_est > 0 else "Em andamento"

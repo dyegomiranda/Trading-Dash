@@ -1505,7 +1505,7 @@ que você definir abaixo.
 if section == "news":
     st.markdown("#### 📰 Radar de Notícias & Sentimento")
     st.caption("Acompanhe o que o mercado está noticiando sobre as empresas da sua carteira:")
-    wallet_tickers = [p.ticker for p in portfolio.positions]
+    wallet_tickers = list(portfolio.positions.keys())
     if not wallet_tickers:
         wallet_tickers = ["ITUB4", "PETR4", "VALE3", "BBAS3", "TAEE11"]
         st.info("Sua carteira ainda está vazia. Exibindo notícias das principais empresas da B3:")
