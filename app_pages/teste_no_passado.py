@@ -628,6 +628,20 @@ render_kpi_row(
     ]
 )
 
+ipca_ret = m.get("ipca_return")
+real_ret = m.get("real_return_vs_ipca")
+if ipca_ret is not None and real_ret is not None:
+    with st.container(border=True):
+        st.markdown("##### 🛒 Retorno Real vs Inflação")
+        rc1, rc2, rc3 = st.columns(3)
+        with rc1:
+            st.metric("Retorno Nominal", f"{m.get('total_return', 0)*100:.1f}%")
+        with rc2:
+            st.metric("IPCA no Período", f"{ipca_ret*100:.1f}%")
+        with rc3:
+            real_color = "normal" if real_ret >= 0 else "inverse"
+            st.metric("Retorno Real", f"{real_ret*100:.1f}%", delta=f"{'acima' if real_ret >= 0 else 'abaixo'} da inflação", delta_color=real_color)
+
 wf = st.session_state.get("walk_forward")
 if wf is not None:
     with st.container(border=True):

@@ -52,6 +52,45 @@ _home_sub = "Painel principal · visão geral da carteira de treino e do mercado
 render_clean_header(_home_title, _home_sub, provider=provider)
 render_data_quality_banner(provider)
 
+# Badge de regime macro
+try:
+    from src.thesis.macro import fetch_macro_state, classify_regime
+    _macro_state = fetch_macro_state()
+    _regime = classify_regime(_macro_state.get("real_rate"), _macro_state.get("ipca_12m"))
+    
+    _regime_names_pt = {
+        "expansionary": "expansionista",
+        "cautious": "cauteloso",
+        "restrictive": "restritivo",
+    }
+    _regime_name = _regime_names_pt.get(_regime, "desconhecido")
+    
+    _selic = _macro_state.get("selic_aa") or 0.0
+    _ipca_12m = (_macro_state.get("ipca_12m") or 0.0) / 100.0
+    
+    _regime_colors = {
+        "expansionista": ("#4ADE80", "🟢"),
+        "cauteloso": ("#FACC15", "🟡"),
+        "restritivo": ("#F87171", "🔴"),
+    }
+    _rc, _ri = _regime_colors.get(_regime_name, ("#94A3B8", "⚪"))
+    st.markdown(
+        f"""
+<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;
+    background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.12);
+    border-radius:12px;margin-bottom:0.75rem;flex-wrap:wrap;">
+  <span style="font-size:1.1rem;">{_ri}</span>
+  <span style="color:{_rc};font-weight:700;font-size:0.85rem;">Regime {_regime_name.capitalize()}</span>
+  <span style="color:#94A3B8;font-size:0.78rem;">Selic: {_selic:.1f}%</span>
+  <span style="color:#94A3B8;font-size:0.78rem;">IPCA 12m: {_ipca_12m*100:.1f}%</span>
+  <span style="color:#94A3B8;font-size:0.78rem;">Taxa real: {(_selic/100 - _ipca_12m)*100:.1f}%</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+except Exception:
+    pass
+
 if render_onboarding_if_needed():
     st.stop()
 

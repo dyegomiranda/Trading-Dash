@@ -881,6 +881,140 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
   border-color: rgba(148, 163, 184, 0.25);
 }}
 
+/* Stock Detail Card inside expanders */
+.td-stock-detail {{
+  padding: 0.5rem 0;
+}}
+
+.td-stock-detail .td-score-row {{
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}}
+
+.td-stock-detail .td-score-pill {{
+  flex: 1 1 120px;
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid rgba(148,163,184,0.12);
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  text-align: center;
+}}
+
+.td-stock-detail .td-score-pill .label {{
+  font-size: 0.7rem;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}}
+
+.td-stock-detail .td-score-pill .value {{
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #F8FAFC;
+}}
+
+.td-stock-detail .td-score-bar {{
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(148,163,184,0.15);
+  margin-top: 0.35rem;
+  overflow: hidden;
+}}
+
+.td-stock-detail .td-score-bar .fill {{
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}}
+
+.td-stock-detail .td-indicators {{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}}
+
+.td-stock-detail .td-ind {{
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148,163,184,0.08);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+}}
+
+.td-stock-detail .td-ind .ind-label {{
+  font-size: 0.68rem;
+  color: #94A3B8;
+}}
+
+.td-stock-detail .td-ind .ind-value {{
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #F8FAFC;
+}}
+
+.td-stock-detail .td-why {{
+  background: linear-gradient(135deg, rgba(91, 33, 182, 0.15), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  color: #E2E8F0;
+  line-height: 1.5;
+}}
+
+.td-stock-detail .td-quality-badge {{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}}
+
+.td-stock-detail .td-quality-badge.good {{
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}}
+
+.td-stock-detail .td-quality-badge.partial {{
+  background: rgba(250, 204, 21, 0.12);
+  color: #FACC15;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+}}
+
+.td-stock-detail .td-quality-badge.weak {{
+  background: rgba(239, 68, 68, 0.12);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}}
+
+.td-stock-detail .td-quality-badge.training {{
+  background: rgba(167, 139, 250, 0.12);
+  color: #A78BFA;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}}
+
+.td-stock-detail .td-risks {{
+  margin: 0.5rem 0;
+}}
+
+.td-stock-detail .td-risk-tag {{
+  display: inline-block;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #FCA5A5;
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  margin: 0.15rem 0.2rem;
+}}
+
 /* ========== Journey / onboarding steps ========== */
 .td-journey {{
   display: grid;

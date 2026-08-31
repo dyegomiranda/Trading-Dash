@@ -69,7 +69,7 @@ from src.ui.refresh import soft_refresh
 
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_premises_box, render_trust_strip
-from src.ui.wallet import render_asset_rows, render_wallet_balance
+from src.ui.wallet import render_stock_detail_card, render_wallet_balance
 
 import importlib
 import src.portfolio.paper
@@ -458,52 +458,46 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
 
         st.markdown("##### Suas empresas")
         st.caption(
-            "Valor atual = preço de hoje × quantidade. "
-            "Lucro/prejuízo compara com o preço médio que você “pagou” no treino."
+            "Clique em cada empresa para ver detalhes, indicadores e por que ela foi selecionada."
         )
-        name_map: dict[str, str] = {}
-        name_src = scored_table if not scored_table.empty else fundamentals
-        if not name_src.empty:
-            for _, r in name_src.iterrows():
-                name_map[str(r["ticker"])] = str(r.get("name") or r["ticker"])
-        asset_rows = []
+        # Build lookup for scored data
+        _scored_lookup: dict[str, dict] = {}
+        _score_src = scored_table if not scored_table.empty else fundamentals
+        if not _score_src.empty:
+            for _, _sr in _score_src.iterrows():
+                _scored_lookup[str(_sr["ticker"])] = _sr.to_dict()
+
         for _, r in holdings.iterrows():
             t = str(r["ticker"])
             display_name = format_ticker_display(t)
             bucket = str(r.get("bucket") or "")
             bucket_pt = (
-                "Base (mais estável)"
-                if bucket == "core"
-                else ("Complemento" if bucket == "satellite" else bucket)
+                "Base" if bucket == "core"
+                else ("Complemento" if bucket == "satellite" else "")
             )
-            # Bucket label to show under the name
-            bucket_label = bucket_pt if bucket_pt else ""
             pnl = float(r.get("pnl") or 0)
             pnl_p = float(r.get("pnl_pct") or 0)
             shares = float(r["shares"])
             px = prices.get(t) if prices else None
             mv_val = float(r.get("market_value") or 0) or (shares * px if px else 0.0)
-            cost = float(r.get("avg_cost") or 0)
-            shares_s = (
-                f"{shares:,.2f} ações".replace(",", "X").replace(".", ",").replace("X", ".")
-            )
-            price_label = format_brl(px) if px else "—"
-            market_value = format_brl(mv_val)
-            pnl_positive = pnl >= 0
-            pnl_label = f"{format_brl(pnl)} ({format_pct(pnl_p / 100 if abs(pnl_p) > 1 else pnl_p)})"
-            asset_rows.append(
-                (
-                    t,
-                    display_name,
-                    shares_s,
-                    price_label,
-                    market_value,
-                    pnl_label,
-                    pnl_positive,
-                    bucket_label,
-                )
-            )
-        render_asset_rows(asset_rows)
+            pnl_icon = "🟢" if pnl >= 0 else "🔴"
+            pnl_label = format_pct(pnl_p / 100 if abs(pnl_p) > 1 else pnl_p)
+
+            expander_label = f"{display_name}  ·  {format_brl(mv_val)}  {pnl_icon} {pnl_label}"
+            if bucket_pt:
+                expander_label += f"  · {bucket_pt}"
+
+            with st.expander(expander_label, expanded=False):
+                scored_data = _scored_lookup.get(t, {})
+                if scored_data:
+                    render_stock_detail_card(
+                        ticker=t,
+                        scored_row=scored_data,
+                        holdings_row=r.to_dict(),
+                        price=px,
+                    )
+                else:
+                    st.caption(f"Dados detalhados de {t} não disponíveis no universo analisado.")
 
         st.markdown("##### Dividendos na conta de treino")
         st.caption(
@@ -944,6 +938,32 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                     )
                     for t in missing_px:
                         weights.pop(t, None)
+
+                # Filtro ON/PN: se PETR3 e PETR4 existem, mantém apenas a preferencial (4)
+                _on_pn_removed = []
+                _base_tickers = {}
+                for t in list(weights.keys()):
+                    base = t[:4]  # e.g. PETR from PETR3/PETR4
+                    suffix = t[4:] if len(t) > 4 else ""
+                    if base not in _base_tickers:
+                        _base_tickers[base] = []
+                    _base_tickers[base].append((t, suffix))
+
+                for base, entries in _base_tickers.items():
+                    if len(entries) > 1:
+                        # Prefer PN (suffix 4) over ON (suffix 3) for dividend focus
+                        pn = [e for e in entries if e[1].startswith("4")]
+                        on = [e for e in entries if e[1].startswith("3")]
+                        if pn and on:
+                            for t, _ in on:
+                                weights.pop(t, None)
+                                _on_pn_removed.append(t)
+
+                if _on_pn_removed:
+                    st.info(
+                        f"🔄 Filtro ON/PN: removidas {', '.join(_on_pn_removed)} "
+                        f"(mantidas as preferenciais, mais adequadas para renda passiva)."
+                    )
 
                 before_eq = portfolio.total_value(px)
                 trades = portfolio.rebalance_to_weights(
@@ -1465,7 +1485,19 @@ que você definir abaixo.
     )
 
     # Cálculo de Ganho Real e Poder de Compra com desconto da inflação esperada (~4.5% a.a.)
-    expected_ipca = 0.045
+    try:
+        from src.thesis.macro import fetch_macro_state
+        _macro = fetch_macro_state()
+        raw_ipca = _macro.get("ipca_12m")
+        if raw_ipca is not None and raw_ipca > 0:
+            expected_ipca = float(raw_ipca) / 100.0 if float(raw_ipca) > 1.0 else float(raw_ipca)
+            _ipca_source = f"BCB (IPCA 12m real: {expected_ipca*100:.1f}%)"
+        else:
+            expected_ipca = 0.045
+            _ipca_source = "estimativa fixa (4,5% a.a.)"
+    except Exception:
+        expected_ipca = 0.045
+        _ipca_source = "estimativa fixa (4,5% a.a.)"
     inflation_discount = (1.0 + expected_ipca) ** max(1, years)
     real_final_monthly = final_monthly / inflation_discount
     real_final_eq = final_eq / inflation_discount
@@ -1475,7 +1507,7 @@ que você definir abaixo.
         st.markdown(
             f"""
 - **Renda Nominal no ano {years}:** **{format_brl(final_monthly)}/mês** (em valores futuros)
-- **Renda Real (Poder de compra atual):** **~{format_brl(real_final_monthly)}/mês** (descontando inflação estimada de ~4,5% a.a.)
+- **Renda Real (Poder de compra atual):** **~{format_brl(real_final_monthly)}/mês** (descontando IPCA de {expected_ipca*100:.1f}% a.a. — {_ipca_source})
 - **Patrimônio Real acumulado:** **~{format_brl(real_final_eq)}** em poder de compra de hoje vs **{format_brl(final_eq)}** nominais.
 """
         )
