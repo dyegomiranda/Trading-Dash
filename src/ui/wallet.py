@@ -167,12 +167,22 @@ def render_stock_detail_card(
         strengths.append("saúde financeira sólida")
     if score_valuation >= 65:
         strengths.append("preço atrativo")
-    why_text = f"<strong>{html.escape(name)}</strong> ({html.escape(ticker)})"
-    if bucket_pt:
-        why_text += f" · classificada como <strong>{html.escape(bucket_pt)}</strong>"
-    why_text += f" · nota geral <strong>{score_total:.0f}/100</strong>."
-    if strengths:
-        why_text += f" Destaque: {', '.join(strengths)}."
+
+    has_valid_fundamentals = (
+        score_total > 0
+        and (score_quality > 0 or score_dividends > 0 or score_health > 0 or score_valuation > 0)
+        and quality_level != "fraca"
+    )
+
+    if has_valid_fundamentals:
+        why_text = f"<strong>{html.escape(name)}</strong> ({html.escape(ticker)})"
+        if bucket_pt:
+            why_text += f" · classificada como <strong>{html.escape(bucket_pt)}</strong>"
+        why_text += f" · nota geral <strong>{score_total:.0f}/100</strong>."
+        if strengths:
+            why_text += f" Destaque: {', '.join(strengths)}."
+    else:
+        why_text = f"<strong>{html.escape(name)}</strong> ({html.escape(ticker)}) · Ação em carteira. Os dados de balanço detalhados estão sendo atualizados da bolsa."
 
     # Indicators
     def _fmt(val, fmt_str=".1f", suffix="", prefix=""):
@@ -260,7 +270,15 @@ def render_stock_detail_card(
         except (ValueError, TypeError):
             pass
 
-    if risk_tags:
+    if not has_valid_fundamentals:
+        risks_html = (
+            '<div style="font-size:0.78rem;color:#FACC15;background:rgba(250,204,21,0.08);'
+            'border:1px solid rgba(250,204,21,0.2);border-radius:8px;padding:0.4rem 0.6rem;margin-top:0.5rem;">'
+            '⚠️ <strong>Dados de balanço pendentes ou parciais na fonte atual.</strong> '
+            'Clique em <em>Atualizar dados</em> na barra lateral para recarregar as informações da bolsa.'
+            '</div>'
+        )
+    elif risk_tags:
         tags = "".join(f'<span class="td-risk-tag">{html.escape(t)}</span>' for t in risk_tags[:4])
         risks_html = f'<div class="td-risks" style="margin-top:0.5rem;"><span style="font-size:0.75rem;color:#FCA5A5;font-weight:600;margin-right:0.3rem;">Pontos de atenção:</span>{tags}</div>'
     else:

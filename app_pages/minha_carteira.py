@@ -197,19 +197,33 @@ try:
         fundamentals = _raw_fundamentals(provider)
         scored_table = _scored_table(provider)
 
-        # Garante que todas as posições da carteira tenham cotação e dividendos reais carregados
+        # Garante que todas as posições da carteira tenham fundamentos e cotações 100% carregados
         if portfolio.positions:
             pos_tickers = list(portfolio.positions.keys())
-            known = (
-                set(fundamentals["ticker"].values)
-                if not fundamentals.empty and "ticker" in fundamentals.columns
+            invalid_pos = set()
+            if not scored_table.empty and "ticker" in scored_table.columns:
+                for _, r in scored_table[scored_table["ticker"].isin(pos_tickers)].iterrows():
+                    # Se ROE ou DY estão nulos ou a nota total é 0, considera incompleto
+                    if (
+                        pd.isna(r.get("roe"))
+                        or pd.isna(r.get("score_total"))
+                        or float(r.get("score_total") or 0) <= 0
+                    ):
+                        invalid_pos.add(str(r["ticker"]))
+            known_valid = (
+                (set(scored_table["ticker"].values) - invalid_pos)
+                if not scored_table.empty and "ticker" in scored_table.columns
                 else set()
             )
-            missing_pos = [t for t in pos_tickers if t not in known]
+            missing_pos = [t for t in pos_tickers if t not in known_valid]
             if missing_pos:
                 try:
                     extra_fund = get_provider(provider).get_fundamentals(missing_pos)
-                    if extra_fund is None or extra_fund.empty or ("roe" in extra_fund.columns and extra_fund["roe"].isna().all()):
+                    if (
+                        extra_fund is None
+                        or extra_fund.empty
+                        or ("roe" in extra_fund.columns and extra_fund["roe"].isna().any())
+                    ):
                         extra_fund = get_provider("yfinance").get_fundamentals(missing_pos)
                     if extra_fund is not None and not extra_fund.empty:
                         fundamentals = pd.concat([fundamentals, extra_fund], ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")

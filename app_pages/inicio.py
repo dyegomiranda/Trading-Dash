@@ -52,38 +52,87 @@ _home_sub = "Painel principal · visão geral da carteira de treino e do mercado
 render_clean_header(_home_title, _home_sub, provider=provider)
 render_data_quality_banner(provider)
 
-# Badge de regime macro
+# Card de Status Atual da Economia
 try:
     from src.thesis.macro import fetch_macro_state, classify_regime
     _macro_state = fetch_macro_state()
     _regime = classify_regime(_macro_state.get("real_rate"), _macro_state.get("ipca_12m"))
-    
-    _regime_names_pt = {
-        "expansionary": "expansionista",
-        "cautious": "cauteloso",
-        "restrictive": "restritivo",
+
+    _selic = float(_macro_state.get("selic_aa") or 0.0)
+    _raw_ipca = float(_macro_state.get("ipca_12m") or 0.0)
+    _ipca_pct = _raw_ipca if _raw_ipca > 1.0 else _raw_ipca * 100.0
+    _real_rate = float(_macro_state.get("real_rate") or (_selic - _ipca_pct))
+
+    _regime_info = {
+        "restrictive": {
+            "title": "Regime Restritivo (Juros Altos)",
+            "icon": "🔴",
+            "color": "#F87171",
+            "tooltip": "Juros reais elevados para controlar a inflação. Crédito mais caro e maior pressão sobre empresas alavancadas.",
+            "recommendation": "Priorizar empresas perenes, com baixo endividamento (Dívida/EBITDA < 2.0x), margens elevadas e fortes geradoras de caixa (ex: Energia Elétrica, Saneamento, Seguradoras e Bancos).",
+        },
+        "cautious": {
+            "title": "Regime Cauteloso (Neutro / Transição)",
+            "icon": "🟡",
+            "color": "#FACC15",
+            "tooltip": "Taxas de juros em patamar intermediário ou em ciclo de transição. Cenário de equilíbrio entre crescimento e proteção.",
+            "recommendation": "Manter equilíbrio entre ações 'Core' (dividendos consistentes e defensivas) e boas oportunidades 'Complemento' com valuations atraentes.",
+        },
+        "expansionary": {
+            "title": "Regime Expansionista (Juros Baixos)",
+            "icon": "🟢",
+            "color": "#4ADE80",
+            "tooltip": "Juros baixos estimulam consumo, crédito e investimentos produtivos. Cenário favorável para expansão dos lucros corporativos.",
+            "recommendation": "Aproveitar momento para alocar em empresas de crescimento com boa governança, consumo/varejo resiliente e empresas com alto potencial de valorização e reinvestimento.",
+        },
     }
-    _regime_name = _regime_names_pt.get(_regime, "desconhecido")
-    
-    _selic = _macro_state.get("selic_aa") or 0.0
-    _ipca_12m = (_macro_state.get("ipca_12m") or 0.0) / 100.0
-    
-    _regime_colors = {
-        "expansionista": ("#4ADE80", "🟢"),
-        "cauteloso": ("#FACC15", "🟡"),
-        "restritivo": ("#F87171", "🔴"),
-    }
-    _rc, _ri = _regime_colors.get(_regime_name, ("#94A3B8", "⚪"))
+
+    _info = _regime_info.get(_regime, _regime_info["cautious"])
+
     st.markdown(
         f"""
-<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 1rem;
-    background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.12);
-    border-radius:12px;margin-bottom:0.75rem;flex-wrap:wrap;">
-  <span style="font-size:1.1rem;">{_ri}</span>
-  <span style="color:{_rc};font-weight:700;font-size:0.85rem;">Regime {_regime_name.capitalize()}</span>
-  <span style="color:#94A3B8;font-size:0.78rem;">Selic: {_selic:.1f}%</span>
-  <span style="color:#94A3B8;font-size:0.78rem;">IPCA 12m: {_ipca_12m*100:.1f}%</span>
-  <span style="color:#94A3B8;font-size:0.78rem;">Taxa real: {(_selic/100 - _ipca_12m)*100:.1f}%</span>
+<div style="
+    display: flex;
+    flex-direction: column;
+    padding: 0.9rem 1.2rem;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 14px;
+    margin-bottom: 1.1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    gap: 0.75rem;
+">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+    <div style="display: flex; align-items: center; gap: 0.85rem;">
+      <span style="font-size: 1.6rem; line-height: 1;">{_info['icon']}</span>
+      <div>
+        <div style="font-size: 0.72rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Status Atual da Economia</div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.15rem;">
+          <span style="color: {_info['color']}; font-weight: 700; font-size: 1.05rem;">{_info['title']}</span>
+          <span title="{_info['tooltip']}" style="cursor: help; background: rgba(148,163,184,0.15); color: #94A3B8; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold;">ⓘ</span>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;">
+      <div style="text-align: right;">
+        <div style="font-size: 0.68rem; color: #94A3B8;">Taxa Selic Meta</div>
+        <div style="font-size: 0.95rem; font-weight: 600; color: #F8FAFC;">{_selic:.2f}% a.a.</div>
+      </div>
+      <div style="width: 1px; height: 24px; background: rgba(148,163,184,0.15);"></div>
+      <div style="text-align: right;">
+        <div style="font-size: 0.68rem; color: #94A3B8;">IPCA 12m</div>
+        <div style="font-size: 0.95rem; font-weight: 600; color: #F8FAFC;">{_ipca_pct:.2f}%</div>
+      </div>
+      <div style="width: 1px; height: 24px; background: rgba(148,163,184,0.15);"></div>
+      <div style="text-align: right;">
+        <div style="font-size: 0.68rem; color: #94A3B8;">Taxa Real Líquida</div>
+        <div style="font-size: 0.95rem; font-weight: 600; color: {_info['color']};">+{_real_rate:.2f}%</div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size: 0.82rem; color: #CBD5E1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.1); border-radius: 8px; padding: 0.5rem 0.8rem; line-height: 1.45;">
+    <strong>💡 Recomendação da tese:</strong> {_info['recommendation']}
+  </div>
 </div>
 """,
         unsafe_allow_html=True,
