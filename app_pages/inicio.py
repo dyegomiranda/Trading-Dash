@@ -141,7 +141,7 @@ try:
         if portfolio.positions:
             missing_pos = [t for t in portfolio.positions.keys() if t not in prices]
             if missing_pos:
-                from src.data.provider import get_provider
+                from src.data.providers import get_provider
                 prov = get_provider(provider)
                 extra_fund = prov.get_fundamentals(missing_pos)
                 if extra_fund is not None and not extra_fund.empty:
