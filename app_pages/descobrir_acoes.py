@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pandas as pd
 import streamlit as st
 
 from src.config import THESIS_LABEL, THESIS_VERSION, get_settings
@@ -45,59 +46,65 @@ render_clean_header(
 
 with st.sidebar:
     st.markdown("##### Filtros desta lista")
-    min_score = st.slider(
-        "Nota mínima do app",
-        0,
-        100,
-        55,
-        key="disc_min_score",
-        help="Só entram empresas com nota igual ou acima deste valor (0–100).",
-    )
-    top_n = st.slider(
-        "Quantas sugestões mostrar",
-        5,
-        30,
-        15,
-        key="disc_top_n",
-    )
-    loose = st.toggle(
-        "Mostrar mais empresas (filtro frouxo)",
-        value=False,
-        key="disc_loose",
-        help="Desligado: filtro da tese (ROE, dívida, payout, yield sustentável). "
-        "Ligado: só exige preço, dividendo e nota mínima.",
-    )
-    universe_options = [40, 80, 150, 250, 369]
-    universe_labels = {
-        40: "40 ações (Amostra rápida)",
-        80: "80 ações (Principais da B3)",
-        150: "150 ações (Amplo)",
-        250: "250 ações (Expandido)",
-        369: "Máximo (369 ações da B3)",
-    }
-    max_universe = st.select_slider(
-        "Quantidade de ações analisadas",
-        options=universe_options,
-        value=80,
-        format_func=lambda x: universe_labels.get(x, f"{x} ações"),
-        key="disc_universe_size",
-        help="Quantas ações da B3 analisar. Se escolher 'Máximo', analisa todas as 369 empresas listadas.",
-    )
-    strict = not loose
-    period_labels = [p[0] for p in PRICE_PERIODS]
-    period_choice = st.selectbox(
-        "Período do gráfico de preço",
-        options=period_labels,
-        index=3,  # 1 ano
-        key="disc_hist_period",
-        help="Do curto prazo (1 mês) até o máximo que a fonte tiver de histórico.",
-    )
-    hist_days = dict(PRICE_PERIODS).get(period_choice)
-    run = st.button("Recalcular lista", type="primary", width="stretch", key="disc_run")
-    if run:
-        from src.ui.refresh import force_refresh_data
+    with st.form("disc_filter_form"):
+        min_score = st.slider(
+            "Nota mínima do app",
+            0,
+            100,
+            st.session_state.get("cached_min_score", 55),
+            key="disc_min_score",
+            help="Só entram empresas com nota igual ou acima deste valor (0–100).",
+        )
+        top_n = st.slider(
+            "Quantas sugestões mostrar",
+            5,
+            30,
+            st.session_state.get("cached_top_n", 15),
+            key="disc_top_n",
+        )
+        loose = st.toggle(
+            "Mostrar mais empresas (filtro frouxo)",
+            value=st.session_state.get("cached_loose", False),
+            key="disc_loose",
+            help="Desligado: filtro da tese (ROE, dívida, payout, yield sustentável). "
+            "Ligado: só exige preço, dividendo e nota mínima.",
+        )
+        universe_options = [40, 80, 150, 250, 369]
+        universe_labels = {
+            40: "40 ações (Amostra rápida)",
+            80: "80 ações (Principais da B3)",
+            150: "150 ações (Amplo)",
+            250: "250 ações (Expandido)",
+            369: "Máximo (369 ações da B3)",
+        }
+        max_universe = st.select_slider(
+            "Quantidade de ações analisadas",
+            options=universe_options,
+            value=st.session_state.get("cached_max_universe", 80),
+            format_func=lambda x: universe_labels.get(x, f"{x} ações"),
+            key="disc_universe_size",
+            help="Quantas ações da B3 analisar. Se escolher 'Máximo', analisa todas as 369 empresas listadas.",
+        )
+        strict = not loose
+        period_labels = [p[0] for p in PRICE_PERIODS]
+        period_choice = st.selectbox(
+            "Período do gráfico de preço",
+            options=period_labels,
+            index=3,  # 1 ano
+            key="disc_hist_period",
+            help="Do curto prazo (1 mês) até o máximo que a fonte tiver de histórico.",
+        )
+        hist_days = dict(PRICE_PERIODS).get(period_choice)
+        run = st.form_submit_button("🔍 Aplicar filtros e calcular", type="primary", use_container_width=True)
+        if run:
+            from src.ui.refresh import force_refresh_data
 
-        force_refresh_data()
+            force_refresh_data()
+            st.session_state["cached_min_score"] = min_score
+            st.session_state["cached_top_n"] = top_n
+            st.session_state["cached_loose"] = loose
+            st.session_state["cached_max_universe"] = max_universe
+
     _macro_tilt = macro_tilt_from_override(get_session_macro())
 
 render_data_quality_banner(provider)
@@ -138,7 +145,7 @@ def _price_hist(provider: str, ticker: str, days: int | None):
     prov = get_provider(provider)  # type: ignore[arg-type]
     hist = prov.get_price_history([ticker], start=start, end=end)
     if hist is None or hist.empty:
-        return hist
+        return pd.DataFrame()
     # Fronteira de schema: garante OHLCV longo tipado antes de plotar
     from src.data.schemas import coerce_ohlcv
 
@@ -150,7 +157,6 @@ need_load = (
     run
     or "ranking_loaded" not in st.session_state
     or st.session_state.get("provider") != provider
-    or st.session_state.get("cached_max_universe") != max_universe
 )
 if need_load:
     try:

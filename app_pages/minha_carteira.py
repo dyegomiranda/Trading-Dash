@@ -184,6 +184,27 @@ try:
     ):
         fundamentals = _raw_fundamentals(provider)
         scored_table = _scored_table(provider)
+
+        # Garante que todas as posições da carteira tenham cotação e dividendos reais carregados
+        if portfolio.positions:
+            pos_tickers = list(portfolio.positions.keys())
+            known = (
+                set(fundamentals["ticker"].values)
+                if not fundamentals.empty and "ticker" in fundamentals.columns
+                else set()
+            )
+            missing_pos = [t for t in pos_tickers if t not in known]
+            if missing_pos:
+                try:
+                    extra_fund = get_provider(provider).get_fundamentals(missing_pos)
+                    if extra_fund is not None and not extra_fund.empty:
+                        fundamentals = pd.concat([fundamentals, extra_fund], ignore_index=True)
+                        extra_scored = score_universe(extra_fund).scored
+                        if extra_scored is not None and not extra_scored.empty:
+                            scored_table = pd.concat([scored_table, extra_scored], ignore_index=True)
+                except Exception:
+                    pass
+
         if not scored_table.empty:
             scored_table = enrich_fundamentals_quality(scored_table)
         prices = prices_dict_from_fundamentals(
@@ -771,97 +792,94 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
     with st.container(border=True):
         settings = get_settings()
 
-        st.caption(
-            "Configure os critérios de seleção para montar a carteira com total transparência:"
-        )
-        univ_col, score_col, n_col = st.columns([1.2, 1, 1])
-        with univ_col:
-            univ_options = [40, 80, 150, 250, 369]
-            univ_labels = {
-                40: "40 ações (Amostra rápida)",
-                80: "80 ações (Principais B3)",
-                150: "150 ações (Amplo)",
-                250: "250 ações (Expandido)",
-                369: "Máximo (369 ações da B3)",
-            }
-            build_univ_size = st.select_slider(
-                "Universo analisado na B3",
-                options=univ_options,
-                value=80,
-                format_func=lambda x: univ_labels.get(x, f"{x} ações"),
-                key="pf_build_univ_size",
-                help="Quantas empresas listadas na bolsa serão avaliadas para compor sua carteira.",
+        build_meta = portfolio.meta.get("build_settings", {}) if hasattr(portfolio, "meta") and portfolio.meta else {}
+        univ_options = [40, 80, 150, 250, 369]
+        univ_labels = {
+            40: "40 ações (Amostra rápida)",
+            80: "80 ações (Principais B3)",
+            150: "150 ações (Amplo)",
+            250: "250 ações (Expandido)",
+            369: "Máximo (369 ações da B3)",
+        }
+        saved_univ = int(build_meta.get("univ_size", 80))
+        if saved_univ not in univ_options:
+            saved_univ = 80
+        saved_min_score = int(build_meta.get("min_score", int(settings.rebalance_min_score or 55)))
+        saved_top_n = int(build_meta.get("top_n", 12))
+
+        if build_meta:
+            st.caption(
+                f"Configuração salva desta carteira: universo de **{saved_univ} ações**, "
+                f"nota mínima **≥ {saved_min_score}**, alvo de **{saved_top_n} posições**."
             )
-        with score_col:
-            build_min_score = st.slider(
-                "Nota mínima da tese",
-                min_value=30,
-                max_value=80,
-                value=int(settings.rebalance_min_score or 55),
-                step=5,
-                key="pf_build_min_score",
-                help="Apenas empresas que atingirem esta nota (lucro, dividendo sustentável, dívida e preço) são aprovadas.",
-            )
-        with n_col:
-            top_n = st.slider(
-                "Quantas empresas na carteira?",
-                5,
-                20,
-                12,
-                key="pf_top_n",
-                help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
+        else:
+            st.caption(
+                "Configure os critérios de seleção e clique em **Montar carteira com a tese**:"
             )
 
-        # Diagnóstico transparente ao vivo
-        scored_result = _score_candidates(provider, limit=int(build_univ_size), min_score=float(build_min_score))
-        total_analyzed = len(scored_result.scored)
-        total_passed = len(scored_result.filtered)
+        with st.form("build_thesis_form"):
+            univ_col, score_col, n_col = st.columns([1.2, 1, 1])
+            with univ_col:
+                build_univ_size = st.select_slider(
+                    "Universo analisado na B3",
+                    options=univ_options,
+                    value=saved_univ,
+                    format_func=lambda x: univ_labels.get(x, f"{x} ações"),
+                    key="pf_build_univ_size",
+                    help="Quantas empresas listadas na bolsa serão avaliadas para compor sua carteira.",
+                )
+            with score_col:
+                build_min_score = st.slider(
+                    "Nota mínima da tese",
+                    min_value=30,
+                    max_value=80,
+                    value=saved_min_score,
+                    step=5,
+                    key="pf_build_min_score",
+                    help="Apenas empresas que atingirem esta nota (lucro, dividendo sustentável, dívida e preço) são aprovadas.",
+                )
+            with n_col:
+                top_n = st.slider(
+                    "Quantas empresas na carteira?",
+                    5,
+                    20,
+                    value=saved_top_n,
+                    key="pf_top_n",
+                    help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
+                )
 
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.metric("Empresas analisadas na B3", str(total_analyzed))
-        with m2:
-            st.metric(f"Aprovadas com nota ≥ {build_min_score}", str(total_passed))
-        with m3:
-            st.metric("Serão selecionadas para a carteira", str(min(top_n, total_passed)))
-
-        if total_passed == 0:
-            st.warning(
-                f"Nenhuma empresa atingiu a nota mínima {build_min_score} entre as {total_analyzed} analisadas. "
-                "Experimente reduzir ligeiramente a nota mínima ou ampliar o universo para incluir mais candidatas.",
-                icon=":material/tune:",
-            )
-
-        with st.expander("Ver regras e pesos da tese", icon=":material/info:"):
-            st.markdown(
-                f"""
+            with st.expander("Ver regras e pesos da tese", icon=":material/info:"):
+                st.markdown(
+                    f"""
 - Cerca de **{settings.core_weight:.0%}** em empresas mais estáveis (**base**)
 - Cerca de **{settings.satellite_weight:.0%}** em um **complemento** um pouco mais flexível
 - Limite por ação ~**{settings.max_position_pct:.0%}** · por setor ~**{settings.max_sector_pct:.0%}**
 - Deduplicação inteligente de classes (prioriza **PETR4** / PN / UNIT para foco em dividendos)
 - Tese **v{THESIS_VERSION}** — penaliza dividendos insustentáveis e endividamento excessivo.
 """
+                )
+            if provider == "demo":
+                st.warning(
+                    "Números ilustrativos (só testes/offline). "
+                    "A montagem no app usa a bolsa real.",
+                    icon=":material/info:",
+                )
+            if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
+                st.warning(
+                    "Cobertura de dados fraca agora. A montagem automática ainda funciona, "
+                    "mas confira as empresas depois em **Descubra ações**.",
+                    icon=":material/info:",
+                )
+
+            submit_build = st.form_submit_button(
+                APPLY_THESIS_LABEL,
+                type="primary",
+                use_container_width=True,
+                icon=":material/auto_awesome:",
             )
-        if provider == "demo":
-            st.warning(
-                "Números ilustrativos (só testes/offline). "
-                "A montagem no app usa a bolsa real.",
-                icon=":material/info:",
-            )
-        if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
-            st.warning(
-                "Cobertura de dados fraca agora. A montagem automática ainda funciona, "
-                "mas confira as empresas depois em **Descubra ações**.",
-                icon=":material/info:",
-            )
-        if st.button(
-            APPLY_THESIS_LABEL,
-            type="primary",
-            width="stretch",
-            key="pf_apply",
-            icon=":material/auto_awesome:",
-        ):
-            with st.spinner("Escolhendo empresas e executando ordens de treino…"):
+
+        if submit_build:
+            with st.spinner("Analisando empresas na B3 e executando ordens de treino…"):
                 try:
                     scored = _score_candidates(provider, limit=int(build_univ_size), min_score=float(build_min_score))
                     base = scored.filtered
@@ -869,7 +887,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         base = base.loc[:, ~base.columns.duplicated(keep="last")]
                     recs = recommend_weights(
                         base,
-                        top_n=top_n,
+                        top_n=int(top_n),
                         core_weight=settings.core_weight,
                         satellite_weight=settings.satellite_weight,
                         max_position_pct=settings.max_position_pct,
@@ -880,10 +898,9 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                         st.session_state["pf_flash"] = {
                             "kind": "warning",
                             "msg": (
-                                "Nenhuma ação passou no filtro da tese "
-                                "(ROE, dívida, payout, DY). "
-                                "Não montei o livro com o universo sem filtro. "
-                                "Afrouxe o filtro em Descubra ações ou atualize os dados."
+                                f"Nenhuma ação passou no filtro da tese com nota ≥ {build_min_score} "
+                                f"entre as {len(scored.scored)} analisadas na B3. "
+                                "Reduza ligeiramente a nota mínima ou amplie o universo."
                             ),
                         }
                         st.rerun()
@@ -907,7 +924,19 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                     trades = portfolio.rebalance_to_weights(
                         weights, px, buckets=buckets, note="sugestoes"
                     )
+
+                    # Persiste os parâmetros configurados na carteira
+                    if not hasattr(portfolio, "meta") or portfolio.meta is None:
+                        portfolio.meta = {}
+                    portfolio.meta["build_settings"] = {
+                        "univ_size": int(build_univ_size),
+                        "min_score": float(build_min_score),
+                        "top_n": int(top_n),
+                        "total_analyzed": len(scored.scored),
+                        "total_approved": len(scored.filtered),
+                    }
                     save_portfolio(portfolio)
+
                     st.session_state["pf_w_sig"] = None
                     after = portfolio.summary(px)
                     details = [
@@ -928,9 +957,9 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                             "kind": "success",
                             "msg": (
                                 f"🎉 Carteira montada com sucesso: {len(trades)} ordens · "
-                                f"{len(portfolio.positions)} empresas · "
+                                f"{len(portfolio.positions)} empresas selecionadas · "
                                 f"total {format_brl(after['equity'])}! "
-                                "Veja a distribuição abaixo e siga para Renda esperada & Metas."
+                                f"(Analisadas na B3: {len(scored.scored)} · Aprovadas: {len(scored.filtered)})"
                             ),
                             "details": details,
                         }
@@ -1577,14 +1606,19 @@ que você definir abaixo.
         if "annual_income" in bt.columns and len(bt):
             with st.container(border=True):
                 st.markdown("##### De onde viria a renda **hoje** (sem aportes futuros)")
-                st.caption("Fatia estimada de dividendos por empresa com a carteira atual.")
+                st.caption(
+                    "Distribuição dos dividendos anuais estimados entre as empresas da sua carteira atual. "
+                    f"Total estimado: **{format_brl(annual)}/ano** (~{format_brl(monthly)}/mês)."
+                )
                 st.plotly_chart(
                     holdings_donut(
                         bt,
                         value_col="annual_income",
                         label_col="ticker",
+                        center_title="Renda anual",
                         center_value=format_brl(annual),
-                        title="Renda estimada por empresa (hoje)",
+                        title="Renda anual estimada por empresa (hoje)",
+                        height=320,
                     ),
                     width="stretch",
                     config={"displayModeBar": False},

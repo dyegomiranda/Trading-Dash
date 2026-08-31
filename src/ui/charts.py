@@ -231,13 +231,15 @@ def holdings_donut(
     *,
     value_col: str = "market_value",
     label_col: str = "ticker",
+    center_title: str | None = None,
     center_value: str = "",
     title: str = "Patrimônio investido",
-    height: int = 440,
+    height: int = 340,
 ) -> go.Figure:
     df = holdings.copy()
     if df.columns.duplicated().any():
         df = df.loc[:, ~df.columns.duplicated(keep="last")]
+    resolved_center_title = center_title or ("Renda anual" if value_col == "annual_income" else "Investido")
     if df.empty:
         return donut_allocation(
             ["—"], [1], center_title="", center_value="—", title=title, height=height
@@ -262,7 +264,7 @@ def holdings_donut(
     return donut_allocation(
         labels.tolist(),
         values.tolist(),
-        center_title="Investido",
+        center_title=resolved_center_title,
         center_value=center_value,
         title=title,
         height=height,
