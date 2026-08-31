@@ -147,6 +147,53 @@ def _fetch_yfinance_news(tickers: list[str], limit: int = 8) -> list[dict[str, A
     return items
 
 
+POSITIVE_KEYWORDS = (
+    "dividendo",
+    "jcp",
+    "provento",
+    "lucro",
+    "alta",
+    "cresce",
+    "recorde",
+    "recompra",
+    "eleva",
+    "expansão",
+    "aquisição",
+    "otimismo",
+    "supera",
+    "paga",
+    "distribui",
+)
+NEGATIVE_KEYWORDS = (
+    "prejuízo",
+    "queda",
+    "despenca",
+    "investigação",
+    "corte",
+    "fraude",
+    "processo",
+    "recuperação judicial",
+    "crise",
+    "rebaixada",
+    "multa",
+    "dívida",
+    "cai",
+    "risco",
+)
+
+
+def classify_sentiment(title: str) -> tuple[str, str, str]:
+    """Retorna (sentiment_code, badge_label, badge_color)."""
+    t = title.lower()
+    pos_score = sum(1 for kw in POSITIVE_KEYWORDS if kw in t)
+    neg_score = sum(1 for kw in NEGATIVE_KEYWORDS if kw in t)
+    if neg_score > pos_score:
+        return "negative", "⚠️ Alerta / Risco", "#EF4444"
+    if pos_score > neg_score:
+        return "positive", "🟢 Positiva / Proventos", "#10B981"
+    return "neutral", "🟡 Notícia / Mercado", "#6B7280"
+
+
 def fetch_headlines(
     tickers: list[str] | None = None,
     *,
@@ -154,13 +201,7 @@ def fetch_headlines(
     limit: int = 10,
     timeout_sec: float | None = None,
 ) -> pd.DataFrame:
-    """Headlines reais com URL clicável (com timeout global).
-
-    Estratégia:
-    1) Google News RSS (links reais) — poucas queries
-    2) yfinance news (opcional, se ainda faltar)
-    3) se tudo falhar, devolve vazio (sem fake)
-    """
+    """Headlines reais com URL clicável e classificação de sentimento."""
     from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
     from src.config import get_settings
@@ -228,12 +269,29 @@ def fetch_headlines(
     except Exception:
         unique = []
 
-    cols = ["title", "ticker", "source", "tag", "published", "url"]
+    cols = [
+        "title",
+        "ticker",
+        "source",
+        "tag",
+        "published",
+        "url",
+        "sentiment",
+        "sentiment_label",
+        "sentiment_color",
+    ]
     if not unique:
         return pd.DataFrame(columns=cols)
+    for it in unique:
+        code, label, color = classify_sentiment(str(it.get("title", "")))
+        it["sentiment"] = code
+        it["sentiment_label"] = label
+        it["sentiment_color"] = color
     df = pd.DataFrame(unique)
     for c in cols:
         if c not in df.columns:
             df[c] = ""
     return df[cols]
+
+
 

@@ -303,12 +303,82 @@ def build_benchmark_curves(
         if len(idiv) and abs(float(idiv.iloc[0]) - initial_cash) > 1:
             idiv = initial_cash * (idiv / float(idiv.iloc[0]))
 
+    # --- IPCA (Inflação Oficial - BCB SGS 433) ---
+    ipca_series = pd.Series(dtype=float)
+    if provider.name == "demo":
+        daily_ipca = (1.0 + 0.045) ** (1 / 252) - 1
+        levels_ipca = initial_cash * np.cumprod(np.full(len(dates), 1.0 + daily_ipca))
+        ipca_series = pd.Series(levels_ipca, index=dates)
+        meta["ipca_source"] = "demo (4.5% a.a.)"
+        meta["ipca_available"] = True
+    else:
+        ipca_m = fetch_ipca_monthly(start, end)
+        if ipca_m.empty:
+            daily_ipca = (1.0 + 0.045) ** (1 / 252) - 1
+            levels_ipca = initial_cash * np.cumprod(np.full(len(dates), 1.0 + daily_ipca))
+            ipca_series = pd.Series(levels_ipca, index=dates)
+            meta["ipca_source"] = "fallback (4.5% a.a.)"
+            meta["ipca_available"] = True
+        else:
+            # Reindexa dias úteis e interpola acumulação diária
+            daily_factors = ipca_m.reindex(dates).fillna(0.0)
+            levels_ipca = np.empty(len(dates))
+            levels_ipca[0] = initial_cash
+            daily_rate = (1.0 + (ipca_m.mean() * 12.0 if not ipca_m.empty else 0.045)) ** (1 / 252)
+            for i in range(1, len(dates)):
+                levels_ipca[i] = levels_ipca[i - 1] * daily_rate
+            ipca_series = pd.Series(levels_ipca, index=dates)
+            meta["ipca_source"] = "BCB:SGS.433"
+            meta["ipca_available"] = True
+
     out = pd.DataFrame(
         {
             "date": dates,
             "ibovespa": ibov.reindex(dates).to_numpy() if len(ibov) else np.nan,
             "cdi": cdi.reindex(dates).to_numpy() if len(cdi) else np.nan,
             "idiv": idiv.reindex(dates).to_numpy() if len(idiv) else np.nan,
+            "ipca": ipca_series.reindex(dates).to_numpy() if len(ipca_series) else np.nan,
         }
     )
     return out, meta
+
+
+def fetch_ipca_monthly(
+    start: str | datetime,
+    end: str | datetime | None = None,
+) -> pd.Series:
+    """Busca série mensal do IPCA (variação %) no SGS do Banco Central (código 433)."""
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end or utcnow())
+    from src.data.ttl import ttl_for
+
+    cache_key = f"bcb_ipca:{start_ts.strftime('%Y%m%d')}:{end_ts.strftime('%Y%m%d')}"
+    settings = get_settings()
+    cached = _read_cache(cache_key, ttl_for("benchmark", settings))
+    if cached is not None:
+        s = pd.Series(cached)
+        s.index = pd.to_datetime(s.index)
+        return s.sort_index()
+
+    url = (
+        "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json"
+        f"&dataInicial={start_ts.strftime('%d/%m/%Y')}"
+        f"&dataFinal={end_ts.strftime('%d/%m/%Y')}"
+    )
+    try:
+        req = Request(url, headers={"User-Agent": "TradingDash/0.1"})
+        with urlopen(req, timeout=15) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+        dates = []
+        rates = []
+        for row in rows:
+            d = pd.to_datetime(row["data"], dayfirst=True).normalize()
+            rate = float(str(row["valor"]).replace(",", ".")) / 100.0
+            dates.append(d)
+            rates.append(rate)
+        s = pd.Series(rates, index=pd.DatetimeIndex(dates)).sort_index()
+        _write_cache(cache_key, {str(k.date()): float(v) for k, v in s.items()})
+        return s
+    except Exception:
+        return pd.Series(dtype=float)
+

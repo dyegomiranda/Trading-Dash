@@ -19,6 +19,7 @@ from src.ui.components import (
     render_core_sectors_card,
     render_kpi_row,
     render_plain_help,
+    render_stock_health_meters,
     render_thesis_pillars,
 )
 from src.ui.data_source import (
@@ -28,7 +29,6 @@ from src.ui.data_source import (
     render_clean_header,
     render_data_quality_banner,
 )
-from src.ui.cache_button import render_refresh_control
 from src.ui.friendly import PRICE_PERIODS, friendly_dataframe
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_trust_strip
@@ -327,9 +327,13 @@ else:
                     f"({chg:+.1%} no total do gráfico — passado ≠ futuro)."
                 )
 
-        # "Por que essa ação?" — narrativa da tese em PT claro, sem LLM.
-        with st.expander(f"Por que essa ação? — {pick}", icon=":material/lightbulb:"):
-            _row_n = scored_df[scored_df["ticker"] == pick]
+        # Diagnóstico visual sem jargões (Preço Justo, Saúde Financeira, Dividendos, Qualidade)
+        _row_n = scored_df[scored_df["ticker"] == pick]
+        if not _row_n.empty:
+            st.markdown("###### Diagnóstico Rápido (Sem Jargões)")
+            render_stock_health_meters(_row_n.iloc[0])
+
+        with st.expander(f"Por que essa ação? Entenda a tese — {pick}", icon=":material/lightbulb:"):
             if _row_n.empty:
                 st.caption("Sem dados detalhados para essa empresa no momento.")
             else:

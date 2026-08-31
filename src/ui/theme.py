@@ -1039,32 +1039,206 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
 .td-asset-right .pnl.up {{ color: #34D399; }}
 .td-asset-right .pnl.down {{ color: #F87171; }}
 
-/* Hide Streamlit default footer clutter a bit */
-footer {{ visibility: hidden; }}
+/* ========== UI/UX 2.0: Cards Interativos, Metas e Sentimento ========== */
+.td-card-interactive {{
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(129, 140, 248, 0.2);
+  border-radius: 14px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}}
+.td-card-interactive:hover {{
+  transform: translateY(-2px);
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow: 0 8px 24px rgba(129, 140, 248, 0.12);
+}}
 
-/* Spinner nativo no centro da Início (st.spinner dentro de .st-key-home_boot) */
-.st-key-home_boot {{
-  min-height: 70vh !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+/* Metas de Renda Passiva */
+.td-goal-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem 0;
 }}
-.st-key-home_boot [data-testid="stSpinner"] {{
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 1rem !important;
-  width: 100% !important;
-  text-align: center !important;
-  padding: 6rem 1.25rem !important;
+.td-goal-card {{
+  background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.8));
+  border: 1px solid rgba(129, 140, 248, 0.22);
+  border-radius: 14px;
+  padding: 1.15rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease;
 }}
-.st-key-home_boot [data-testid="stSpinner"] svg {{
-  width: 3rem !important;
-  height: 3rem !important;
+.td-goal-card.active {{
+  border-color: rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.15);
+}}
+.td-goal-card.completed {{
+  border-color: rgba(56, 189, 248, 0.6);
+  background: linear-gradient(145deg, rgba(16, 37, 66, 0.85), rgba(15, 23, 42, 0.8));
+}}
+.td-goal-header {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}}
+.td-goal-title {{
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #F8FAFC;
+}}
+.td-goal-target {{
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #38BDF8;
+  margin-bottom: 0.5rem;
+}}
+.td-goal-prog-track {{
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 999px;
+  height: 8px;
+  width: 100%;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}}
+.td-goal-prog-bar {{
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #818CF8, #34D399);
+  transition: width 0.4s ease;
+}}
+.td-goal-footer {{
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #94A3B8;
+  margin-top: 0.4rem;
+}}
+
+/* Radar de Notícias & Sentimento */
+.td-news-feed {{
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}}
+.td-news-item {{
+  background: rgba(17, 24, 39, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-decoration: none !important;
+  transition: all 0.18s ease;
+}}
+.td-news-item:hover {{
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(129, 140, 248, 0.4);
+  transform: translateX(3px);
+}}
+.td-news-title {{
+  color: #F1F5F9;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+}}
+.td-news-meta {{
+  color: #64748B;
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}}
+.td-sentiment-pill {{
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}}
+.td-sentiment-pill.positive {{
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}}
+.td-sentiment-pill.negative {{
+  background: rgba(248, 113, 113, 0.15);
+  color: #F87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}}
+.td-sentiment-pill.neutral {{
+  background: rgba(148, 163, 184, 0.15);
+  color: #94A3B8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}}
+
+/* Medidores Visuais de Saúde (Sem Jargões) */
+.td-health-grid {{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem 0;
+}}
+.td-health-card {{
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+}}
+.td-health-card:hover {{
+  transform: translateY(-2px);
+  border-color: rgba(129, 140, 248, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}}
+.td-health-label {{
+  font-size: 0.75rem;
+  color: #94A3B8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}}
+.td-health-status {{
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}}
+.td-health-status.good {{ color: #34D399; }}
+.td-health-status.warn {{ color: #FBBF24; }}
+.td-health-status.alert {{ color: #F87171; }}
+.td-health-status.neutral {{ color: #94A3B8; }}
+.td-health-desc {{
+  font-size: 0.78rem;
+  color: #94A3B8;
+  line-height: 1.3;
+}}
+.td-health-meter {{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }}
 </style>
+
 """
+
 
 
 

@@ -798,6 +798,7 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
             ibov_ret = _series_return("ibovespa")
             cdi_ret = _series_return("cdi")
             idiv_ret = _series_return("idiv")
+            ipca_ret = _series_return("ipca")
             metrics["ibov_return"] = ibov_ret
             metrics["cdi_return"] = cdi_ret
             metrics["ibov_cagr"] = _series_cagr("ibovespa")
@@ -810,14 +811,24 @@ def run_backtest(provider: DataProvider, config: BacktestConfig) -> BacktestResu
                 metrics["idiv_return"] = idiv_ret
                 metrics["idiv_cagr"] = _series_cagr("idiv")
                 metrics["excess_vs_idiv"] = total_ret - idiv_ret
+            if ipca_ret is not None:
+                metrics["ipca_return"] = ipca_ret
+                metrics["ipca_cagr"] = _series_cagr("ipca")
+                metrics["real_return_vs_ipca"] = (
+                    ((1.0 + total_ret) / (1.0 + ipca_ret) - 1.0)
+                    if (1.0 + ipca_ret) > 0
+                    else total_ret - ipca_ret
+                )
 
             notes.append(
                 f"Benchmarks: Ibovespa ({bm_meta.get('ibov_source')}), "
                 f"CDI ({bm_meta.get('cdi_source')}), "
-                f"IDIV ({bm_meta.get('idiv_source') or 'desativado'})."
+                f"IDIV ({bm_meta.get('idiv_source') or 'desativado'}), "
+                f"IPCA ({bm_meta.get('ipca_source') or 'desativado'})."
             )
         except Exception as e:
             notes.append(f"Benchmarks indisponíveis neste run: {e}")
+
 
     notes.append(
         "MERCADO: no rebalance, preço = fechamento do dia e DY = TTM 12 meses "

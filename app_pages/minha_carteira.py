@@ -48,9 +48,12 @@ from src.ui.charts import (
     sector_breakdown_from_holdings,
     snowball_chart,
 )
+from src.data.news import fetch_headlines
 from src.ui.components import (
     render_explain_card,
+    render_goal_milestones,
     render_journey,
+    render_news_feed_cards,
     render_plain_help,
 )
 from src.ui.data_source import (
@@ -60,9 +63,9 @@ from src.ui.data_source import (
     render_clean_header,
     render_data_quality_banner,
 )
-from src.ui.cache_button import render_refresh_control
 from src.ui.friendly import JOURNEY_STEPS, friendly_dataframe
 from src.ui.refresh import soft_refresh
+
 from src.ui.shell import page_setup
 from src.ui.trust import render_friendly_safety_note, render_premises_box, render_trust_strip
 from src.ui.wallet import render_asset_rows, render_wallet_balance
@@ -321,7 +324,8 @@ if portfolio.positions:
 _SECTION_LABELS = {
     "overview": "Visão geral",
     "build": "Montar carteira",
-    "income": "Renda esperada",
+    "income": "Renda esperada & Metas",
+    "news": "Radar de Notícias & Riscos",
     "more": "Detalhes",
 }
 if "pf_section" not in st.session_state:
@@ -336,6 +340,7 @@ section = st.segmented_control(
 )
 if section is None:
     section = st.session_state.get("pf_section") or "overview"
+
 
 # ─── Visão geral ────────────────────────────────────────────────────────────
 if section == "overview":
@@ -1279,6 +1284,32 @@ que você definir abaixo.
         ],
     )
 
+    # Metas Realistas de Renda Passiva
+    st.markdown("#### 🎯 Suas Metas de Renda Passiva")
+    st.caption("Progresso estimado da sua carteira rumo aos 4 marcos de independência financeira:")
+    render_goal_milestones(
+        current_monthly_income=monthly,
+        starting_capital=start_principal,
+        monthly_contribution=float(monthly_contrib),
+        avg_yield=max(start_yield, 0.06),
+    )
+
+    # Cálculo de Ganho Real e Poder de Compra com desconto da inflação esperada (~4.5% a.a.)
+    expected_ipca = 0.045
+    inflation_discount = (1.0 + expected_ipca) ** max(1, years)
+    real_final_monthly = final_monthly / inflation_discount
+    real_final_eq = final_eq / inflation_discount
+
+    with st.container(border=True):
+        st.markdown("##### 🛒 Ganho Real vs Inflação (Poder de Compra de Hoje)")
+        st.markdown(
+            f"""
+- **Renda Nominal no ano {years}:** **{format_brl(final_monthly)}/mês** (em valores futuros)
+- **Renda Real (Poder de compra atual):** **~{format_brl(real_final_monthly)}/mês** (descontando inflação estimada de ~4,5% a.a.)
+- **Patrimônio Real acumulado:** **~{format_brl(real_final_eq)}** em poder de compra de hoje vs **{format_brl(final_eq)}** nominais.
+"""
+        )
+
     with st.container(border=True):
         st.markdown("##### Conta rápida (cenário base)")
         st.markdown(
@@ -1291,6 +1322,7 @@ que você definir abaixo.
    (**{format_brl(final_monthly)}/mês**) · taxa implícita **{implied:.1%}**
 """
         )
+
 
     render_premises_box(
         [
@@ -1469,9 +1501,25 @@ que você definir abaixo.
                 )
 
 
+# ─── Radar de Notícias & Riscos ─────────────────────────────────────────────
+if section == "news":
+    st.markdown("#### 📰 Radar de Notícias & Sentimento")
+    st.caption("Acompanhe o que o mercado está noticiando sobre as empresas da sua carteira:")
+    wallet_tickers = [p.ticker for p in portfolio.positions]
+    if not wallet_tickers:
+        wallet_tickers = ["ITUB4", "PETR4", "VALE3", "BBAS3", "TAEE11"]
+        st.info("Sua carteira ainda está vazia. Exibindo notícias das principais empresas da B3:")
+    
+    with st.spinner("Buscando notícias e analisando sentimento..."):
+        news_df = fetch_headlines(wallet_tickers, provider=provider if isinstance(provider, str) else getattr(provider, "name", "demo"), limit=12)
+    
+    render_news_feed_cards(news_df)
+
+
 # ─── Detalhes ───────────────────────────────────────────────────────────────
 if section == "more":
     st.markdown("##### Exportar carteira")
+
     with st.container(border=True):
         st.caption(
             "Baixe planilhas para estudar fora do app (Excel/Google Sheets). "

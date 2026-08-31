@@ -663,11 +663,25 @@ if wf is not None:
 ibov_r = m.get("ibov_return")
 cdi_r = m.get("cdi_return")
 idiv_r = m.get("idiv_return")
-if ibov_r is not None or cdi_r is not None or idiv_r is not None:
+ipca_r = m.get("ipca_return")
+real_r = m.get("real_return_vs_ipca")
+if ibov_r is not None or cdi_r is not None or idiv_r is not None or ipca_r is not None:
     xs_ibov = m.get("excess_vs_ibov")
     xs_cdi = m.get("excess_vs_cdi")
     xs_idiv = m.get("excess_vs_idiv")
     row: list[tuple] = [
+        (
+            "Inflação (IPCA no período)",
+            format_pct(ipca_r) if ipca_r is not None else "—",
+            None,
+            None,
+        ),
+        (
+            "Ganho Real (acima do IPCA)",
+            format_pct(real_r) if real_r is not None else "—",
+            "venceu inflação" if (real_r or 0) >= 0 else "abaixo da inflação",
+            "up" if (real_r or 0) >= 0 else "down",
+        ),
         (
             "IDIV (índice de dividendos)",
             format_pct(idiv_r) if idiv_r is not None else "—",
@@ -687,12 +701,6 @@ if ibov_r is not None or cdi_r is not None or idiv_r is not None:
             None,
         ),
         (
-            "Vs Ibovespa",
-            format_pct(xs_ibov) if xs_ibov is not None else "—",
-            "acima" if (xs_ibov or 0) >= 0 else "abaixo",
-            "up" if (xs_ibov or 0) >= 0 else "down",
-        ),
-        (
             "Vs CDI",
             format_pct(xs_cdi) if xs_cdi is not None else "—",
             "acima" if (xs_cdi or 0) >= 0 else "abaixo",
@@ -702,10 +710,12 @@ if ibov_r is not None or cdi_r is not None or idiv_r is not None:
     render_kpi_row(row)
     bm_meta = m.get("benchmark_meta") or {}
     st.caption(
-        f"Fontes · IDIV: {bm_meta.get('idiv_source', '—')} · "
+        f"Fontes · IPCA: {bm_meta.get('ipca_source', 'BCB')} · "
+        f"IDIV: {bm_meta.get('idiv_source', '—')} · "
         f"Ibovespa: {bm_meta.get('ibov_source', '—')} · "
         f"CDI: {bm_meta.get('cdi_source', '—')}"
     )
+
     if (m.get("total_return") or 0) > 0 and (xs_cdi or 0) < 0:
         st.info(
             "Você **ganhou dinheiro** no período, mas **menos que o CDI**. "
