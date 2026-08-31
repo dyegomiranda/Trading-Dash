@@ -220,13 +220,14 @@ def holdings_donut(
     label_col: str = "ticker",
     center_value: str = "",
     title: str = "Patrimônio investido",
+    height: int = 440,
 ) -> go.Figure:
     df = holdings.copy()
     if df.columns.duplicated().any():
         df = df.loc[:, ~df.columns.duplicated(keep="last")]
     if df.empty:
         return donut_allocation(
-            ["—"], [1], center_title="", center_value="—", title=title
+            ["—"], [1], center_title="", center_value="—", title=title, height=height
         )
     # Se o rename criou market_value em cima de outra market_value, use a coluna pedida com segurança
     if value_col not in df.columns and "annual_income" in df.columns:
@@ -243,7 +244,7 @@ def holdings_donut(
     values = values[mask]
     if len(values) == 0:
         return donut_allocation(
-            ["—"], [1], center_title="", center_value=center_value or "—", title=title
+            ["—"], [1], center_title="", center_value=center_value or "—", title=title, height=height
         )
     return donut_allocation(
         labels.tolist(),
@@ -251,6 +252,7 @@ def holdings_donut(
         center_title="Investido",
         center_value=center_value,
         title=title,
+        height=height,
     )
 
 

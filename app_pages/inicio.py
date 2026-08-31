@@ -215,14 +215,25 @@ with left:
     )
 with right, st.container(border=True):
     if holdings.empty:
-        st.markdown("##### Sua carteira")
-        st.caption(
-            f"Ainda vazia. Abra **Minha carteira** e clique em **{APPLY_THESIS_LABEL}**."
+        st.markdown("##### 💼 Carteira de Ações")
+        st.caption("Sua carteira de treino ainda está 100% em caixa.")
+        st.markdown(
+            """
+<div style="padding: 0.6rem 0; text-align: center;">
+  <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">🎯</div>
+  <div style="font-size: 0.88rem; font-weight: 600; color: #F8FAFC;">Pronto para montar sua carteira?</div>
+  <div style="font-size: 0.78rem; color: #94A3B8; margin-top: 0.2rem; margin-bottom: 0.6rem;">
+    Aplique a tese com 1 clique para alocar o capital nas melhores ações da B3.
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
         )
         st.page_link(
             "app_pages/minha_carteira.py",
             label=APPLY_THESIS_LABEL,
             icon=":material/auto_awesome:",
+            width="stretch",
         )
     else:
         st.plotly_chart(
@@ -230,6 +241,7 @@ with right, st.container(border=True):
                 holdings,
                 center_value=format_brl(summary["invested"]),
                 title="Só o que está em ações (sem o caixa)",
+                height=280,
             ),
             width="stretch",
             config={"displayModeBar": False},

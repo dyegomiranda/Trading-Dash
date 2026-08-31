@@ -106,8 +106,8 @@ def inject_branding() -> None:
     )
 
 
-def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
-    """Logo no topo + links de página (ordem controlada por nós)."""
+def render_sidebar_nav(pages: Sequence[st.Page], active_page: st.Page | None = None) -> None:
+    """Logo no topo + links de página com destaque visual do item ativo."""
     uri = _logo_data_uri()
     with st.sidebar:
         if uri:
@@ -115,6 +115,47 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
                 f'<div class="td-sidebar-brand"><img src="{uri}" alt="TradingDash" /></div>',
                 unsafe_allow_html=True,
             )
+
+        if active_page is not None:
+            slug = getattr(active_page, "url_path", "") or ""
+            selectors = []
+            if slug in ("inicio", ""):
+                selectors.extend([
+                    '[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href$="/"]',
+                    '[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href$="/inicio"]',
+                    '[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href=""]',
+                ])
+            else:
+                selectors.append(f'[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href*="{slug}"]')
+
+            sel_str = ",\n".join(selectors)
+            st.markdown(
+                f"""
+<style>
+{sel_str} {{
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.48), rgba(99, 102, 241, 0.35)) !important;
+  border: 1px solid rgba(196, 181, 253, 0.65) !important;
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.35), 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  position: relative !important;
+}}
+{sel_str}::before {{
+  content: "" !important;
+  position: absolute !important;
+  left: 6px !important;
+  top: 25% !important;
+  height: 50% !important;
+  width: 4px !important;
+  background: #A78BFA !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 8px #C4B5FD !important;
+}}
+</style>
+""",
+                unsafe_allow_html=True,
+            )
+
         for page in pages:
             try:
                 icon = page.icon or None
@@ -124,6 +165,7 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
                 st.page_link(page, icon=icon, width="stretch")
             else:
                 st.page_link(page, width="stretch")
+
         from src.ui.data_source import render_sidebar_mode_footer
 
         render_sidebar_mode_footer()

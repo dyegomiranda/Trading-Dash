@@ -152,17 +152,17 @@ with st.sidebar:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _raw_fundamentals(provider: str):
+def _raw_fundamentals(provider: str, limit: int = 80):
     from src.data.universe import get_universe
 
-    mode = "core" if is_realtime_provider(provider) else "full"
-    return get_provider(provider).get_fundamentals(get_universe(mode=mode))  # type: ignore[arg-type]
+    universe = get_universe(mode="full")[:limit]
+    return get_provider(provider).get_fundamentals(universe)  # type: ignore[arg-type]
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _scored_table(provider: str):
-    raw = _raw_fundamentals(provider)
-    return score_universe(raw).scored
+def _scored_table(provider: str, limit: int = 80, min_score: float = 55.0):
+    raw = _raw_fundamentals(provider, limit=limit)
+    return score_universe(raw, min_score=min_score, strict_filters=True)
 
 
 portfolio = load_portfolio(portfolio_name)
@@ -764,22 +764,78 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
     st.markdown("##### Passo 2 · Montar com a tese (recomendado)")
     with st.container(border=True):
         settings = get_settings()
-        top_n = st.slider(
-            "Quantas empresas na carteira?",
-            5,
-            20,
-            12,
-            key="pf_top_n",
-            help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
+
+        st.caption(
+            "Configure os critérios de seleção para montar a carteira com total transparência:"
         )
-        st.markdown(
-            f"""
+        univ_col, score_col, n_col = st.columns([1.2, 1, 1])
+        with univ_col:
+            univ_options = [40, 80, 150, 250, 369]
+            univ_labels = {
+                40: "40 ações (Amostra rápida)",
+                80: "80 ações (Principais B3)",
+                150: "150 ações (Amplo)",
+                250: "250 ações (Expandido)",
+                369: "Máximo (369 ações da B3)",
+            }
+            build_univ_size = st.select_slider(
+                "Universo analisado na B3",
+                options=univ_options,
+                value=80,
+                format_func=lambda x: univ_labels.get(x, f"{x} ações"),
+                key="pf_build_univ_size",
+                help="Quantas empresas listadas na bolsa serão avaliadas para compor sua carteira.",
+            )
+        with score_col:
+            build_min_score = st.slider(
+                "Nota mínima da tese",
+                min_value=30,
+                max_value=80,
+                value=int(settings.rebalance_min_score or 55),
+                step=5,
+                key="pf_build_min_score",
+                help="Apenas empresas que atingirem esta nota (lucro, dividendo sustentável, dívida e preço) são aprovadas.",
+            )
+        with n_col:
+            top_n = st.slider(
+                "Quantas empresas na carteira?",
+                5,
+                20,
+                12,
+                key="pf_top_n",
+                help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
+            )
+
+        # Diagnóstico transparente ao vivo
+        scored_result = _scored_table(provider, limit=int(build_univ_size), min_score=float(build_min_score))
+        total_analyzed = len(scored_result.scored)
+        total_passed = len(scored_result.filtered)
+
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric("Empresas analisadas na B3", str(total_analyzed))
+        with m2:
+            st.metric(f"Aprovadas com nota ≥ {build_min_score}", str(total_passed))
+        with m3:
+            st.metric("Serão selecionadas para a carteira", str(min(top_n, total_passed)))
+
+        if total_passed == 0:
+            st.warning(
+                f"Nenhuma empresa atingiu a nota mínima {build_min_score} entre as {total_analyzed} analisadas. "
+                "Experimente reduzir ligeiramente a nota mínima ou ampliar o universo para incluir mais candidatas.",
+                icon=":material/tune:",
+            )
+
+        with st.expander("Ver regras e pesos da tese", icon=":material/info:"):
+            st.markdown(
+                f"""
 - Cerca de **{settings.core_weight:.0%}** em empresas mais estáveis (**base**)
 - Cerca de **{settings.satellite_weight:.0%}** em um **complemento** um pouco mais flexível
 - Limite por ação ~**{settings.max_position_pct:.0%}** · por setor ~**{settings.max_sector_pct:.0%}**
-- Tese **v{THESIS_VERSION}** — favorece qualidade e dividendos sustentáveis (penaliza “dividendo alto demais”)
+- Deduplicação inteligente de classes (prioriza **PETR4** / PN / UNIT para foco em dividendos)
+- Tese **v{THESIS_VERSION}** — penaliza dividendos insustentáveis e endividamento excessivo.
 """
-        )
+            )
         if provider == "demo":
             st.warning(
                 "Números ilustrativos (só testes/offline). "
@@ -801,12 +857,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
         ):
             with st.spinner("Escolhendo empresas e executando ordens de treino…"):
                 try:
-                    raw = _raw_fundamentals(provider)
-                    scored = score_universe(
-                        raw,
-                        min_score=settings.rebalance_min_score,
-                        strict_filters=True,
-                    )
+                    scored = _scored_table(provider, limit=int(build_univ_size), min_score=float(build_min_score))
                     base = scored.filtered
                     if base.columns.duplicated().any():
                         base = base.loc[:, ~base.columns.duplicated(keep="last")]
