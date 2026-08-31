@@ -956,12 +956,6 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                 }
                 save_portfolio(portfolio)
 
-                # Mantém os valores salvos refletidos na UI e no session_state
-                st.session_state["pf_build_univ_size"] = int(build_univ_size)
-                st.session_state["pf_build_min_score"] = int(build_min_score)
-                st.session_state["pf_top_n"] = int(top_n)
-                st.session_state[f"_synced_sliders_{portfolio_name}"] = True
-
                 st.session_state["pf_w_sig"] = None
                 after = portfolio.summary(px)
                 details = [
