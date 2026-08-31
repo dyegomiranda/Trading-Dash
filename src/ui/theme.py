@@ -724,7 +724,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
   overflow: hidden;
   border-radius: 24px;
   padding: 1.5rem 1.6rem 1.35rem 1.6rem;
-  margin: 0 !important;
+  margin: 0 0 1rem 0 !important;
   background:
     linear-gradient(135deg, rgba(91, 33, 182, 0.55) 0%, rgba(30, 27, 75, 0.9) 38%, rgba(8, 12, 24, 0.96) 100%);
   border: 1px solid rgba(196, 181, 253, 0.28);

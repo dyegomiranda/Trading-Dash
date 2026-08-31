@@ -45,7 +45,7 @@ def render_wallet_balance(
         )
     st.markdown(
         f"""
-<div class="td-wallet" style="margin-bottom: 1.25rem !important;">
+<div class="td-wallet">
   <div class="td-wallet-top">
     <div>
       <div class="td-wallet-label">{html.escape(label)}</div>
