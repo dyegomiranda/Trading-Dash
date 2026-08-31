@@ -287,8 +287,9 @@ h1 {{
   border: 1px solid rgba(251, 191, 36, 0.35);
 }}
 
-/* ========== Buttons ========== */
-.stButton > button {{
+/* ========== Buttons & Form Submit Buttons ========== */
+.stButton > button,
+div[data-testid="stFormSubmitButton"] > button {{
   border-radius: 12px !important;
   font-weight: 600 !important;
   border: 1px solid rgba(167, 139, 250, 0.25) !important;
@@ -296,20 +297,30 @@ h1 {{
 }}
 
 .stButton > button[kind="primary"],
-.stButton > button[data-testid="baseButton-primary"] {{
+.stButton > button[data-testid="baseButton-primary"],
+div[data-testid="stFormSubmitButton"] > button[kind="primary"],
+div[data-testid="stFormSubmitButton"] > button[data-testid="baseButton-primary"],
+div[data-testid="stFormSubmitButton"] > button {{
   background: linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #3B82F6 100%) !important;
   border: none !important;
-  color: white !important;
+  color: #FFFFFF !important;
   box-shadow: 0 8px 24px rgba(99, 102, 241, 0.35);
 }}
 
-.stButton > button[kind="primary"]:hover,
-.stButton > button[data-testid="baseButton-primary"]:hover {{
-  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.5);
-  filter: brightness(1.06);
+.stButton > button[kind="primary"] *,
+div[data-testid="stFormSubmitButton"] > button * {{
+  color: #FFFFFF !important;
 }}
 
-.stButton > button[kind="secondary"] {{
+.stButton > button[kind="primary"]:hover,
+div[data-testid="stFormSubmitButton"] > button:hover {{
+  box-shadow: 0 10px 30px rgba(139, 92, 246, 0.5);
+  filter: brightness(1.08);
+  color: #FFFFFF !important;
+}}
+
+.stButton > button[kind="secondary"],
+div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {{
   background: rgba(15, 23, 42, 0.8) !important;
 }}
 
@@ -713,7 +724,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] {{
   overflow: hidden;
   border-radius: 24px;
   padding: 1.5rem 1.6rem 1.35rem 1.6rem;
-  margin: 0 0 1.25rem 0;
+  margin: 0 !important;
   background:
     linear-gradient(135deg, rgba(91, 33, 182, 0.55) 0%, rgba(30, 27, 75, 0.9) 38%, rgba(8, 12, 24, 0.96) 100%);
   border: 1px solid rgba(196, 181, 253, 0.28);

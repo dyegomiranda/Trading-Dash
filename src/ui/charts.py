@@ -111,12 +111,11 @@ def donut_allocation(
                 hole=0.55,
                 sort=False,
                 direction="clockwise",
-                domain={"x": [0.04, 0.96], "y": [0.04, 0.96]},
+                domain={"x": [0.08, 0.92], "y": [0.08, 0.92]},
                 textinfo="label+percent",
-                textposition="auto",
-                insidetextorientation="horizontal",
+                textposition="outside",
                 texttemplate="%{label} %{percent:.0%}",
-                textfont={"size": 11, "color": "#FFFFFF"},
+                textfont={"size": 11, "color": "#F8FAFC"},
                 hovertext=hover_labels,
                 hovertemplate="<b>%{hovertext}</b><br>%{percent:.1%}<br>R$ %{value:,.2f}<extra></extra>",
                 marker={
@@ -235,6 +234,7 @@ def holdings_donut(
     center_value: str = "",
     title: str = "Patrimônio investido",
     height: int = 340,
+    **kwargs: Any,
 ) -> go.Figure:
     df = holdings.copy()
     if df.columns.duplicated().any():

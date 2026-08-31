@@ -70,6 +70,7 @@ class PaperPortfolio:
     untaxed_gains_by_month: dict[str, float] = field(default_factory=dict)
     user_income: float | None = None
     monthly_contribution: float | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def create(cls, name: str = "paper-main", cash: float | None = None) -> PaperPortfolio:
@@ -563,6 +564,7 @@ class PaperPortfolio:
             "untaxed_gains_by_month": dict(self.untaxed_gains_by_month),
             "user_income": self.user_income,
             "monthly_contribution": self.monthly_contribution,
+            "meta": dict(self.meta or {}),
         }
 
     @classmethod
@@ -602,6 +604,7 @@ class PaperPortfolio:
             },
             user_income=float(data["user_income"]) if data.get("user_income") is not None else None,
             monthly_contribution=float(data["monthly_contribution"]) if data.get("monthly_contribution") is not None else None,
+            meta=dict(data.get("meta") or {}),
         )
 
 

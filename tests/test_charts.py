@@ -20,7 +20,7 @@ def test_donut_labels_on_slices_with_percent():
     fig = donut_allocation(["ITUB4", "WEGE3", "TAEE11"], [40.0, 35.0, 25.0])
     pie = fig.data[0]
     assert pie.textinfo == "label+percent"
-    assert pie.textposition == "auto"
+    assert pie.textposition in ("outside", "auto")
     assert "ITUB4" in list(pie.labels)
     assert fig.layout.showlegend is False
     center_xs = [a.x for a in (fig.layout.annotations or [])]

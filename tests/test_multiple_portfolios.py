@@ -84,3 +84,23 @@ def test_portfolio_path_sanitizes_name():
 
 def test_delete_missing_returns_false():
     assert delete_portfolio("nao-existe") is False
+
+
+def test_portfolio_meta_build_settings_persists():
+    p = PaperPortfolio.create(name="meta-test")
+    p.meta["build_settings"] = {
+        "univ_size": 369,
+        "min_score": 75,
+        "top_n": 12,
+        "total_analyzed": 369,
+        "total_approved": 11,
+    }
+    save_portfolio(p)
+    loaded = load_portfolio("meta-test")
+    assert loaded.meta.get("build_settings") == {
+        "univ_size": 369,
+        "min_score": 75,
+        "top_n": 12,
+        "total_analyzed": 369,
+        "total_approved": 11,
+    }
