@@ -67,6 +67,22 @@ with st.sidebar:
         help="Desligado: filtro da tese (ROE, dívida, payout, yield sustentável). "
         "Ligado: só exige preço, dividendo e nota mínima.",
     )
+    universe_options = [40, 80, 150, 250, 369]
+    universe_labels = {
+        40: "40 ações (Amostra rápida)",
+        80: "80 ações (Principais da B3)",
+        150: "150 ações (Amplo)",
+        250: "250 ações (Expandido)",
+        369: "Máximo (369 ações da B3)",
+    }
+    max_universe = st.select_slider(
+        "Quantidade de ações analisadas",
+        options=universe_options,
+        value=80,
+        format_func=lambda x: universe_labels.get(x, f"{x} ações"),
+        key="disc_universe_size",
+        help="Quantas ações da B3 analisar. Se escolher 'Máximo', analisa todas as 369 empresas listadas.",
+    )
     strict = not loose
     period_labels = [p[0] for p in PRICE_PERIODS]
     period_choice = st.selectbox(
@@ -100,12 +116,14 @@ e marca a **qualidade dos dados** de cada empresa.
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _cached_score(provider: str, min_score: float, strict: bool):
+def _cached_score(provider: str, max_tickers: int = 80):
+    from src.data.universe import get_universe
+    universe = get_universe(mode="full")[:max_tickers]
     return load_scored_universe(
         provider_name=provider,  # type: ignore[arg-type]
-        min_score=min_score,
-        strict_filters=strict,
-        universe_mode="auto",
+        min_score=None,
+        strict_filters=False,
+        tickers=universe,
     )
 
 
@@ -132,25 +150,28 @@ need_load = (
     run
     or "ranking_loaded" not in st.session_state
     or st.session_state.get("provider") != provider
+    or st.session_state.get("cached_max_universe") != max_universe
 )
 if need_load:
     try:
         with st.spinner(
-            "Calculando ranking… (Bolsa real: até ~30s na 1ª carga; depois usa cache)"
+            f"Calculando ranking de {max_universe} ações… (Bolsa real: pode levar até ~30s na 1ª carga; depois usa cache)"
             if is_realtime_provider(provider)
             else "Calculando ranking de treino…"
         ):
-            scored = _cached_score(provider, float(min_score), strict)
+            scored = _cached_score(provider, int(max_universe))
             st.session_state["ranking_loaded"] = True
             scored_df = scored.scored
             if scored_df is not None and not scored_df.empty:
                 scored_df = enrich_fundamentals_quality(scored_df)
             st.session_state["scored_df"] = scored_df
             st.session_state["provider"] = provider
+            st.session_state["cached_max_universe"] = max_universe
     except Exception as e:
         st.error(f"Não deu para carregar os dados: {e}")
         st.info("Clique em **Atualizar dados** na barra e tente de novo em alguns segundos.")
         st.stop()
+
 
 scored_df = st.session_state.get("scored_df")
 if scored_df is None or getattr(scored_df, "empty", True):

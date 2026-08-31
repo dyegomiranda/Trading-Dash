@@ -15,8 +15,9 @@ get_settings()
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src.ui.paths import ICON_PATH
-from src.ui.shell import inject_branding, render_sidebar_nav, page_setup
+from src.ui.paths import ICON_PATH  # noqa: E402
+from src.ui.shell import inject_branding, render_sidebar_nav, page_setup  # noqa: E402
+
 
 _page_icon = str(ICON_PATH) if ICON_PATH.exists() else ":material/savings:"
 st.set_page_config(

@@ -80,6 +80,8 @@ with st.sidebar:
     _saved = list_portfolios()
     if not _saved:
         _saved = ["paper-main"]
+    if "pf_select" in st.session_state and st.session_state["pf_select"] not in _saved:
+        st.session_state["pf_select"] = _saved[0]
     portfolio_name = st.selectbox(
         "Carteira ativa",
         options=_saved,
@@ -208,17 +210,20 @@ render_journey(JOURNEY_STEPS, current=journey_current, completed_through=journey
 # Feedback da última ação
 if st.session_state.get("pf_flash"):
     flash = st.session_state.pop("pf_flash")
-    kind = flash.get("kind", "success")
-    msg = flash.get("msg", "")
+    if isinstance(flash, str):
+        flash = {"kind": "success", "msg": flash}
+    kind = flash.get("kind", "success") if isinstance(flash, dict) else "success"
+    msg = flash.get("msg", str(flash)) if isinstance(flash, dict) else str(flash)
     if kind == "success":
         st.success(msg, icon=":material/check_circle:")
-        if flash.get("details"):
+        if isinstance(flash, dict) and flash.get("details"):
             with st.expander("Ver o que mudou nas ordens", expanded=False):
                 st.dataframe(pd.DataFrame(flash["details"]), width="stretch", hide_index=True)
     elif kind == "warning":
         st.warning(msg)
     else:
         st.error(msg)
+
 
 pnl_abs = float(summary.get("pnl") or 0)
 pnl_pct = float(summary.get("pnl_pct") or 0)

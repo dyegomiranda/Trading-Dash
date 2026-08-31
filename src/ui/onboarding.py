@@ -40,13 +40,17 @@ def _update_milestone(milestone_id: str, achieved: bool = True) -> None:
 
 
 def _has_portfolio_positions() -> bool:
-    """Verifica se a carteira padrão já tem posições."""
+    """Verifica se qualquer carteira salva já tem posições."""
     try:
-        from src.portfolio.paper import load_portfolio
-        p = load_portfolio("paper-main")
-        return bool(p.positions)
+        from src.portfolio.paper import list_portfolios, load_portfolio
+        for name in list_portfolios():
+            p = load_portfolio(name)
+            if p.positions:
+                return True
+        return False
     except Exception:
         return False
+
 
 
 def render_onboarding_if_needed() -> bool:

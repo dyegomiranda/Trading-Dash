@@ -124,12 +124,10 @@ def render_sidebar_nav(pages: Sequence[st.Page]) -> None:
                 st.page_link(page, icon=icon, width="stretch")
             else:
                 st.page_link(page, width="stretch")
-        st.divider()
-        from src.ui.data_source import render_global_mode_toggle
-        from src.ui.cache_button import render_refresh_control
+        from src.ui.data_source import render_sidebar_mode_footer
 
-        render_global_mode_toggle()
-        render_refresh_control(key="global_refresh")
+        render_sidebar_mode_footer()
+
 
         
 

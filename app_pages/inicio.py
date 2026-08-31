@@ -43,12 +43,13 @@ page_setup()
 provider = get_session_provider()
 _home_title = "Início"
 _home_sub = "Comece aqui · caminho guiado para montar uma carteira de treino"
-_header_shown = False
-if not st.session_state.get("onboarding_done"):
+
+if render_onboarding_if_needed():
     render_clean_header(_home_title, _home_sub, provider=provider)
-    _header_shown = True
-    if render_onboarding_if_needed():
-        st.stop()
+    st.stop()
+
+render_clean_header(_home_title, _home_sub, provider=provider)
+render_data_quality_banner(provider)
 
 with st.sidebar:
     if st.button("Iniciar tour novamente", key="home_tour_restart", width="stretch", icon=":material/school:"):
@@ -61,11 +62,18 @@ with st.sidebar:
 
 @st.cache_data(ttl=1800, show_spinner=False)
 def _scored(provider: str):
-    # yfinance: scan core (~40) — full universe trava a UI
     return load_scored_universe(
         provider_name=provider,  # type: ignore[arg-type]
         universe_mode="auto",
     )
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_home_news(tickers_tuple: tuple[str, ...], provider_name: str) -> pd.DataFrame:
+    try:
+        return fetch_headlines(list(tickers_tuple), provider=provider_name, limit=6, timeout_sec=5.0)
+    except Exception:
+        return pd.DataFrame()
 
 
 # Carteira ativa (a mesma de Minha carteira)
@@ -83,21 +91,8 @@ recs = scored
 prices: dict = {}
 news = pd.DataFrame()
 
-_load_msg = "Carregando mercado… na primeira vez pode levar até meio minuto; depois vem do cache."
-_boot = st.empty()
-_load_error: Exception | None = None
-# st.spinner envia o delta ao navegador DURANTE o trabalho;
-# HTML criado e apagado no mesmo run nunca aparece na tela.
-with (
-    _boot.container(
-        height=560,
-        horizontal_alignment="center",
-        vertical_alignment="center",
-        key="home_boot",
-    ),
-    st.spinner(_load_msg, show_time=True),
-):
-    try:
+try:
+    with st.spinner("Carregando mercado…"):
         result = _scored(provider)
         scored = result.scored
         filtered = result.filtered
@@ -112,25 +107,16 @@ with (
             if not recs.empty and "ticker" in recs.columns
             else ["ITUB4", "PETR4", "VALE3"]
         )
-        try:
-            news = fetch_headlines(watch_boot, provider="yfinance", limit=6, timeout_sec=12.0)
-        except Exception:
-            news = pd.DataFrame()
-    except Exception as e:
-        _load_error = e
-        scored = pd.DataFrame()
-        recs = scored
-_boot.empty()
-
-if not _header_shown:
-    render_clean_header(_home_title, _home_sub, provider=provider)
-render_data_quality_banner(provider)
-if _load_error is not None:
-    st.error(f"Falha ao carregar mercado: {_load_error}")
+        news = _cached_home_news(tuple(watch_boot), provider)
+except Exception as e:
+    st.error(f"Falha ao carregar mercado: {e}")
+    scored = pd.DataFrame()
+    recs = scored
 
 # Quick Wizard: montador visual de carteira em 1 minuto para iniciantes
 if not portfolio.positions:
     render_quick_wizard(_scored, provider)
+
 
 summary = portfolio.summary(prices)
 holdings = portfolio.holdings_frame(prices)

@@ -170,7 +170,7 @@ def fetch_headlines(
     deadline = float(
         timeout_sec
         if timeout_sec is not None
-        else getattr(settings, "news_timeout_sec", 8.0) or 8.0
+        else getattr(settings, "news_timeout_sec", 6.0) or 6.0
     )
 
     def _work() -> list[dict[str, Any]]:
@@ -182,24 +182,27 @@ def fetch_headlines(
         queries.append("dividendos B3 ações")
         queries.append("Ibovespa dividendos")
 
-        for q in queries[:3]:
-            batch = _fetch_google_rss(q, limit=max(3, limit // 2))
-            for it in batch:
-                title_u = it["title"].upper()
-                for t in tickers:
-                    if t.upper() in title_u:
-                        it["ticker"] = t
-                        break
-                if not it.get("ticker") and tickers:
-                    it["ticker"] = tickers[0]
-                it["tag"] = (
-                    "tese"
-                    if "dividend" in q.lower() or "renda" in q.lower()
-                    else "mercado"
-                )
-            items.extend(batch)
-            if len(items) >= limit:
-                break
+        with ThreadPoolExecutor(max_workers=len(queries)) as q_pool:
+            futures = [q_pool.submit(_fetch_google_rss, q, max(3, limit // 2)) for q in queries]
+            for fut, q in zip(futures, queries):
+                try:
+                    batch = fut.result(timeout=4.0)
+                    for it in batch:
+                        title_u = it["title"].upper()
+                        for t in tickers:
+                            if t.upper() in title_u:
+                                it["ticker"] = t
+                                break
+                        if not it.get("ticker") and tickers:
+                            it["ticker"] = tickers[0]
+                        it["tag"] = (
+                            "tese"
+                            if "dividend" in q.lower() or "renda" in q.lower()
+                            else "mercado"
+                        )
+                    items.extend(batch)
+                except Exception:
+                    continue
 
         if len(items) < limit and tickers and provider == "yfinance":
             items.extend(_fetch_yfinance_news(tickers[:3], limit=limit - len(items)))
@@ -225,4 +228,12 @@ def fetch_headlines(
     except Exception:
         unique = []
 
-    return pd.DataFrame(unique)
+    cols = ["title", "ticker", "source", "tag", "published", "url"]
+    if not unique:
+        return pd.DataFrame(columns=cols)
+    df = pd.DataFrame(unique)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = ""
+    return df[cols]
+

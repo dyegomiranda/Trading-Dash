@@ -137,6 +137,30 @@ def render_global_mode_toggle() -> str:
     return provider
 
 
+def render_sidebar_mode_footer() -> None:
+    """Renderiza no rodapé da barra lateral: Toggle Modo Treino e botão Atualizar Dados logo abaixo."""
+    st.divider()
+    curr_prov = get_session_provider()
+    is_demo = curr_prov == "demo"
+    new_treino = st.toggle(
+        "Modo treino",
+        value=is_demo,
+        key="sidebar_treino_toggle",
+        help="Ligado: usa números ilustrativos offline para treino rápido. Desligado: usa dados reais da Bolsa (B3).",
+    )
+    if new_treino != is_demo:
+        target = "demo" if new_treino else (st.session_state.get(REAL_PROVIDER_KEY) or "yfinance")
+        st.session_state[ALLOW_DEMO_KEY] = new_treino
+        st.session_state[SESSION_PROVIDER_KEY] = target
+        st.session_state[PENDING_PROVIDER_KEY] = target
+        st.rerun()
+
+    from src.ui.cache_button import render_refresh_control
+
+    render_refresh_control(key="sidebar_footer_refresh")
+
+
+
 def provider_selectbox(
     *,
     key: str = SESSION_PROVIDER_KEY,

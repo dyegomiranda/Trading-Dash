@@ -128,7 +128,10 @@ def render_quick_wizard(scored_universe_func, provider: str) -> None:
                         f"Renda estimada: **~{format_brl(monthly_div)}/mês** em dividendos.",
                         icon="✅",
                     )
-                    st.session_state["pf_flash"] = "Carteira criada com sucesso!"
+                    st.session_state["pf_flash"] = {
+                        "kind": "success",
+                        "msg": "Carteira montada com sucesso pelo assistente rápido!",
+                    }
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao montar carteira: {e}")
