@@ -160,7 +160,13 @@ def _raw_fundamentals(provider: str, limit: int = 80):
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def _scored_table(provider: str, limit: int = 80, min_score: float = 55.0):
+def _scored_table(provider: str, limit: int = 80):
+    raw = _raw_fundamentals(provider, limit=limit)
+    return score_universe(raw).scored
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _score_candidates(provider: str, limit: int = 80, min_score: float = 55.0):
     raw = _raw_fundamentals(provider, limit=limit)
     return score_universe(raw, min_score=min_score, strict_filters=True)
 
@@ -807,7 +813,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
             )
 
         # Diagnóstico transparente ao vivo
-        scored_result = _scored_table(provider, limit=int(build_univ_size), min_score=float(build_min_score))
+        scored_result = _score_candidates(provider, limit=int(build_univ_size), min_score=float(build_min_score))
         total_analyzed = len(scored_result.scored)
         total_passed = len(scored_result.filtered)
 
@@ -857,7 +863,7 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
         ):
             with st.spinner("Escolhendo empresas e executando ordens de treino…"):
                 try:
-                    scored = _scored_table(provider, limit=int(build_univ_size), min_score=float(build_min_score))
+                    scored = _score_candidates(provider, limit=int(build_univ_size), min_score=float(build_min_score))
                     base = scored.filtered
                     if base.columns.duplicated().any():
                         base = base.loc[:, ~base.columns.duplicated(keep="last")]

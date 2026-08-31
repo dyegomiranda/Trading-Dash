@@ -197,8 +197,8 @@ render_kpi_row(
     ]
 )
 
-left, right = st.columns([1.15, 1], gap="medium")
-with left:
+col_left, col_right = st.columns([1.2, 1], gap="medium")
+with col_left:
     render_wallet_balance(
         total=format_brl(summary["equity"]),
         delta=f"Lucro/prejuízo simulado: {format_brl(pnl)} ({format_pct(summary.get('pnl_pct') or 0)})",
@@ -213,12 +213,57 @@ with left:
             ("Empresas", str(summary["n_positions"]), "Quantas você tem"),
         ],
     )
-with right, st.container(border=True):
-    if holdings.empty:
-        st.markdown("##### 💼 Carteira de Ações")
-        st.caption("Sua carteira de treino ainda está 100% em caixa.")
-        st.markdown(
-            """
+    with st.container(border=True):
+        st.markdown("##### Sugestões da tese agora")
+        st.caption(
+            "Empresas com melhor encaixe em renda com qualidade. "
+            "A nota junta lucro, dividendo sustentável, dívida e preço."
+        )
+        if not recs.empty:
+            q, d, h, v = pillar_means(recs)
+            render_thesis_pillars(q, d, h, v, heading="Média das 4 notas desta lista")
+        render_core_sectors_card()
+        if recs.empty:
+            st.warning("Sem sugestões com os filtros atuais.")
+        else:
+            view = recs.copy()
+            keep = [
+                c
+                for c in [
+                    "ticker",
+                    "name",
+                    "sector",
+                    "score_total",
+                    "dividend_yield",
+                    "roe",
+                    "price",
+                    "bucket",
+                ]
+                if c in view.columns
+            ]
+            show = view[keep].head(10).copy()
+            if "dividend_yield" in show.columns:
+                show["dividend_yield"] = show["dividend_yield"].map(
+                    lambda x: format_pct(x) if x == x and x is not None else "—"
+                )
+            if "roe" in show.columns:
+                show["roe"] = show["roe"].map(
+                    lambda x: format_pct(x) if x == x and x is not None else "—"
+                )
+            st.dataframe(
+                friendly_dataframe(show),
+                width="stretch",
+                hide_index=True,
+                height=360,
+            )
+
+with col_right:
+    with st.container(border=True):
+        if holdings.empty:
+            st.markdown("##### 💼 Carteira de Ações")
+            st.caption("Sua carteira de treino ainda está 100% em caixa.")
+            st.markdown(
+                """
 <div style="padding: 0.6rem 0; text-align: center;">
   <div style="font-size: 1.8rem; margin-bottom: 0.3rem;">🎯</div>
   <div style="font-size: 0.88rem; font-weight: 600; color: #F8FAFC;">Pronto para montar sua carteira?</div>
@@ -227,78 +272,33 @@ with right, st.container(border=True):
   </div>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
-        st.page_link(
-            "app_pages/minha_carteira.py",
-            label=APPLY_THESIS_LABEL,
-            icon=":material/auto_awesome:",
-            width="stretch",
-        )
-    else:
-        st.plotly_chart(
-            holdings_donut(
-                holdings,
-                center_value=format_brl(summary["invested"]),
-                title="Só o que está em ações (sem o caixa)",
-                height=280,
-            ),
-            width="stretch",
-            config={"displayModeBar": False},
-        )
-
-c1, c2 = st.columns([1.2, 1], gap="medium")
-with c1, st.container(border=True):
-    st.markdown("##### Sugestões da tese agora")
-    st.caption(
-        "Empresas com melhor encaixe em renda com qualidade. "
-        "A nota junta lucro, dividendo sustentável, dívida e preço."
-    )
-    if not recs.empty:
-        q, d, h, v = pillar_means(recs)
-        render_thesis_pillars(q, d, h, v, heading="Média das 4 notas desta lista")
-    render_core_sectors_card()
-    if recs.empty:
-        st.warning("Sem sugestões com os filtros atuais.")
-    else:
-        view = recs.copy()
-        keep = [
-            c
-            for c in [
-                "ticker",
-                "name",
-                "sector",
-                "score_total",
-                "dividend_yield",
-                "roe",
-                "price",
-                "bucket",
-            ]
-            if c in view.columns
-        ]
-        show = view[keep].head(10).copy()
-        if "dividend_yield" in show.columns:
-            show["dividend_yield"] = show["dividend_yield"].map(
-                lambda x: format_pct(x) if x == x and x is not None else "—"
+                unsafe_allow_html=True,
             )
-        if "roe" in show.columns:
-            show["roe"] = show["roe"].map(
-                lambda x: format_pct(x) if x == x and x is not None else "—"
+            st.page_link(
+                "app_pages/minha_carteira.py",
+                label=APPLY_THESIS_LABEL,
+                icon=":material/auto_awesome:",
+                width="stretch",
             )
-        st.dataframe(
-            friendly_dataframe(show),
-            width="stretch",
-            hide_index=True,
-            height=360,
-        )
+        else:
+            st.plotly_chart(
+                holdings_donut(
+                    holdings,
+                    center_value=format_brl(summary["invested"]),
+                    title="Só o que está em ações (sem o caixa)",
+                    height=280,
+                ),
+                width="stretch",
+                config={"displayModeBar": False},
+            )
 
-with c2, st.container(border=True):
-    st.markdown("##### Radar de Notícias")
-    st.caption("Notícias recentes do mercado com análise visual de sentimento.")
-    if news is None or news.empty:
-        st.caption("Nenhuma notícia recente disponível no momento.")
-    else:
-        render_news_feed_cards(news)
+    with st.container(border=True):
+        st.markdown("##### Radar de Notícias")
+        st.caption("Notícias recentes do mercado com análise visual de sentimento.")
+        if news is None or news.empty:
+            st.caption("Nenhuma notícia recente disponível no momento.")
+        else:
+            render_news_feed_cards(news)
 
 st.caption(
     "Overview em tempo de sessão · notícias de fontes públicas · "
