@@ -337,26 +337,63 @@ git add -A && git commit -m "..." && git push origin main
 
 ---
 
-## 13. Plano de robustez da simulação (A–D)
+## 14. Roadmap & TO-DO: Próxima Onda (Elevação da Confiança de 4.0 para 9.0/10 — Triplo Check Fundamentalista)
 
-Objetivo: subir a **honestidade** do laboratório, não fingir um backtest auditável de fundo.
+**Objetivo:** Transformar o motor de scoring do TradingDash de um filtro quantitativo estático em um sistema robusto de avaliação profunda, permitindo que o investidor tenha **alta convicção (8.5–9.0/10)** ao avaliar recomendações de aporte.
 
-| Fase | O quê | Status |
-|------|--------|--------|
-| **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
-| **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
-| **C** | Walk-forward IS/OOS (70/30 + teste cego opcional) com grid search para otimização de parâmetros. Piotroski/BSD como overlay opcional — ainda não | Walk-forward com grid search **feito**; BSD não |
-| **D** | Fonte paga | **Fora.** Sem dado comercial; o teto sobe com CVM, custos, TTM, walk-forward e execução t+1. |
+### 📋 Checklist de Implementação:
 
-**Teto honesto de confiança** (paper money): ~60–72/100 com CVM + atraso de publicação + t+1 + walk-forward. Nunca 90+.
+#### 🔄 1. Análise de Recorrência do Lucro (Qualidade Contábil & Caixa)
+- [ ] **Conversão de Caixa (FCF vs. Lucro Líquido):**
+  - Implementar métrica de qualidade contábil ($\text{Razão FCF / Lucro Líquido}$).
+  - Critério: $\ge 70\%$ = Lucro com forte geração de caixa; $< 30\%$ = Alerta de lucro contábil/não-caixa.
+- [ ] **Histórico Ininterrupto de Lucros (5 a 10 anos):**
+  - Checagem automática via base CVM/B3 se a empresa reportou **zero prejuízos nos últimos 5–10 anos** (critério clássico de Bazin/Graham/Barsi).
+  - Bonificação no pilar de Qualidade para empresas com lucratividade ininterrupta.
+- [ ] **Detector de Eventos Extraordinários / Não-Recorrentes:**
+  - Cruzamento de Lucro Líquido com Resultado Operacional (EBIT/EBITDA).
+  - Identificar e sinalizar picos atípicos decorrentes de venda de ativos, créditos tributários ou reversões contábeis.
+- [ ] **Estabilidade dos Resultados (Coeficiente de Variação do Lucro):**
+  - Cálculo do desvio padrão do lucro líquido normalizado dos últimos 5 anos ($CV = \sigma / \mu$).
 
-Como promover o PIT:
-```
-.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download
-.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --build
-```
-A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
+#### 🏛️ 2. Previsibilidade & Perenidade Setorial (Método BESST)
+- [ ] **Classificação BESST (Bancos, Energia, Saneamento, Seguros, Telecomunicações):**
+  - Atribuição de **Selo de Perenidade** a empresas pertencentes aos setores essenciais.
+  - Bônus de previsibilidade de fluxo de caixa (serviços essenciais, demanda inelástica, contratos reajustados por IPCA/IGP-M).
+- [ ] **Filtro de Ciclo para Cíclicas de Commodities (Petróleo, Minério, Celulose, Siderurgia):**
+  - Identificação de empresas fortemente expostas a commodities globais.
+  - Exigência de margem de segurança adicional e teto de preço justo para evitar compra no topo do ciclo de alta.
+- [ ] **Mapeamento de Prazos de Concessões Públicas:**
+  - Adicionar no cadastro de referência (`b3_tickers.json`) o ano de vencimento das principais concessões para concessionárias elétricas e de saneamento, com alerta de risco regulatório para vencimentos próximos (< 3 anos).
+
+#### 🛡️ 3. Governança Corporativa & Alinhamento com o Minoritário
+- [ ] **Segmentação por Nível de Governança B3:**
+  - *Novo Mercado* (Nota máxima: 100% ações ON, conselho independente, transparência total).
+  - *Nível 2*, *Nível 1* e *Tradicional* (pontuação proporcional com avisos contextuais).
+- [ ] **Verificação de Tag Along 100%:**
+  - Exigência de 100% de Tag Along para garantir proteção total aos minoritários no caso de venda do controle da companhia. Tag Along < 80% gera alerta de risco crítico.
+- [ ] **Fator Estatal vs. Privada (Desconto de Risco Político):**
+  - Classificação de controle (Estatal Federal, Estatal Estadual ou Privada).
+  - Aplicação de exigência de margem de segurança maior (desconto de 20% a 25% no valuation justo) para estatais como compensação ao risco de interferência política.
+- [ ] **Free Float Mínimo (> 20%–25%):**
+  - Garantia de que a empresa possui liquidez saudável e presença de investidores institucionais atuando na governança.
+
+#### 🎨 4. Apresentação na UI: O "Card de Convicção" & Score de Convicção
+- [ ] **Score de Convicção (0 a 10/10):**
+  - Exibir visualmente o grau de convicção em cada card expandível de "Minha Carteira" e "Descubra Ações".
+- [ ] **Checklist Visual do Triplo Check:**
+  ```markdown
+  ────────────────────────────────────────────────────────────
+  Ação: EGIE3 (Engie Brasil) · Setor: Energia Elétrica
+  Nota da Tese: 86/100 · 🟢 Grau de Convicção: ALTO (9.0/10)
+  ────────────────────────────────────────────────────────────
+  ✅ Lucro Recorrente: 10 anos ininterruptos sem prejuízo · FCF/Lucro: 92%
+  ✅ Setor Perene: Energia (Contratos de longo prazo reajustados pelo IPCA)
+  ✅ Governança de Topo: Novo Mercado · Tag Along 100% · Empresa Privada
+  ────────────────────────────────────────────────────────────
+  ```
 
 ---
 
-*Última atualização do handoff: 2026-08-20 (CVM PIT 2020–2024, splits/bonificação, walk-forward).*
+*Última atualização do handoff: 2026-08-31 (Release v0.2 — cards expandíveis, inflação IPCA real, status econômico macro, anti-rate-limit e roadmap para Triplo Check).*
+
