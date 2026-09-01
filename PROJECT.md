@@ -338,23 +338,109 @@ git add -A && git commit -m "..." && git push origin main
 
 ---
 
-## 14. Checagens verificáveis (não é “9/10 de convicção”)
+## 13. Plano de robustez da simulação (A–D)
 
-O score 0–100 **não ganhou peso extra**. O teto honesto do app continua ~6–7/10 no fluxo (Yahoo falha, ITR/DFP atrasam). Não existe selo “ALTO 9.0/10”.
+Objetivo: subir a **honestidade** do laboratório, não fingir um backtest auditável de fundo.
 
-`src/thesis/checks.py` + `render_quality_checklist` (Minha carteira e Descubra):
+| Fase | O quê | Status |
+|------|--------|--------|
+| **A** | Defaults conservadores (rebalance Q, custos com JCP+IR no ganho, universo histórico, haircut de yield, P10/P50/P90 na renda, copy/PDF honestos, DY TTM no rebalance) | **Feito** (2026-08-20) |
+| **B** | PIT contábil de verdade: parser CVM DFP/ITR + ADV + Monte Carlo + cash lag + slippage dinâmico | **Feito** (`origin=cvm_dfp_itr`, 2020–2024) |
+| **C** | Walk-forward IS/OOS (70/30 + teste cego opcional) com grid search para otimização de parâmetros. Piotroski/BSD como overlay opcional — ainda não | Walk-forward com grid search **feito**; BSD não |
+| **D** | Fonte paga | **Fora.** Sem dado comercial; o teto sobe com CVM, custos, TTM, walk-forward e execução t+1. |
 
-- [x] **FCF / lucro** no último DFP (PIT CVM). ≥70% ok; &lt;30% aviso.
-- [x] **Anos sem prejuízo** (ano-calendário 31/12). ≥5 ok. Sem bônus no score.
-- [x] **CV do lucro** (aviso se oscila muito). Sem EBIT vs LL (proxy fraco demais).
-- [x] **Setor**: núcleo defensivo vs commodity (aviso, sem selo BESST no algoritmo).
-- [x] **Governança visível**: NM/N1/N2 no nome do cadastro; tag along típico do segmento; controle estatal **curado** (sem desconto 20% no valuation).
-- [x] Yahoo **não** preenche ROE/DY sintéticos (`reference_enriched` removido). Cache `yf_fund_v5`.
-- [ ] Notas explicativas / não-recorrente de verdade (precisa das notas da DFP).
-- [ ] Vencimento de concessão curado (ANEEL/ANA/RI) — não inventar ano.
-- [ ] Free float / FCA completo — liquidez já usa ADV no backtest.
+**Teto honesto de confiança** (paper money): ~60–72/100 com CVM + atraso de publicação + t+1 + walk-forward. Nunca 90+.
+
+Como promover o PIT:
+```
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --download
+.venv/bin/python scripts/download_cvm_data.py --years 2020-2025 --build
+```
+A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
 
 ---
 
-*Última atualização do handoff: 2026-08-31 (v0.2 + checagens CVM/cadastro, sem score de convicção).*
+## 14. Checklist de Completude & Roadmap (Triplo Check Fundamentalista)
+
+**Princípio:** O score 0–100 da tese **não ganha peso extra** com estas checagens. O teto honesto do app com Yahoo + CVM PIT continua ~6–7/10 no fluxo de dados. Não existe selo "ALTO 9.0/10" nem "grau de convicção para aportar". O checklist mostra **completude verificável** (0 a 3 itens com fonte explícita), não uma nota de recomendação.
+
+### ✅ Implementado (v0.2 — `src/thesis/checks.py` + `render_quality_checklist`)
+
+#### 🔄 1. Recorrência do Lucro (Qualidade Contábil & Caixa)
+- [x] **Conversão de Caixa (FCF / Lucro Líquido):**
+  - Fonte: CVM DFP (último ano-calendário, PIT).
+  - Limiares: ≥70% = lucro com forte geração de caixa (`ok`); 30–70% = conversão moderada (`warn`); <30% = lucro pouco convertido em caixa (`warn`).
+  - Cuidados: JCP, FII e capex pesado pontual podem distorcer. Tratar como aviso, não penalidade dura.
+- [x] **Histórico Ininterrupto de Lucros (5+ anos):**
+  - Fonte: série CVM DFP ponto-a-ponto (ano-calendário 31/12, 2018–2024). Yahoo `earningsGrowth` **não** serve.
+  - Critério: ≥5 anos seguidos sem prejuízo = `ok`; 1–4 anos = `warn`; prejuízo recente = `warn`.
+  - Não há bônus no score 0–100 — é informativo.
+- [x] **Estabilidade dos Resultados (Coeficiente de Variação do Lucro):**
+  - Fórmula: CV = σ / μ dos lucros anuais (≥4 anos). CV > 0.80 = alerta de oscilação.
+  - Combinar com filtro de commodity para não penalizar Vale/Petrobras duplamente.
+- [x] **EBIT vs Lucro Líquido — proxy fraco, removido como penalidade:**
+  - Sem notas explicativas da DFP, o cruzamento LL vs EBIT é no máximo um aviso ("lucro e operacional destoam"), sem penalidade dura no checklist.
+
+#### 🏛️ 2. Previsibilidade Setorial
+- [x] **Núcleo defensivo vs commodity:**
+  - Fonte: cadastro B3 (`CORE_SECTORS` em `src/config.py`).
+  - Setores perenes (Utilities, Financial Services, Consumer Defensive, Telecom) = `ok`.
+  - Setores cíclicos de commodities (Energy, Basic Materials, Mineração) = `warn` com aviso: "dividendo de pico não é renda estável".
+  - Outros setores = `warn` informativo ("fora do núcleo defensivo, não é falha").
+  - **Decisão de design:** Sem selo BESST no algoritmo. O app já privilegia `CORE_SECTORS`. Somar pontos só por ser banco/energia seria folclore no score e pioraria performance quando o ciclo muda.
+
+#### 🛡️ 3. Governança Corporativa & Alinhamento com o Minoritário
+- [x] **Segmento de Listagem na B3:**
+  - Fonte: cadastro B3 (sufixo NM/N1/N2 no nome) + tabela curada para ~50 tickers líquidos (`_LISTING_BY_TICKER` em `src/data/reference.py`).
+  - Novo Mercado / Nível 2 = `ok`; Nível 1 / outros = `warn`.
+  - Nota: NM não garante qualidade (Americanas era NM). É informação, não selo de segurança.
+- [x] **Tag Along típico do segmento:**
+  - NM/N2 = 100%; N1 = 80%. Estimado pelo segmento, não lido por ticker de fonte oficial.
+  - Tag Along < 80% → alerta de risco.
+- [x] **Controle acionário curado (estatal):**
+  - Fonte: lista curada (`_CONTROL_BY_ROOT` em `reference.py`): PETR, BBAS, BBSE, CXSE = estatal federal; CMIG, CPLE, SAPR, CSMG, SBSP = estatal estadual; AXIA = misto.
+  - Exibe aviso "risco político" — **não** aplica desconto automático de 20–25% no valuation. É palpite, não dado. Petrobras/BB distorceriam o ranking.
+
+#### 🧹 4. Honestidade de Dados
+- [x] **Yahoo não preenche ROE/DY sintéticos:**
+  - `reference_enriched` removido. Quando o Yahoo falha, a linha fica com `None` honesto e `data_quality: "unavailable"`.
+  - Dados contábeis agora vêm do overlay CVM PIT (`overlay_pit_on_fundamentals` em `src/data/pit_loader.py`).
+  - Cache atualizado para chave `yf_fund_v5`.
+
+#### 🎨 5. Apresentação na UI
+- [x] **Checklist visual no card expandível:**
+  - `render_quality_checklist(ticker)` em `src/ui/components.py`.
+  - 3 itens com ícones Material Design (✅ ok / ⚠️ warn / ❓ unknown), detalhe textual e fonte explícita.
+  - Presente em Minha Carteira e Descubra Ações.
+  - Badges P&L do trade simulado separados dos alertas de saúde fundamentalista.
+
+---
+
+### 📋 Próxima onda (pendente)
+
+#### Dados & Verificabilidade
+- [ ] **Notas explicativas / não-recorrente de verdade:**
+  - Precisa das notas explicativas da DFP (texto livre da CVM). Sem isso, detector de eventos extraordinários fica limitado ao proxy LL vs EBIT.
+- [ ] **Vencimento de concessão curado (ANEEL/ANA/RI):**
+  - Alto valor para transmissoras e saneamento. Campo `concessao_fim` no `b3_tickers.json`.
+  - **Não inventar ano.** Só incluir com fonte verificável. Alerta se < 3 anos do vencimento.
+- [ ] **Free float / FCA completo:**
+  - Liquidez já usa ADV no backtest. Free float do Yahoo/FCA é irregular.
+  - Útil como informação no card, não como filtro de governança.
+- [ ] **Tag Along real por ticker (FCA/CVM):**
+  - Hoje é estimado pelo segmento. Puxar do FCA com cuidado para ter o dado real.
+
+#### Score & Motor (só depois de validar dados)
+- [ ] **Peso de checagens no score (futuro, com cautela):**
+  - Hoje as checagens são informativas. Se e quando houver confiança nos dados, testar impacto de incluir FCF/LL e streak de lucros como fator no pilar de Qualidade.
+  - Nunca incluir setor ou governança como peso no score — é enviesamento, não dado.
+  - Exige backtesting walk-forward para validar que o fator melhora retorno ajustado a risco vs Ibovespa.
+- [ ] **Filtro de ciclo para cíclicas de commodities:**
+  - "Teto de preço justo" para commodities requer modelo explícito (médias de ciclo), não P/L do Yahoo.
+  - Por enquanto, o aviso informativo ("dividendo de pico não é renda") é suficiente.
+
+---
+
+*Última atualização do handoff: 2026-09-01 (v0.2 — checagens CVM/cadastro implementadas, roadmap consolidado com correções de honestidade, seção 13 restaurada).*
+
 

@@ -579,7 +579,7 @@ def validate_ticker_reference() -> dict[str, Any]:
         "delisted_tickers": delisted,
         "missing_fields": missing_fields,
         "issues": issues[:50],  # limit to first 50 issues
-        "generated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
     }
 
     return report
