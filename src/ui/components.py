@@ -784,4 +784,27 @@ def render_stock_health_meters(row: Any) -> None:
     )
 
 
+def render_quality_checklist(ticker: str) -> None:
+    """Três checagens CVM/cadastro. Não é nota 0–10 nem recomendação de compra."""
+    from src.thesis.checks import build_quality_checks
+
+    checks = build_quality_checks(ticker)
+    st.markdown("**O que dá para conferir (CVM + cadastro)**")
+    st.caption(
+        "Não é grau de convicção nem ordem de compra. "
+        "Item sem dado fica em aberto — não preenchemos com chute."
+    )
+    icon = {
+        "ok": ":material/check_circle:",
+        "warn": ":material/warning:",
+        "unknown": ":material/help:",
+    }
+    for item in checks.items:
+        st.markdown(f"{icon[item.status]} **{item.title}** — {item.detail}")
+        st.caption(item.source)
+    st.caption(
+        f"{checks.n_ok} ok · {checks.n_known} com dado · "
+        f"{len(checks.items) - checks.n_known} sem dado na base."
+    )
+
 

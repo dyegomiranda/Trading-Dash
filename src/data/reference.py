@@ -287,6 +287,115 @@ def resolve_successor(ticker: str) -> str:
     return _norm(ticker)
 
 
+# Segmento de listagem inferido do sufixo do nome B3 (NM, N1, N2, MA).
+_SEGMENT_FROM_TOKEN: dict[str, str] = {
+    "NM": "Novo Mercado",
+    "N2": "Nível 2",
+    "N1": "Nível 1",
+    "MA": "Bovespa Mais",
+}
+_TAG_ALONG_BY_SEGMENT: dict[str, float] = {
+    "Novo Mercado": 1.0,
+    "Nível 2": 1.0,
+    "Nível 1": 0.80,
+}
+# Segmento curado para líquidos cujo nome no JSON foi “limpo” (sem sufixo NM/N2).
+# Fonte: regulamento B3; ticker sem entrada continua desconhecido.
+_LISTING_BY_TICKER: dict[str, str] = {
+    "WEGE3": "Novo Mercado",
+    "VALE3": "Novo Mercado",
+    "EGIE3": "Novo Mercado",
+    "LREN3": "Novo Mercado",
+    "ABEV3": "Novo Mercado",
+    "BBAS3": "Novo Mercado",
+    "BBSE3": "Novo Mercado",
+    "CXSE3": "Novo Mercado",
+    "B3SA3": "Novo Mercado",
+    "EQTL3": "Novo Mercado",
+    "SBSP3": "Novo Mercado",
+    "VIVT3": "Novo Mercado",
+    "TIMS3": "Novo Mercado",
+    "RAIL3": "Novo Mercado",
+    "RENT3": "Novo Mercado",
+    "TOTS3": "Novo Mercado",
+    "PRIO3": "Novo Mercado",
+    "SUZB3": "Novo Mercado",
+    "HYPE3": "Novo Mercado",
+    "RADL3": "Novo Mercado",
+    "CPLE3": "Novo Mercado",
+    "CPFE3": "Novo Mercado",
+    "CSMG3": "Novo Mercado",
+    "UGPA3": "Novo Mercado",
+    "VBBR3": "Novo Mercado",
+    "PSSA3": "Novo Mercado",
+    "CSNA3": "Novo Mercado",
+    "KLBN11": "Novo Mercado",
+    "ENGI11": "Novo Mercado",
+    "BPAC11": "Novo Mercado",
+    "CCRO3": "Novo Mercado",
+    "PETR3": "Nível 2",
+    "PETR4": "Nível 2",
+    "TAEE11": "Nível 2",
+    "SAPR11": "Nível 2",
+    "SANB11": "Nível 2",
+    "ABCB4": "Nível 2",
+    "ITUB3": "Nível 1",
+    "ITUB4": "Nível 1",
+    "BBDC3": "Nível 1",
+    "BBDC4": "Nível 1",
+    "CMIG3": "Nível 1",
+    "CMIG4": "Nível 1",
+    "GGBR3": "Nível 1",
+    "GGBR4": "Nível 1",
+    "AXIA3": "Novo Mercado",
+    "AXIA6": "Novo Mercado",
+}
+
+# Raiz de 4 letras → controle. Só o que é público e estável; o resto fica em aberto.
+_CONTROL_BY_ROOT: dict[str, str] = {
+    "PETR": "estatal federal",
+    "BBAS": "estatal federal",
+    "BBSE": "estatal federal",
+    "CXSE": "estatal federal",
+    "CMIG": "estatal estadual",
+    "CPLE": "estatal estadual",
+    "SAPR": "estatal estadual",
+    "CSMG": "estatal estadual",
+    "SBSP": "estatal estadual",
+    "CEEB": "estatal estadual",
+    "ELET": "misto (União com golden share)",
+    "AXIA": "misto (União com golden share)",
+}
+
+
+def listing_segment(ticker: str) -> str | None:
+    """Novo Mercado / Nível 1 / Nível 2: tabela curada, senão sufixo do nome B3."""
+    nt = _norm(ticker)
+    if nt in _LISTING_BY_TICKER:
+        return _LISTING_BY_TICKER[nt]
+    meta = get_ticker_meta(nt)
+    name = str(meta.get("name") or "")
+    tokens = [tok.strip().upper() for tok in name.replace("  ", " ").split() if tok.strip()]
+    for tok in reversed(tokens):
+        if tok in _SEGMENT_FROM_TOKEN:
+            return _SEGMENT_FROM_TOKEN[tok]
+    return None
+
+
+def tag_along_pct(ticker: str) -> float | None:
+    """Tag along típico do segmento. None se o segmento não está no nome."""
+    seg = listing_segment(ticker)
+    if not seg:
+        return None
+    return _TAG_ALONG_BY_SEGMENT.get(seg)
+
+
+def control_label(ticker: str) -> str | None:
+    """Controle acionário curado (estatal). None = não classificado (não assumimos privada)."""
+    root = _norm(ticker)[:4]
+    return _CONTROL_BY_ROOT.get(root)
+
+
 def is_tradable(ticker: str) -> bool:
     meta = get_ticker_meta(ticker)
     status = meta.get("status") or "unknown"

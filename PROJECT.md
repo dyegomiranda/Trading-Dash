@@ -65,7 +65,7 @@ TradingDash/
     minha_carteira.py    # paper portfolio
     teste_no_passado.py  # backtest
     guia.py              # dicionário / tese
-    configuracoes.py     # modo treino, fonte B3, regime macro
+    configuracoes.py     # Yahoo vs brapi, regime macro, cache
   assets/logo/TD_logo.png
   assets/icon/TD_icon.png
   src/
@@ -80,6 +80,7 @@ TradingDash/
       pit_loader.py      # JSON point-in-time (semente ou CVM)
       cvm.py             # download/parse DFP/ITR/FCA
     thesis/scoring.py    # score, filtros, recommend_weights
+    thesis/checks.py     # FCF/lucro, anos sem prejuízo, setor, governança (display)
     thesis/macro.py      # regime macro (Selic/IPCA) → inclinação setorial
     portfolio/
       paper.py           # PaperPortfolio (JSON em data/portfolio/)
@@ -110,9 +111,9 @@ TradingDash/
 - `recommend_weights` → `target_weight` core/satélite
 
 ### 4.2 Providers (`src/data/providers.py`)
-- **`demo`:** fundamentals + preços + dividendos sintéticos (drift **não** amarrado ao ROE; queda ex-div no preço). Primeira visita da UI.  
-- **`yfinance`:** B3 via `TICKER.SA`, cache em `data/cache/` — fonte principal da Bolsa real  
-- **`brapi`:** experimental (preço/dividendo B3; ROE/dívida ausentes no plano grátis). Escondido no seletor, atrás de expander.
+- **`yfinance`:** padrão da UI. B3 via `TICKER.SA`. Se o Yahoo falhar, **não** preenche lucro/dívida sintéticos — só nome/setor do cadastro (`data_quality=unavailable`).  
+- **`demo`:** só testes/preflight offline (`allow_demo_provider`). Não aparece na UI.  
+- **`brapi`:** experimental (preço/dividendo B3; ROE/dívida ausentes no plano grátis), em Configurações.
 
 ### 4.3 Paper portfolio (`src/portfolio/paper.py`)
 - Persistência: `data/portfolio/{name}.json` (um arquivo por carteira)
@@ -191,9 +192,9 @@ TradingDash/
 | Início | `inicio.py` | KPIs carteira, rosca, 4 notas da tese, headlines reais |
 | Descubra ações | `descobrir_acoes.py` | ranking, pesos, histórico de preço por ticker |
 | Minha carteira | `minha_carteira.py` | dashboard, operar (capital + tese + manual), renda, mais |
-| Teste no passado | `teste_no_passado.py` | onboarding explicativo (Modo treino vs Bolsa real) **antes** do 1º run; depois KPIs + gráficos |
+| Teste no passado | `teste_no_passado.py` | ensaio com preços reais; IDIV como comparação da tese; IPCA nominal vs real |
 | Guia | `guia.py` | glossário, fontes de dados e pesos da tese |
-| Configurações | `configuracoes.py` | modo treino, brapi, regime macro, atualizar cache |
+| Configurações | `configuracoes.py` | Yahoo vs brapi, regime macro, atualizar cache |
 
 ---
 
@@ -201,7 +202,7 @@ TradingDash/
 
 | Termo na UI | Significado técnico |
 |-------------|---------------------|
-| Modo treino | Provider `demo` |
+| Conta de treino | Dinheiro fictício; preços da bolsa real |
 | Bolsa real | Provider `yfinance` (brapi é experimental) |
 | Nota | `score_total` 0–100 |
 | Base / Complemento | `bucket` core / satellite |
@@ -250,7 +251,7 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 ### Dados e tese
 - [x] Cadastro B3 de **nome/setor** (`data/reference/b3_tickers.json` + `reference.py`) — demo **não inventa setor**  
 - [x] Renomeações conhecidas (ELET3→AXIA3) no universo  
-- [x] Default da UI: **Bolsa real**; demo com banner de risco  
+- [x] Default da UI: **Bolsa real**; demo só em testes (sem inventar ROE quando o Yahoo falha)  
 - [x] Gancho PIT no backtest (`fundamentals_by_date` + auto-load + DY TTM do dia)  
 - [x] **Parse CVM DFP/ITR** 2018–2024 (`origin=cvm_dfp_itr`, 56 trimestres / 369 tickers oficiais da B3). Preço e DY continuam do pregão (TTM). Reatualizar: `scripts/download_cvm_data.py --years 2018-2024 --download --build`  
 - [ ] Melhor cobertura de indicadores BR (JCP, payout real, etc.)  
@@ -283,8 +284,8 @@ Priorize com o usuário; itens em **negrito** são alto valor.
 
 ### UX / produto
 - [x] Onboarding na primeira visita (session_state no Início; reset no Início e no Guia) — não persiste entre browsers 
-- [x] Explicar “Modo treino” em **todas** as páginas com o seletor (`src/ui/data_source.py`)  
-- [x] Testes automatizados (pytest) para scoring, portfolio, backtest — `tests/` (175 testes, rede mockada) 
+- [x] Modo treino **removido da UI**; paper money + Yahoo é o treino  
+- [x] Testes automatizados (pytest) — `tests/` (rede mockada) 
 - [x] CI no GitHub (lint + testes) — `.github/workflows/ci.yml` (matrix Python 3.12/3.13/3.14 + `ruff check src/ tests/` + `pytest tests/ -q`)  
 - [x] Instruções de deploy Streamlit Community Cloud no README  
 - [x] Pre-flight de deploy (app sobe offline) — `deploy/preflight.py` (AppTest, fonte demo) + CI + `tests/test_preflight.py`  
@@ -337,63 +338,23 @@ git add -A && git commit -m "..." && git push origin main
 
 ---
 
-## 14. Roadmap & TO-DO: Próxima Onda (Elevação da Confiança de 4.0 para 9.0/10 — Triplo Check Fundamentalista)
+## 14. Checagens verificáveis (não é “9/10 de convicção”)
 
-**Objetivo:** Transformar o motor de scoring do TradingDash de um filtro quantitativo estático em um sistema robusto de avaliação profunda, permitindo que o investidor tenha **alta convicção (8.5–9.0/10)** ao avaliar recomendações de aporte.
+O score 0–100 **não ganhou peso extra**. O teto honesto do app continua ~6–7/10 no fluxo (Yahoo falha, ITR/DFP atrasam). Não existe selo “ALTO 9.0/10”.
 
-### 📋 Checklist de Implementação:
+`src/thesis/checks.py` + `render_quality_checklist` (Minha carteira e Descubra):
 
-#### 🔄 1. Análise de Recorrência do Lucro (Qualidade Contábil & Caixa)
-- [ ] **Conversão de Caixa (FCF vs. Lucro Líquido):**
-  - Implementar métrica de qualidade contábil ($\text{Razão FCF / Lucro Líquido}$).
-  - Critério: $\ge 70\%$ = Lucro com forte geração de caixa; $< 30\%$ = Alerta de lucro contábil/não-caixa.
-- [ ] **Histórico Ininterrupto de Lucros (5 a 10 anos):**
-  - Checagem automática via base CVM/B3 se a empresa reportou **zero prejuízos nos últimos 5–10 anos** (critério clássico de Bazin/Graham/Barsi).
-  - Bonificação no pilar de Qualidade para empresas com lucratividade ininterrupta.
-- [ ] **Detector de Eventos Extraordinários / Não-Recorrentes:**
-  - Cruzamento de Lucro Líquido com Resultado Operacional (EBIT/EBITDA).
-  - Identificar e sinalizar picos atípicos decorrentes de venda de ativos, créditos tributários ou reversões contábeis.
-- [ ] **Estabilidade dos Resultados (Coeficiente de Variação do Lucro):**
-  - Cálculo do desvio padrão do lucro líquido normalizado dos últimos 5 anos ($CV = \sigma / \mu$).
-
-#### 🏛️ 2. Previsibilidade & Perenidade Setorial (Método BESST)
-- [ ] **Classificação BESST (Bancos, Energia, Saneamento, Seguros, Telecomunicações):**
-  - Atribuição de **Selo de Perenidade** a empresas pertencentes aos setores essenciais.
-  - Bônus de previsibilidade de fluxo de caixa (serviços essenciais, demanda inelástica, contratos reajustados por IPCA/IGP-M).
-- [ ] **Filtro de Ciclo para Cíclicas de Commodities (Petróleo, Minério, Celulose, Siderurgia):**
-  - Identificação de empresas fortemente expostas a commodities globais.
-  - Exigência de margem de segurança adicional e teto de preço justo para evitar compra no topo do ciclo de alta.
-- [ ] **Mapeamento de Prazos de Concessões Públicas:**
-  - Adicionar no cadastro de referência (`b3_tickers.json`) o ano de vencimento das principais concessões para concessionárias elétricas e de saneamento, com alerta de risco regulatório para vencimentos próximos (< 3 anos).
-
-#### 🛡️ 3. Governança Corporativa & Alinhamento com o Minoritário
-- [ ] **Segmentação por Nível de Governança B3:**
-  - *Novo Mercado* (Nota máxima: 100% ações ON, conselho independente, transparência total).
-  - *Nível 2*, *Nível 1* e *Tradicional* (pontuação proporcional com avisos contextuais).
-- [ ] **Verificação de Tag Along 100%:**
-  - Exigência de 100% de Tag Along para garantir proteção total aos minoritários no caso de venda do controle da companhia. Tag Along < 80% gera alerta de risco crítico.
-- [ ] **Fator Estatal vs. Privada (Desconto de Risco Político):**
-  - Classificação de controle (Estatal Federal, Estatal Estadual ou Privada).
-  - Aplicação de exigência de margem de segurança maior (desconto de 20% a 25% no valuation justo) para estatais como compensação ao risco de interferência política.
-- [ ] **Free Float Mínimo (> 20%–25%):**
-  - Garantia de que a empresa possui liquidez saudável e presença de investidores institucionais atuando na governança.
-
-#### 🎨 4. Apresentação na UI: O "Card de Convicção" & Score de Convicção
-- [ ] **Score de Convicção (0 a 10/10):**
-  - Exibir visualmente o grau de convicção em cada card expandível de "Minha Carteira" e "Descubra Ações".
-- [ ] **Checklist Visual do Triplo Check:**
-  ```markdown
-  ────────────────────────────────────────────────────────────
-  Ação: EGIE3 (Engie Brasil) · Setor: Energia Elétrica
-  Nota da Tese: 86/100 · 🟢 Grau de Convicção: ALTO (9.0/10)
-  ────────────────────────────────────────────────────────────
-  ✅ Lucro Recorrente: 10 anos ininterruptos sem prejuízo · FCF/Lucro: 92%
-  ✅ Setor Perene: Energia (Contratos de longo prazo reajustados pelo IPCA)
-  ✅ Governança de Topo: Novo Mercado · Tag Along 100% · Empresa Privada
-  ────────────────────────────────────────────────────────────
-  ```
+- [x] **FCF / lucro** no último DFP (PIT CVM). ≥70% ok; &lt;30% aviso.
+- [x] **Anos sem prejuízo** (ano-calendário 31/12). ≥5 ok. Sem bônus no score.
+- [x] **CV do lucro** (aviso se oscila muito). Sem EBIT vs LL (proxy fraco demais).
+- [x] **Setor**: núcleo defensivo vs commodity (aviso, sem selo BESST no algoritmo).
+- [x] **Governança visível**: NM/N1/N2 no nome do cadastro; tag along típico do segmento; controle estatal **curado** (sem desconto 20% no valuation).
+- [x] Yahoo **não** preenche ROE/DY sintéticos (`reference_enriched` removido). Cache `yf_fund_v5`.
+- [ ] Notas explicativas / não-recorrente de verdade (precisa das notas da DFP).
+- [ ] Vencimento de concessão curado (ANEEL/ANA/RI) — não inventar ano.
+- [ ] Free float / FCA completo — liquidez já usa ADV no backtest.
 
 ---
 
-*Última atualização do handoff: 2026-08-31 (Release v0.2 — cards expandíveis, inflação IPCA real, status econômico macro, anti-rate-limit e roadmap para Triplo Check).*
+*Última atualização do handoff: 2026-08-31 (v0.2 + checagens CVM/cadastro, sem score de convicção).*
 

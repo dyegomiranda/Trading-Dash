@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from src.config import B3_HISTORICAL_EXTRA
 from src.data.reference import (
+    control_label,
     format_ticker_display,
     get_ticker_meta,
     is_known_sector,
     is_tradable,
+    listing_segment,
     lookup_company_name,
     resolve_sector,
+    tag_along_pct,
 )
 
 
@@ -46,6 +49,16 @@ def test_live_universe_skips_historical_unless_requested():
     assert "LAME3" not in live
     hist = get_universe(include_historical=True)
     assert "LAME3" in hist
+
+
+def test_listing_segment_and_tag_along():
+    assert listing_segment("AALR3") == "Novo Mercado"
+    assert tag_along_pct("AALR3") == 1.0
+    assert listing_segment("WEGE3") == "Novo Mercado"
+    assert listing_segment("ITUB4") == "Nível 1"
+    assert listing_segment("PETR4") == "Nível 2"
+    assert tag_along_pct("PETR4") == 1.0
+    assert control_label("WEGE3") is None
 
 
 def test_resolve_sector_prefers_cadastro():

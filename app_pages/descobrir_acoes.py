@@ -20,6 +20,7 @@ from src.ui.components import (
     render_core_sectors_card,
     render_kpi_row,
     render_plain_help,
+    render_quality_checklist,
     render_stock_health_meters,
     render_thesis_pillars,
 )
@@ -344,6 +345,7 @@ else:
                 st.caption("Sem dados detalhados para essa empresa no momento.")
             else:
                 st.markdown(build_stock_narrative(_row_n.iloc[0]))
+                render_quality_checklist(pick)
 
     top3 = tickers[:3]
     if len(top3) > 1:

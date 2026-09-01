@@ -30,6 +30,50 @@ def is_realtime_provider(name: str) -> bool:
     return name in REALTIME_PROVIDERS
 
 
+def _cadastro_only_row(ticker: str) -> dict[str, Any]:
+    """Nome/setor do cadastro B3 — sem números de balanço inventados."""
+    from src.data.reference import get_ticker_meta
+
+    t = normalize_ticker(ticker)
+    meta = get_ticker_meta(t)
+    return {
+        "ticker": t,
+        "name": meta.get("name") or t,
+        "sector": resolve_sector(meta.get("sector")),
+        "industry": meta.get("industry"),
+        "price": 0.0,
+        "market_cap": None,
+        "roe": None,
+        "roic": None,
+        "roa": None,
+        "net_margin": None,
+        "ebitda_margin": None,
+        "gross_margin": None,
+        "dividend_yield": None,
+        "payout": None,
+        "net_debt_ebitda": None,
+        "debt_equity": None,
+        "current_ratio": None,
+        "interest_coverage": None,
+        "pe": None,
+        "pb": None,
+        "ev_ebitda": None,
+        "peg": None,
+        "fcf_yield": None,
+        "revenue_cagr_5y": None,
+        "earnings_cagr_5y": None,
+        "dividend_cagr_5y": None,
+        "years_paying_dividend": None,
+        "fcf_positive": None,
+        "currency": "BRL",
+        "as_of": utcnow_date(),
+        "source": "yfinance",
+        "data_quality": "unavailable",
+        "meta_source": meta.get("source") or "reference",
+        "ticker_status": meta.get("status") or "unknown",
+    }
+
+
 class DataProvider(ABC):
     name: ProviderName
 
@@ -547,7 +591,7 @@ class YFinanceDataProvider(DataProvider):
         from src.data.ttl import ttl_for
         from src.monitoring import coverage_event, timed
 
-        cache_key = f"yf_fund_v4:{','.join(sorted(tickers_resolved))}"
+        cache_key = f"yf_fund_v5:{','.join(sorted(tickers_resolved))}"
         cached = _read_cache(cache_key, ttl_for("fundamentals", self.settings))
         if cached is not None:
             with contextlib.suppress(Exception):
@@ -558,9 +602,6 @@ class YFinanceDataProvider(DataProvider):
 
         workers = min(4, int(getattr(self.settings, "yfinance_workers", 4) or 4))
         t_timeout = float(getattr(self.settings, "yfinance_ticker_timeout", 5.0) or 5.0)
-
-        # Base de fallback de referência caso Yahoo limite requisições
-        demo_fallback = DemoDataProvider()._fundamentals
 
         def _fetch_one(t: str) -> dict[str, Any] | None:
             try:
@@ -622,60 +663,32 @@ class YFinanceDataProvider(DataProvider):
                 sector = resolve_sector(meta.get("sector"), yf_sector)
                 industry = yf_industry or meta.get("industry")
 
-                # Fallback de referência caso o Yahoo não tenha entregue os dados de balanço (rate limit / indisponibilidade)
-                ref_row = demo_fallback.loc[t] if t in demo_fallback.index else None
-                if roe is None and ref_row is not None:
-                    roe = float(ref_row.get("roe") or 0)
-                    roic = float(ref_row.get("roic") or roe)
-                    roa = float(ref_row.get("roa") or (roe * 0.5))
-                    net_margin = float(ref_row.get("net_margin") or 0.1)
-                    ebitda_margin = float(ref_row.get("ebitda_margin") or 0.15)
-                    gross_margin = float(ref_row.get("gross_margin") or 0.25)
-                    if dy is None:
-                        dy = float(ref_row.get("dividend_yield") or 0.05)
-                    if payout is None:
-                        payout = float(ref_row.get("payout") or 0.5)
-                    if net_debt_ebitda is None:
-                        net_debt_ebitda = float(ref_row.get("net_debt_ebitda") or 1.5)
-                    if debt_eq is None:
-                        debt_eq = float(ref_row.get("debt_equity") or 1.2)
-                    if pe is None:
-                        pe = float(ref_row.get("pe") or 10.0)
-                    pb = float(ref_row.get("pb") or 1.5)
-                    ev_ebitda = float(ref_row.get("ev_ebitda") or 7.0)
-                    peg = float(ref_row.get("peg") or 1.2)
-                    fcf_yield = float(ref_row.get("fcf_yield") or 0.05)
-                    fcf_positive = True
-                    rev_growth = float(ref_row.get("revenue_cagr_5y") or 0.05)
-                    earn_growth = float(ref_row.get("earnings_cagr_5y") or 0.05)
-                    years_div = int(ref_row.get("years_paying_dividend") or 5)
-                    div_cagr = float(ref_row.get("dividend_cagr_5y") or 0.03)
-                    if not price:
-                        price = float(ref_row.get("price") or 20.0)
-                    quality = "reference_enriched"
-                else:
-                    roic = info.get("returnOnCapital") or roe
-                    net_margin = info.get("profitMargins")
-                    ebitda_margin = info.get("ebitdaMargins")
-                    gross_margin = info.get("grossMargins")
-                    pb = info.get("priceToBook")
-                    ev_ebitda = info.get("enterpriseToEbitda")
-                    peg = info.get("pegRatio")
-                    fcf_yield = (
-                        (info.get("freeCashflow") / info.get("marketCap"))
-                        if info.get("freeCashflow") and info.get("marketCap")
-                        else None
-                    )
-                    fcf_positive = (
-                        True
-                        if info.get("freeCashflow") and info.get("freeCashflow") > 0
-                        else (False if info.get("freeCashflow") is not None else None)
-                    )
-                    rev_growth = info.get("revenueGrowth")
-                    earn_growth = info.get("earningsGrowth")
-                    years_div = None
-                    div_cagr = None
-                    quality = "market" if (price and price > 0 and roe is not None) else "partial"
+                roic = info.get("returnOnCapital") or roe
+                net_margin = info.get("profitMargins")
+                ebitda_margin = info.get("ebitdaMargins")
+                gross_margin = info.get("grossMargins")
+                pb = info.get("priceToBook")
+                ev_ebitda = info.get("enterpriseToEbitda")
+                peg = info.get("pegRatio")
+                fcf_yield = (
+                    (info.get("freeCashflow") / info.get("marketCap"))
+                    if info.get("freeCashflow") and info.get("marketCap")
+                    else None
+                )
+                fcf_positive = (
+                    True
+                    if info.get("freeCashflow") and info.get("freeCashflow") > 0
+                    else (False if info.get("freeCashflow") is not None else None)
+                )
+                rev_growth = info.get("revenueGrowth")
+                earn_growth = info.get("earningsGrowth")
+                years_div = None
+                div_cagr = None
+                quality = (
+                    "market"
+                    if (price and price > 0 and roe is not None)
+                    else "partial"
+                )
 
                 return {
                     "ticker": t,
@@ -736,52 +749,12 @@ class YFinanceDataProvider(DataProvider):
                     # TimeoutError de as_completed — segue com o que já veio
                     pass
 
-        # se Yahoo falhou completamente para algum ticker, preenche com referência
+        # Yahoo falhou: cadastro B3 (nome/setor) sem inventar lucro/dívida.
         got = {r["ticker"] for r in rows}
         for t in tickers_resolved:
             if t in got:
                 continue
-            ref_row = demo_fallback.loc[t] if t in demo_fallback.index else None
-            meta = get_ticker_meta(t)
-            if ref_row is not None:
-                rows.append(
-                    {
-                        "ticker": t,
-                        "name": meta.get("name") or t,
-                        "sector": resolve_sector(meta.get("sector")),
-                        "industry": meta.get("industry"),
-                        "price": float(ref_row.get("price") or 20.0),
-                        "market_cap": float(ref_row.get("market_cap") or 1e9),
-                        "roe": float(ref_row.get("roe") or 0.15),
-                        "roic": float(ref_row.get("roic") or 0.12),
-                        "roa": float(ref_row.get("roa") or 0.08),
-                        "net_margin": float(ref_row.get("net_margin") or 0.1),
-                        "ebitda_margin": float(ref_row.get("ebitda_margin") or 0.15),
-                        "gross_margin": float(ref_row.get("gross_margin") or 0.25),
-                        "dividend_yield": float(ref_row.get("dividend_yield") or 0.06),
-                        "payout": float(ref_row.get("payout") or 0.5),
-                        "net_debt_ebitda": float(ref_row.get("net_debt_ebitda") or 1.5),
-                        "debt_equity": float(ref_row.get("debt_equity") or 1.2),
-                        "current_ratio": float(ref_row.get("current_ratio") or 1.5),
-                        "interest_coverage": float(ref_row.get("interest_coverage") or 5.0),
-                        "pe": float(ref_row.get("pe") or 10.0),
-                        "pb": float(ref_row.get("pb") or 1.5),
-                        "ev_ebitda": float(ref_row.get("ev_ebitda") or 7.0),
-                        "peg": float(ref_row.get("peg") or 1.2),
-                        "fcf_yield": float(ref_row.get("fcf_yield") or 0.05),
-                        "revenue_cagr_5y": float(ref_row.get("revenue_cagr_5y") or 0.05),
-                        "earnings_cagr_5y": float(ref_row.get("earnings_cagr_5y") or 0.05),
-                        "dividend_cagr_5y": float(ref_row.get("dividend_cagr_5y") or 0.03),
-                        "years_paying_dividend": int(ref_row.get("years_paying_dividend") or 5),
-                        "fcf_positive": True,
-                        "currency": "BRL",
-                        "as_of": utcnow_date(),
-                        "source": "yfinance",
-                        "data_quality": "reference_enriched",
-                        "meta_source": meta.get("source") or "reference",
-                        "ticker_status": meta.get("status") or "unknown",
-                    }
-                )
+            rows.append(_cadastro_only_row(t))
 
         df = pd.DataFrame(rows)
         if not df.empty:

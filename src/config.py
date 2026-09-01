@@ -48,7 +48,7 @@ THESIS_LABEL = "Quality Dividend (renda com qualidade)"
 
 # --- Versão atual do app (para checar atualizações) ---
 # Mantenha este número sincronizado com o tag no GitHub ou o número de release.
-APP_VERSION = "1.4.0"
+APP_VERSION = "0.2"
 
 
 def check_for_update(timeout: float = 3.0) -> dict | None:

@@ -56,6 +56,7 @@ from src.ui.components import (
     render_journey,
     render_news_feed_cards,
     render_plain_help,
+    render_quality_checklist,
 )
 from src.ui.data_source import (
     APPLY_THESIS_LABEL,
@@ -513,6 +514,7 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
                         holdings_row=r.to_dict(),
                         price=px,
                     )
+                    render_quality_checklist(t)
                 else:
                     st.caption(f"Dados detalhados de {t} não disponíveis no universo analisado.")
 

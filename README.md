@@ -20,7 +20,7 @@ A modern, educational **Streamlit** dashboard designed for Brazilian stock marke
 | **💼 My Portfolio (Minha carteira)** | Paper portfolio tracker with thesis-driven allocation, automatic ON/PN share deduplication, detailed expandable stock cards (Quality, Dividends, Financial Health, Valuation), and live inflation-adjusted passive income projections. |
 | **⏳ Historical Testing (Teste no passado)** | Realistic backtesting engine from 2020–present featuring dynamic slippage, brokerage costs, cash dividend lags, Monte Carlo confidence intervals, stress scenarios, and **Nominal vs. Real Return (IPCA)** metrics. |
 | **📖 Beginner's Guide (Guia do iniciante)** | Clear glossary, thesis rules, indicator definitions, and practical steps for long-term dividend investing. |
-| **⚙️ Settings (Configurações)** | Market data provider toggles (Yahoo Finance / Brapi / Demo), custom macro tilts, and cache management. |
+| **⚙️ Settings (Configurações)** | Yahoo Finance vs experimental Brapi, custom macro tilts, and cache management. Paper money only — no synthetic “demo” market in the UI. |
 
 ---
 
