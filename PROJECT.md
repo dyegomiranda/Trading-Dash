@@ -364,7 +364,7 @@ A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
 
 **Princípio:** O score 0–100 da tese **não ganha peso extra** com estas checagens. O teto honesto do app com Yahoo + CVM PIT continua ~6–7/10 no fluxo de dados. Não existe selo "ALTO 9.0/10" nem "grau de convicção para aportar". O checklist mostra **completude verificável** (0 a 3 itens com fonte explícita), não uma nota de recomendação.
 
-### ✅ Implementado (v0.2 — `src/thesis/checks.py` + `render_quality_checklist`)
+### ✅ Implementado (v0.3 — `src/thesis/checks.py` + `render_quality_checklist`)
 
 #### 🔄 1. Recorrência do Lucro (Qualidade Contábil & Caixa)
 - [x] **Conversão de Caixa (FCF / Lucro Líquido):**
@@ -441,6 +441,6 @@ A CVM **não** publica preço nem DY — o motor completa com o pregão do dia.
 
 ---
 
-*Última atualização do handoff: 2026-09-01 (v0.2 — checagens CVM/cadastro implementadas, roadmap consolidado com correções de honestidade, seção 13 restaurada).*
+*Última atualização do handoff: 2026-09-01 (v0.3 — checagens CVM/cadastro implementadas, roadmap consolidado com correções de honestidade, seção 13 restaurada).*
 
 

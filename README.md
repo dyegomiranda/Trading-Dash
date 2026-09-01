@@ -3,7 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](./LICENSE)
-[![Release: v0.2](https://img.shields.io/badge/release-v0.2-success.svg)](https://github.com/dyegomiranda/Trading-Dash/releases)
+[![Release: v0.3](https://img.shields.io/badge/release-v0.3-success.svg)](https://github.com/dyegomiranda/Trading-Dash/releases)
 
 A modern, educational **Streamlit** dashboard designed for Brazilian stock market (B3) investors following the **Quality Dividend** strategy. Build paper portfolios, explore 4-pillar thesis scoring, project passive dividend income with live inflation adjustments, and backtest historical performance with institutional-grade risk models.
 
@@ -67,7 +67,7 @@ Then open `http://localhost:8501` in your browser.
 
 ### 2. Standalone Desktop Binaries (No Python Required)
 
-Pre-built standalone executables are available on the [Releases](https://github.com/dyegomiranda/Trading-Dash/releases) page for each release tag (`v0.2`):
+Pre-built standalone executables are available on the [Releases](https://github.com/dyegomiranda/Trading-Dash/releases) page for each release tag (e.g. `v0.3`):
 
 | Operating System | Binary Package | How to Run |
 |---|---|---|
