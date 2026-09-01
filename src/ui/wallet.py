@@ -121,11 +121,23 @@ def render_stock_detail_card(
     """Renderiza card detalhado de uma ação dentro de um expander."""
     import streamlit as st
 
-    score_total = float(scored_row.get("score_total") or 0)
-    score_quality = float(scored_row.get("score_quality") or 0)
-    score_dividends = float(scored_row.get("score_dividends") or 0)
-    score_health = float(scored_row.get("score_financial_health") or 0)
-    score_valuation = float(scored_row.get("score_valuation") or 0)
+    import numpy as np
+
+    def _score_val(k: str) -> float | None:
+        v = scored_row.get(k)
+        if v is None:
+            return None
+        try:
+            f = float(v)
+            return None if np.isnan(f) or np.isinf(f) else f
+        except (ValueError, TypeError):
+            return None
+
+    score_total = _score_val("score_total") or 0.0
+    score_quality = _score_val("score_quality")
+    score_dividends = _score_val("score_dividends")
+    score_health = _score_val("score_financial_health")
+    score_valuation = _score_val("score_valuation")
     bucket = str(scored_row.get("bucket") or "")
     quality_level = str(scored_row.get("quality_level") or "treino")
     quality_label = str(scored_row.get("quality_label") or "")
@@ -141,7 +153,15 @@ def render_stock_detail_card(
             return "#FB923C"
         return "#F87171"
 
-    def _pill(label: str, value: float) -> str:
+    def _pill(label: str, value: float | None) -> str:
+        if value is None:
+            return (
+                f'<div class="td-score-pill">'
+                f'<div class="label">{html.escape(label)}</div>'
+                f'<div class="value" style="color:#94A3B8">—</div>'
+                f'<div class="td-score-bar"><div class="fill" style="width:0%;background:#94A3B8"></div></div>'
+                f'</div>'
+            )
         color = _bar_color(value)
         return (
             f'<div class="td-score-pill">'
@@ -159,18 +179,18 @@ def render_stock_detail_card(
     # Why selected
     bucket_pt = "Base (mais estável)" if bucket == "core" else ("Complemento" if bucket == "satellite" else "")
     strengths = []
-    if score_quality >= 65:
+    if score_quality and score_quality >= 65:
         strengths.append("negócio lucrativo e consistente")
-    if score_dividends >= 65:
+    if score_dividends and score_dividends >= 65:
         strengths.append("bom histórico de dividendos")
-    if score_health >= 65:
+    if score_health and score_health >= 65:
         strengths.append("saúde financeira sólida")
-    if score_valuation >= 65:
+    if score_valuation and score_valuation >= 65:
         strengths.append("preço atrativo")
 
     has_valid_fundamentals = (
         score_total > 0
-        and (score_quality > 0 or score_dividends > 0 or score_health > 0 or score_valuation > 0)
+        and ((score_quality or 0) > 0 or (score_dividends or 0) > 0 or (score_health or 0) > 0 or (score_valuation or 0) > 0)
         and quality_level != "fraca"
     )
 

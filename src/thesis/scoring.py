@@ -51,7 +51,9 @@ def _unwrap(val: Any) -> Any:
     if isinstance(val, pd.Series):
         if val.empty:
             return None
-        return val.iloc[-1]
+        val = val.iloc[-1]
+    if pd.isna(val):
+        return None
     return val
 
 

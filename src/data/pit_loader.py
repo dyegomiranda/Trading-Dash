@@ -95,6 +95,11 @@ _PIT_OVERLAY_COLS = (
     "fcf_positive",
     "current_ratio",
     "fcf",
+    "lucro",
+    "receita",
+    "ativo",
+    "cfo",
+    "net_debt_ebitda",
 )
 
 

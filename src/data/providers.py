@@ -664,6 +664,30 @@ class YFinanceDataProvider(DataProvider):
                     df["dividend_yield"] = df["dividend_yield"].where(
                         df["dividend_yield"].notna(), dy_series
                     )
+            multiples_map = self._enrich_multiples(tickers_resolved)
+            if multiples_map and "ticker" in df.columns:
+                for col in ("pe", "pb", "ev_ebitda", "fcf_yield", "market_cap"):
+                    df[col] = df["ticker"].map(lambda t: multiples_map.get(str(t), {}).get(col))
+
+            # Fallback valuation: se P/L ou P/VP não vieram do Yahoo mas temos lucro/roe da CVM e market_cap
+            if "market_cap" in df.columns and "lucro" in df.columns:
+                has_mc = pd.to_numeric(df["market_cap"], errors="coerce")
+                has_lucro = pd.to_numeric(df["lucro"], errors="coerce")
+                has_roe = pd.to_numeric(df.get("roe"), errors="coerce")
+                has_fcf = pd.to_numeric(df.get("fcf"), errors="coerce")
+
+                calc_pe = has_mc / (has_lucro * 1000)
+                valid_pe = calc_pe.gt(0) & calc_pe.lt(200)
+                df["pe"] = df["pe"].where(df["pe"].notna(), calc_pe.where(valid_pe, None))
+
+                calc_pb = calc_pe * has_roe
+                valid_pb = calc_pb.gt(0) & calc_pb.lt(50)
+                df["pb"] = df["pb"].where(df["pb"].notna(), calc_pb.where(valid_pb, None))
+
+                calc_fcf_y = (has_fcf * 1000) / has_mc
+                valid_fcf_y = calc_fcf_y.gt(-0.5) & calc_fcf_y.lt(0.5)
+                df["fcf_yield"] = df["fcf_yield"].where(df["fcf_yield"].notna(), calc_fcf_y.where(valid_fcf_y, None))
+
             if "data_quality" in df.columns:
                 has_px = pd.to_numeric(df.get("price"), errors="coerce").fillna(0) > 0
                 has_roe = df["roe"].notna() if "roe" in df.columns else False
@@ -680,6 +704,50 @@ class YFinanceDataProvider(DataProvider):
             with contextlib.suppress(Exception):
                 coverage_event("fundamentals", coverage_summary(df))
         return df
+
+    def _enrich_multiples(
+        self, tickers: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Busca múltiplos de valuation (P/L, P/VP, EV/EBITDA, Market Cap) em paralelo com timeout curto."""
+        import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor
+
+        if not tickers:
+            return {}
+
+        def _fetch_one(t: str) -> tuple[str, dict[str, Any]]:
+            sym = to_yf_symbol(t)
+            out: dict[str, Any] = {
+                "pe": None,
+                "pb": None,
+                "ev_ebitda": None,
+                "fcf_yield": None,
+                "market_cap": None,
+            }
+            try:
+                tk = yf.Ticker(sym)
+                fi = getattr(tk, "fast_info", None)
+                if fi:
+                    out["market_cap"] = getattr(fi, "market_cap", None)
+                inf = getattr(tk, "info", None) or {}
+                if inf:
+                    out["pe"] = inf.get("trailingPE") or inf.get("forwardPE")
+                    out["pb"] = inf.get("priceToBook")
+                    out["ev_ebitda"] = inf.get("enterpriseToEbitda")
+                    fcf = inf.get("freeCashflow")
+                    mc = out["market_cap"] or inf.get("marketCap")
+                    if fcf and mc and mc > 0:
+                        out["fcf_yield"] = float(fcf) / float(mc)
+            except Exception:
+                pass
+            return t, out
+
+        workers = min(6, len(tickers))
+        res_map: dict[str, dict[str, Any]] = {}
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for t, data in ex.map(_fetch_one, tickers):
+                res_map[t] = data
+        return res_map
 
     def _bulk_price_and_yield(
         self, tickers: list[str]
