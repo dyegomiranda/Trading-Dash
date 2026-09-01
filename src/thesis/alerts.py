@@ -135,9 +135,11 @@ def evaluate_holding(
     dy = _safe(_row_val(row, "dividend_yield"), None)
     payout = _safe(_row_val(row, "payout"), None)
     debt = _safe(_row_val(row, "net_debt_ebitda"), None)
+    debt_eq = _safe(_row_val(row, "debt_equity"), None)
     roe = _safe(_row_val(row, "roe"), None)
     fcf_pos = _row_val(row, "fcf_positive")
     bucket = str(_row_val(row, "bucket") or "")
+    sector = str(_row_val(row, "sector") or "")
 
     min_score = settings.rebalance_min_score
 
@@ -243,6 +245,18 @@ def evaluate_holding(
                 action="reduzir",
             )
         )
+    elif debt is None and debt_eq is not None and debt_eq > 2.5:
+        alerts.append(
+            HoldingAlert(
+                ticker=t,
+                severity="warning",
+                code="alavancagem_alta",
+                message=(
+                    f"Dívida/Patrimônio {debt_eq:.1f}x elevado em relação à tese."
+                ),
+                action="reduzir",
+            )
+        )
 
     if roe is not None and roe < settings.min_roe * 0.5:
         alerts.append(
@@ -266,7 +280,17 @@ def evaluate_holding(
             )
         )
 
-    if roe is None or dy is None or debt is None:
+    is_financial = sector in (
+        "Financial Services",
+        "Financials",
+        "Banks",
+        "Insurance",
+        "Serviços Financeiros",
+        "Bancos",
+        "Seguros",
+    )
+    has_debt_data = (debt is not None) or (debt_eq is not None) or is_financial
+    if roe is None or dy is None or not has_debt_data:
         alerts.append(
             HoldingAlert(
                 ticker=t,
