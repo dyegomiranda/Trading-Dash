@@ -30,6 +30,14 @@ def is_realtime_provider(name: str) -> bool:
     return name in REALTIME_PROVIDERS
 
 
+def _naive_ts(x: datetime | str | pd.Timestamp | None = None) -> pd.Timestamp:
+    """Timestamp naive normalizado (sem timezone) — compatível com comparações no pandas."""
+    ts = pd.Timestamp(x if x is not None else utcnow())
+    if getattr(ts, "tzinfo", None) is not None:
+        ts = ts.tz_localize(None)
+    return ts
+
+
 def _cadastro_only_row(ticker: str) -> dict[str, Any]:
     """Nome/setor do cadastro B3 — sem números de balanço inventados."""
     from src.data.reference import get_ticker_meta
@@ -715,9 +723,12 @@ class YFinanceDataProvider(DataProvider):
         except Exception:
             divs = pd.DataFrame()
         if divs is not None and not getattr(divs, "empty", True) and "ticker" in divs.columns:
-            cutoff = pd.Timestamp(utcnow()) - pd.Timedelta(days=365)
+            cutoff = _naive_ts(utcnow()) - pd.Timedelta(days=365)
             work = divs.copy()
-            work["date"] = pd.to_datetime(work["date"], errors="coerce")
+            work_dates = pd.to_datetime(work["date"], errors="coerce")
+            if hasattr(work_dates.dt, "tz") and work_dates.dt.tz is not None:
+                work_dates = work_dates.dt.tz_localize(None)
+            work["date"] = work_dates
             work = work[work["date"] >= cutoff]
             sums = work.groupby("ticker")["amount"].sum()
             for t, total in sums.items():
@@ -798,8 +809,8 @@ class YFinanceDataProvider(DataProvider):
         from src.data.yf_retry import fetch_with_retry
         from src.monitoring import timed
 
-        start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end or utcnow())
+        start_ts = _naive_ts(start)
+        end_ts = _naive_ts(end or utcnow())
         rows = []
         with timed("fetch_dividends", cache_hit=False, n_tickers=len(tickers)):
             for t in tickers:
@@ -819,7 +830,7 @@ class YFinanceDataProvider(DataProvider):
                     for dt, amt in s.items():
                         # O índice do Yahoo PARA dividendos é a data-ex
                         # (quem tinha ação até esse dia tem direito ao provento).
-                        d_ex = pd.Timestamp(dt)
+                        d_ex = _naive_ts(dt)
                         rows.append(
                             {
                                 "date": d_ex,
@@ -844,8 +855,8 @@ class YFinanceDataProvider(DataProvider):
 
         from src.data.yf_retry import fetch_with_retry
 
-        start_ts = pd.Timestamp(start)
-        end_ts = pd.Timestamp(end or utcnow())
+        start_ts = _naive_ts(start)
+        end_ts = _naive_ts(end or utcnow())
         rows = []
         for t in tickers:
             nt = normalize_ticker(t)

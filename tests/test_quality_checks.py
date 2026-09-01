@@ -104,3 +104,23 @@ def test_checks_unknown_without_pit(monkeypatch):
     lucro = next(i for i in q.items if i.id == "lucro_caixa")
     assert lucro.status == "unknown"
     assert q.n_ok <= 1
+
+
+def test_naive_ts_timezone_safety():
+    from src.data.providers import _naive_ts
+    from src.utils import utcnow
+
+    aware_dt = utcnow()
+    naive_result = _naive_ts(aware_dt)
+    assert naive_result.tzinfo is None
+
+    naive_str = "2026-01-15"
+    res_str = _naive_ts(naive_str)
+    assert res_str.tzinfo is None
+
+    # Guarantee comparison with tz-naive Series works without InvalidComparison error
+    dates_series = pd.Series([pd.Timestamp("2026-01-01"), pd.Timestamp("2025-06-01")])
+    cutoff = _naive_ts(utcnow()) - pd.Timedelta(days=365)
+    mask = dates_series >= cutoff
+    assert isinstance(mask, pd.Series)
+
