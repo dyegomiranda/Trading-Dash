@@ -117,6 +117,9 @@ render_plain_help(
 2. Veja o **gráfico de preço** em vários períodos (1 mês → máximo disponível)
 3. Quando achar razoável, vá em **Minha carteira** e clique em **Montar carteira com a tese**
 
+**Qualidade** (o Q de Quality Dividend) = lucro do negócio: ROE, margens e caixa.  
+Não é a nota geral. Dividendo alto com qualidade baixa **não** encaixa bem na tese.
+
 **Dica:** “Quanto paga de dividendo” alto demais pode ser armadilha — a nota do app tenta equilibrar isso  
 e marca a **qualidade dos dados** de cada empresa.
 """,

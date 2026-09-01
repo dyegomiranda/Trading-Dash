@@ -8,8 +8,10 @@ from src.data.pit_loader import (
     get_pit_dates,
     get_pit_origin,
     has_pit_data,
+    latest_fundamentals_snapshot,
     load_pit_fundamentals,
     load_pit_meta,
+    overlay_pit_on_fundamentals,
 )
 
 
@@ -39,6 +41,50 @@ def test_load_pit_fundamentals_structure():
         assert "dividend_yield" in df.columns
         assert "net_debt_ebitda" in df.columns
         # ROE real pode ser negativo; a semente atual é positiva, mas não é contrato.
+
+
+def test_latest_snapshot_one_row_per_ticker():
+    snap = latest_fundamentals_snapshot()
+    assert not snap.empty
+    assert snap["ticker"].duplicated().sum() == 0
+    assert "roe" in snap.columns
+
+
+def test_overlay_fills_roe_keeps_zero_price():
+    pit = pd.DataFrame(
+        [
+            {
+                "ticker": "ITUB4",
+                "roe": 0.18,
+                "payout": 0.45,
+                "fcf_positive": True,
+                "as_of": "2024-12-31",
+            }
+        ]
+    )
+    import src.data.pit_loader as pl
+
+    pl.latest_fundamentals_snapshot.cache_clear()
+    original = pl.latest_fundamentals_snapshot
+    pl.latest_fundamentals_snapshot = lambda: pit  # type: ignore[assignment]
+    try:
+        df = pd.DataFrame(
+            [
+                {
+                    "ticker": "ITUB4",
+                    "roe": None,
+                    "price": 0.0,
+                    "data_quality": "unavailable",
+                }
+            ]
+        )
+        out = overlay_pit_on_fundamentals(df)
+        assert abs(float(out.iloc[0]["roe"]) - 0.18) < 1e-9
+        assert float(out.iloc[0]["price"]) == 0.0
+        assert out.iloc[0]["data_quality"] == "pit_overlay"
+    finally:
+        pl.latest_fundamentals_snapshot = original
+        pl.latest_fundamentals_snapshot.cache_clear()
 
 
 def test_get_pit_coverage_summary():

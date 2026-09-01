@@ -190,7 +190,13 @@ def _scored(provider: str):
 @st.cache_data(ttl=900, show_spinner=False)
 def _cached_home_news(tickers_tuple: tuple[str, ...], provider_name: str) -> pd.DataFrame:
     try:
-        return fetch_headlines(list(tickers_tuple), provider=provider_name, limit=6, timeout_sec=5.0)
+        return fetch_headlines(
+            list(tickers_tuple),
+            provider=provider_name,
+            limit=8,
+            timeout_sec=12.0,
+            holdings_only=False,
+        )
     except Exception:
         return pd.DataFrame()
 
@@ -388,7 +394,9 @@ with col_right:
 
     with st.container(border=True):
         st.markdown("##### Radar de Notícias")
-        st.caption("Notícias recentes do mercado com análise visual de sentimento.")
+        st.caption(
+            "Mercado brasileiro (B3) e, quando o título cita, as ações da sua conta de treino."
+        )
         if news is None or news.empty:
             st.caption("Nenhuma notícia recente disponível no momento.")
         else:

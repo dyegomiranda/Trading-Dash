@@ -200,8 +200,12 @@ def fetch_headlines(
     provider: str = "demo",
     limit: int = 10,
     timeout_sec: float | None = None,
+    holdings_only: bool = False,
 ) -> pd.DataFrame:
-    """Headlines reais com URL clicável e classificação de sentimento."""
+    """Headlines reais com URL clicável e classificação de sentimento.
+
+    ``holdings_only=True``: só notícias que citam os tickers (carteira ativa).
+    """
     from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
     from src.config import get_settings
@@ -211,42 +215,44 @@ def fetch_headlines(
     deadline = float(
         timeout_sec
         if timeout_sec is not None
-        else getattr(settings, "news_timeout_sec", 6.0) or 6.0
+        else getattr(settings, "news_timeout_sec", 12.0) or 12.0
     )
-
     def _work() -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         queries: list[str] = []
         if tickers:
-            tq = " OR ".join(tickers[:3])
+            tq = " OR ".join(tickers[:6])
             queries.append(f"({tq}) (ações OR dividendos OR B3)")
-        queries.append("dividendos B3 ações")
-        queries.append("Ibovespa dividendos")
+        if not holdings_only:
+            queries.append("dividendos B3 ações")
+            queries.append("Ibovespa dividendos")
+        if not queries:
+            return []
 
-        with ThreadPoolExecutor(max_workers=len(queries)) as q_pool:
-            futures = [q_pool.submit(_fetch_google_rss, q, max(3, limit // 2)) for q in queries]
+        with ThreadPoolExecutor(max_workers=max(1, len(queries))) as q_pool:
+            futures = [q_pool.submit(_fetch_google_rss, q, max(4, limit // 2)) for q in queries]
             for fut, q in zip(futures, queries):
                 try:
-                    batch = fut.result(timeout=4.0)
+                    batch = fut.result(timeout=8.0)
+                    kept: list[dict[str, Any]] = []
                     for it in batch:
                         title_u = it["title"].upper()
+                        matched = ""
                         for t in tickers:
                             if t.upper() in title_u:
-                                it["ticker"] = t
+                                matched = t
                                 break
-                        if not it.get("ticker") and tickers:
-                            it["ticker"] = tickers[0]
-                        it["tag"] = (
-                            "tese"
-                            if "dividend" in q.lower() or "renda" in q.lower()
-                            else "mercado"
-                        )
-                    items.extend(batch)
+                        if holdings_only and tickers and not matched:
+                            continue
+                        it["ticker"] = matched or ""
+                        it["tag"] = "carteira" if holdings_only else "mercado"
+                        kept.append(it)
+                    items.extend(kept)
                 except Exception:
                     continue
 
         if len(items) < limit and tickers and provider == "yfinance":
-            items.extend(_fetch_yfinance_news(tickers[:3], limit=limit - len(items)))
+            items.extend(_fetch_yfinance_news(tickers[:8], limit=limit - len(items)))
 
         seen: set[str] = set()
         unique: list[dict[str, Any]] = []

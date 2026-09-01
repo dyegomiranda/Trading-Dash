@@ -189,60 +189,58 @@ fundamentals = pd.DataFrame()
 scored_table = fundamentals
 prices: dict = {}
 coverage: dict = {}
+_building = bool(st.session_state.get("pf_build_running"))
 try:
-    with st.spinner(
-        "Carregando cotações… (1ª vez na Bolsa real: ~15–30s; depois cache)"
-        if is_realtime_provider(provider)
-        else "Carregando dados de treino…"
-    ):
-        fundamentals = _raw_fundamentals(provider)
-        scored_table = _scored_table(provider)
+    if not _building:
+        with st.spinner(
+            "Carregando cotações… (1ª vez na Bolsa real: ~15–30s; depois cache)"
+            if is_realtime_provider(provider)
+            else "Carregando dados de treino…"
+        ):
+            fundamentals = _raw_fundamentals(provider)
+            scored_table = _scored_table(provider)
 
-        # Garante que todas as posições da carteira tenham fundamentos e cotações 100% carregados
-        if portfolio.positions:
-            pos_tickers = list(portfolio.positions.keys())
-            invalid_pos = set()
-            if not scored_table.empty and "ticker" in scored_table.columns:
-                for _, r in scored_table[scored_table["ticker"].isin(pos_tickers)].iterrows():
-                    # Se ROE ou DY estão nulos ou a nota total é 0, considera incompleto
-                    if (
-                        pd.isna(r.get("roe"))
-                        or pd.isna(r.get("score_total"))
-                        or float(r.get("score_total") or 0) <= 0
-                    ):
-                        invalid_pos.add(str(r["ticker"]))
-            known_valid = (
-                (set(scored_table["ticker"].values) - invalid_pos)
-                if not scored_table.empty and "ticker" in scored_table.columns
-                else set()
+            if portfolio.positions:
+                pos_tickers = list(portfolio.positions.keys())
+                invalid_pos = set()
+                if not scored_table.empty and "ticker" in scored_table.columns:
+                    for _, r in scored_table[scored_table["ticker"].isin(pos_tickers)].iterrows():
+                        if (
+                            pd.isna(r.get("roe"))
+                            or pd.isna(r.get("score_total"))
+                            or float(r.get("score_total") or 0) <= 0
+                        ):
+                            invalid_pos.add(str(r["ticker"]))
+                known_valid = (
+                    (set(scored_table["ticker"].values) - invalid_pos)
+                    if not scored_table.empty and "ticker" in scored_table.columns
+                    else set()
+                )
+                missing_pos = [t for t in pos_tickers if t not in known_valid]
+                if missing_pos:
+                    try:
+                        extra_fund = get_provider(provider).get_fundamentals(missing_pos)
+                        if extra_fund is not None and not extra_fund.empty:
+                            fundamentals = pd.concat(
+                                [fundamentals, extra_fund], ignore_index=True
+                            ).drop_duplicates(subset=["ticker"], keep="last")
+                            extra_scored = score_universe(extra_fund).scored
+                            if extra_scored is not None and not extra_scored.empty:
+                                scored_table = pd.concat(
+                                    [scored_table, extra_scored], ignore_index=True
+                                ).drop_duplicates(subset=["ticker"], keep="last")
+                    except Exception:
+                        pass
+
+            if not scored_table.empty:
+                scored_table = scored_table.drop_duplicates(subset=["ticker"], keep="last")
+                scored_table = enrich_fundamentals_quality(scored_table)
+            prices = prices_dict_from_fundamentals(
+                scored_table if not scored_table.empty else fundamentals
             )
-            missing_pos = [t for t in pos_tickers if t not in known_valid]
-            if missing_pos:
-                try:
-                    extra_fund = get_provider(provider).get_fundamentals(missing_pos)
-                    if (
-                        extra_fund is None
-                        or extra_fund.empty
-                        or ("roe" in extra_fund.columns and extra_fund["roe"].isna().any())
-                    ):
-                        extra_fund = get_provider("yfinance").get_fundamentals(missing_pos)
-                    if extra_fund is not None and not extra_fund.empty:
-                        fundamentals = pd.concat([fundamentals, extra_fund], ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")
-                        extra_scored = score_universe(extra_fund).scored
-                        if extra_scored is not None and not extra_scored.empty:
-                            scored_table = pd.concat([scored_table, extra_scored], ignore_index=True).drop_duplicates(subset=["ticker"], keep="last")
-                except Exception:
-                    pass
-
-        if not scored_table.empty:
-            scored_table = scored_table.drop_duplicates(subset=["ticker"], keep="last")
-            scored_table = enrich_fundamentals_quality(scored_table)
-        prices = prices_dict_from_fundamentals(
-            scored_table if not scored_table.empty else fundamentals
-        )
-        coverage = coverage_summary(
-            scored_table if not scored_table.empty else fundamentals
-        )
+            coverage = coverage_summary(
+                scored_table if not scored_table.empty else fundamentals
+            )
 except Exception as e:
     st.error(f"Não deu para carregar o mercado: {e}")
     st.info(
@@ -476,7 +474,9 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
 
         st.markdown("##### Suas empresas")
         st.caption(
-            "Clique em cada empresa para ver detalhes, indicadores e por que ela foi selecionada."
+            "O selo **verde/vermelho** é só o resultado da **sua compra de treino** "
+            "(acima ou abaixo do preço médio) — não é um alerta da tese. "
+            "Clique na empresa para ver os fundamentos."
         )
         # Build lookup for scored data
         _scored_lookup: dict[str, dict] = {}
@@ -498,10 +498,13 @@ Quer escolher na mão? Use **Descubra ações** e volte aqui em alocação manua
             shares = float(r["shares"])
             px = prices.get(t) if prices else None
             mv_val = float(r.get("market_value") or 0) or (shares * px if px else 0.0)
-            pnl_icon = "🟢" if pnl >= 0 else "🔴"
-            pnl_label = format_pct(pnl_p / 100 if abs(pnl_p) > 1 else pnl_p)
+            pnl_pct_txt = format_pct(pnl_p / 100 if abs(pnl_p) > 1 else pnl_p)
+            if pnl >= 0:
+                pnl_badge = f":green-badge[lucro no treino {pnl_pct_txt}]"
+            else:
+                pnl_badge = f":red-badge[abaixo do preço médio {pnl_pct_txt}]"
 
-            expander_label = f"{display_name}  ·  {format_brl(mv_val)}  {pnl_icon} {pnl_label}"
+            expander_label = f"{display_name}  ·  {format_brl(mv_val)}  · {pnl_badge}"
             if bucket_pt:
                 expander_label += f"  · {bucket_pt}"
 
@@ -845,78 +848,92 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
         st.session_state["pf_top_n"] = saved_top_n
         st.session_state[_sync_key] = True
 
-    with st.form("build_thesis_form", border=True):
-        if build_meta:
-            st.caption(
-                f"Configuração salva desta carteira: universo de **{saved_univ} ações**, "
-                f"nota mínima **≥ {saved_min_score}**, alvo de **{saved_top_n} posições**."
-            )
-        else:
-            st.caption(
-                "Configure os critérios de seleção e clique em **Montar carteira com a tese**:"
-            )
+    _pending_build = st.session_state.get("pf_build_running")
+    if _pending_build:
+        build_univ_size = int(_pending_build.get("univ", saved_univ))
+        build_min_score = float(_pending_build.get("min_score", saved_min_score))
+        top_n = int(_pending_build.get("top_n", saved_top_n))
+        submit_build = True
+        st.info(
+            f"Analisando até **{build_univ_size}** empresas (nota mínima {build_min_score:.0f}, "
+            f"alvo {top_n} nomes). O formulário some nesta etapa para não duplicar a tela."
+        )
+    else:
+        with st.form("build_thesis_form", border=True):
+            if build_meta:
+                st.caption(
+                    f"Configuração salva desta carteira: universo de **{saved_univ} ações**, "
+                    f"nota mínima **≥ {saved_min_score}**, alvo de **{saved_top_n} posições**."
+                )
+            else:
+                st.caption(
+                    "Configure os critérios de seleção e clique em **Montar carteira com a tese**:"
+                )
 
-        univ_col, score_col, n_col = st.columns([1.2, 1, 1])
-        with univ_col:
-            build_univ_size = st.select_slider(
-                "Universo analisado na B3",
-                options=univ_options,
-                value=saved_univ,
-                format_func=lambda x: univ_labels.get(x, f"{x} ações"),
-                key="pf_build_univ_size",
-                help="Quantas empresas listadas na bolsa serão avaliadas para compor sua carteira.",
-            )
-        with score_col:
-            build_min_score = st.slider(
-                "Nota mínima da tese",
-                min_value=30,
-                max_value=80,
-                value=saved_min_score,
-                step=5,
-                key="pf_build_min_score",
-                help="Apenas empresas que atingirem esta nota (lucro, dividendo sustentável, dívida e preço) são aprovadas.",
-            )
-        with n_col:
-            top_n = st.slider(
-                "Quantas empresas na carteira?",
-                5,
-                20,
-                value=saved_top_n,
-                key="pf_top_n",
-                help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
-            )
+            univ_col, score_col, n_col = st.columns([1.2, 1, 1])
+            with univ_col:
+                build_univ_size = st.select_slider(
+                    "Universo analisado na B3",
+                    options=univ_options,
+                    value=saved_univ,
+                    format_func=lambda x: univ_labels.get(x, f"{x} ações"),
+                    key="pf_build_univ_size",
+                    help="Quantas empresas listadas na bolsa serão avaliadas para compor sua carteira.",
+                )
+            with score_col:
+                build_min_score = st.slider(
+                    "Nota mínima da tese",
+                    min_value=30,
+                    max_value=80,
+                    value=saved_min_score,
+                    step=5,
+                    key="pf_build_min_score",
+                    help="Apenas empresas que atingirem esta nota (lucro, dividendo sustentável, dívida e preço) são aprovadas.",
+                )
+            with n_col:
+                top_n = st.slider(
+                    "Quantas empresas na carteira?",
+                    5,
+                    20,
+                    value=saved_top_n,
+                    key="pf_top_n",
+                    help="Carteiras com 8–15 nomes costumam ser um bom começo para diversificar.",
+                )
 
-        with st.expander("Ver regras e pesos da tese", icon=":material/info:"):
-            st.markdown(
-                f"""
+            with st.expander("Ver regras e pesos da tese", icon=":material/info:"):
+                st.markdown(
+                    f"""
 - Cerca de **{settings.core_weight:.0%}** em empresas mais estáveis (**base**)
 - Cerca de **{settings.satellite_weight:.0%}** em um **complemento** um pouco mais flexível
 - Limite por ação ~**{settings.max_position_pct:.0%}** · por setor ~**{settings.max_sector_pct:.0%}**
-- Deduplicação inteligente de classes (prioriza **PETR4** / PN / UNIT para foco em dividendos)
-- Tese **v{THESIS_VERSION}** — penaliza dividendos insustentáveis e endividamento excessivo.
+- Uma classe por empresa (prioriza PN/UNIT para renda)
+- Tese **v{THESIS_VERSION}** — penaliza dividendos insustentáveis, endividamento e qualidade de negócio baixa.
 """
-            )
-        if provider == "demo":
-            st.warning(
-                "Números ilustrativos (só testes/offline). "
-                "A montagem no app usa a bolsa real.",
-                icon=":material/info:",
-            )
-        if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
-            st.warning(
-                "Cobertura de dados fraca agora. A montagem automática ainda funciona, "
-                "mas confira as empresas depois em **Descubra ações**.",
-                icon=":material/info:",
-            )
+                )
+            if coverage.get("trust_level") == "fraca" and is_realtime_provider(provider):
+                st.warning(
+                    "Cobertura de dados fraca agora. A montagem automática ainda funciona, "
+                    "mas confira as empresas depois em **Descubra ações**.",
+                    icon=":material/info:",
+                )
 
-        submit_build = st.form_submit_button(
-            APPLY_THESIS_LABEL,
-            type="primary",
-            use_container_width=True,
-            icon=":material/auto_awesome:",
-        )
+            submit_clicked = st.form_submit_button(
+                APPLY_THESIS_LABEL,
+                type="primary",
+                width="stretch",
+                icon=":material/auto_awesome:",
+            )
+        if submit_clicked:
+            st.session_state["pf_build_running"] = {
+                "univ": int(build_univ_size),
+                "min_score": float(build_min_score),
+                "top_n": int(top_n),
+            }
+            st.rerun()
+        submit_build = False
 
     if submit_build:
+        st.session_state.pop("pf_build_running", None)
         with st.spinner("Analisando empresas na B3 e executando ordens de treino…"):
             try:
                 scored = _score_candidates(provider, limit=int(build_univ_size), min_score=float(build_min_score))
@@ -1017,13 +1034,24 @@ não colocar tudo em uma só ação nem caçar o maior dividendo a qualquer pre�
                     set_pf_section("overview")
                     st.session_state["viewed_income"] = False
                     st.session_state["pf_viewed_income"] = False
+                    n_got = len(portfolio.positions)
+                    short = ""
+                    if n_got < int(top_n):
+                        short = (
+                            f" Você pediu **{int(top_n)}** empresas; **{n_got}** passaram "
+                            f"nota ≥ {float(build_min_score):.0f} com dados completos "
+                            "(uma classe por empresa e teto por setor). "
+                            "Isso está correto: o app não completa o livro com nomes fracos. "
+                            "Para mais nomes, baixe a nota mínima."
+                        )
                     st.session_state["pf_flash"] = {
                         "kind": "success",
                         "msg": (
-                            f"🎉 Carteira montada com sucesso: {len(trades)} ordens · "
-                            f"{len(portfolio.positions)} empresas selecionadas · "
-                            f"total {format_brl(after['equity'])}! "
-                            f"(Analisadas na B3: {len(scored.scored)} · Aprovadas: {len(scored.filtered)})"
+                            f"Carteira montada: {len(trades)} ordens · "
+                            f"{n_got} empresas · "
+                            f"total {format_brl(after['equity'])}. "
+                            f"Analisadas: {len(scored.scored)} · aprovadas no filtro: {len(scored.filtered)}."
+                            f"{short}"
                         ),
                         "details": details,
                     }
@@ -1739,19 +1767,29 @@ que você definir abaixo.
                 st.rerun()
 
 
-# ─── Radar de Notícias & Riscos ─────────────────────────────────────────────
+# ─── Radar de Notícias da carteira ──────────────────────────────────────────
 if section == "news":
-    st.markdown("#### 📰 Radar de Notícias & Sentimento")
-    st.caption("Acompanhe o que o mercado está noticiando sobre as empresas da sua carteira:")
+    st.markdown("#### Notícias da carteira ativa")
+    st.caption(
+        "Só o que cita as empresas **desta** conta de treino. "
+        "O radar geral do mercado fica no **Início** — não é a mesma lista."
+    )
     wallet_tickers = list(portfolio.positions.keys())
     if not wallet_tickers:
-        wallet_tickers = ["ITUB4", "PETR4", "VALE3", "BBAS3", "TAEE11"]
-        st.info("Sua carteira ainda está vazia. Exibindo notícias das principais empresas da B3:")
-
-    with st.spinner("Buscando notícias e analisando sentimento..."):
-        news_df = fetch_headlines(wallet_tickers, provider=provider if isinstance(provider, str) else getattr(provider, "name", "demo"), limit=12)
-
-    render_news_feed_cards(news_df)
+        st.info(
+            "Sem ações nesta carteira ainda. Monte o livro ou veja o radar do mercado no **Início**."
+        )
+        news_df = pd.DataFrame()
+    else:
+        with st.spinner("Buscando notícias das suas ações…"):
+            news_df = fetch_headlines(
+                wallet_tickers,
+                provider=provider if isinstance(provider, str) else getattr(provider, "name", "yfinance"),
+                limit=12,
+                timeout_sec=15.0,
+                holdings_only=True,
+            )
+        render_news_feed_cards(news_df)
 
     if has_positions:
         st.markdown("---")

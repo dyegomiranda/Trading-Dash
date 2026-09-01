@@ -362,6 +362,9 @@ def apply_filters(
             why.append("alavancagem alta")
         if strict and payout is not None and payout > settings.max_payout:
             why.append("payout alto")
+        q = _safe(_row_get(row, "score_quality"))
+        if strict and q is not None and q < 40:
+            why.append("qualidade do negócio baixa para a tese (ROE/margens/caixa)")
         if score < min_score:
             why.append(f"score<{min_score}")
         trap = float(getattr(settings, "high_yield_trap", 0.14) or 0.14)

@@ -86,6 +86,70 @@ def load_pit_fundamentals() -> dict[str, pd.DataFrame]:
     return result
 
 
+_PIT_OVERLAY_COLS = (
+    "roe",
+    "roa",
+    "net_margin",
+    "debt_equity",
+    "payout",
+    "fcf_positive",
+    "current_ratio",
+    "fcf",
+)
+
+
+@lru_cache(maxsize=1)
+def latest_fundamentals_snapshot() -> pd.DataFrame:
+    """Último trimestre CVM por ticker — para completar o que o Yahoo não trouxe."""
+    snaps = load_pit_fundamentals()
+    if not snaps:
+        return pd.DataFrame()
+    frames: list[pd.DataFrame] = []
+    for dt, df in snaps.items():
+        if df is None or df.empty or "ticker" not in df.columns:
+            continue
+        part = df.copy()
+        part["as_of"] = str(dt)
+        frames.append(part)
+    if not frames:
+        return pd.DataFrame()
+    all_df = pd.concat(frames, ignore_index=True)
+    all_df = all_df.sort_values("as_of")
+    return all_df.drop_duplicates(subset=["ticker"], keep="last")
+
+
+def overlay_pit_on_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
+    """Preenche ROE/dívida/FCF vazios com o último DFP/ITR. Não inventa preço nem DY."""
+    if df is None or df.empty or "ticker" not in df.columns:
+        return df
+    pit = latest_fundamentals_snapshot()
+    if pit is None or pit.empty or "ticker" not in pit.columns:
+        return df
+    cols = [c for c in _PIT_OVERLAY_COLS if c in pit.columns]
+    if not cols:
+        return df
+    right = pit[["ticker"] + cols].copy()
+    right["ticker"] = right["ticker"].astype(str)
+    out = df.copy()
+    out["ticker"] = out["ticker"].astype(str)
+    merged = out.merge(right, on="ticker", how="left", suffixes=("", "_pit"))
+    filled_roe = False
+    if "roe" in merged.columns and "roe_pit" in merged.columns:
+        filled_roe = merged["roe"].isna() & merged["roe_pit"].notna()
+    for c in cols:
+        pit_c = f"{c}_pit"
+        if pit_c not in merged.columns:
+            continue
+        if c not in merged.columns:
+            merged[c] = merged[pit_c]
+        else:
+            merged[c] = merged[c].where(merged[c].notna(), merged[pit_c])
+        merged = merged.drop(columns=[pit_c])
+    if "data_quality" in merged.columns and isinstance(filled_roe, pd.Series):
+        merged.loc[filled_roe, "data_quality"] = "pit_overlay"
+    return merged
+
+
 def has_pit_data() -> bool:
     """Verifica se a base de snapshots históricos point-in-time está disponível."""
     snaps = load_pit_fundamentals()

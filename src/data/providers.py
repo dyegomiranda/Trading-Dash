@@ -308,6 +308,52 @@ def _yf_download_to_long(
     return out.dropna(subset=["close"])
 
 
+def _yf_dividends_from_download(
+    raw: pd.DataFrame,
+    tickers_n: list[str],
+    symbols: list[str],
+) -> pd.DataFrame:
+    """Extrai coluna Dividends de yf.download(..., actions=True)."""
+    empty = pd.DataFrame(columns=["date", "ticker", "amount"])
+    if raw is None or getattr(raw, "empty", True):
+        return empty
+    if not isinstance(raw.columns, pd.MultiIndex) or raw.columns.nlevels < 2:
+        return empty
+    t_to_sym = dict(zip(tickers_n, symbols))
+    level0 = [str(x) for x in raw.columns.get_level_values(0)]
+    level0_is_field = any("dividend" in x.lower() or x.lower().replace(" ", "_") in _OHLCV_FIELDS for x in level0)
+    rows: list[dict[str, Any]] = []
+    for t in tickers_n:
+        sym = t_to_sym[t]
+        try:
+            if level0_is_field:
+                keys = {str(x) for x in raw.columns.get_level_values(1)}
+                key = next((c for c in (sym, t, f"{t}.SA") if c in keys), None)
+                if key is None:
+                    continue
+                sub = raw.xs(key, axis=1, level=1, drop_level=True)
+            else:
+                keys = {str(x) for x in raw.columns.get_level_values(0)}
+                key = next((c for c in (sym, t, f"{t}.SA") if c in keys), None)
+                if key is None:
+                    continue
+                sub = raw[key]
+            if not isinstance(sub, pd.DataFrame):
+                continue
+            col = next((c for c in sub.columns if "dividend" in str(c).lower()), None)
+            if col is None:
+                continue
+            s = pd.to_numeric(sub[col], errors="coerce").dropna()
+            s = s[s > 0]
+            for dt, amt in s.items():
+                rows.append(
+                    {"date": pd.Timestamp(dt).tz_localize(None) if getattr(pd.Timestamp(dt), "tzinfo", None) else pd.Timestamp(dt), "ticker": t, "amount": float(amt)}
+                )
+        except Exception:
+            continue
+    return pd.DataFrame(rows) if rows else empty
+
+
 def _write_cache(key: str, data: Any) -> None:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     path = _cache_path(key)
@@ -555,16 +601,11 @@ class YFinanceDataProvider(DataProvider):
         self.settings = get_settings()
 
     def get_fundamentals(self, tickers: list[str] | None = None) -> pd.DataFrame:
-        """Snapshot via Yahoo — paralelo, com teto de tickers e timeout.
+        """Snapshot: cadastro B3 + último DFP/ITR (CVM) + preço/DY em lote no Yahoo.
 
-        `tk.info` síncrono em 200 papéis trava a UI. Aqui:
-        - limita ao scan prioritário se lista for enorme
-        - busca em threads com timeout por ticker
-        - nome/setor sempre com fallback no cadastro B3
+        Não chama ``tk.info`` em centenas de papéis (rate-limit → 80 preços de 369).
         """
-        import yfinance as yf
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
+        from src.data.pit_loader import overlay_pit_on_fundamentals
         from src.data.reference import get_ticker_meta, resolve_successor
 
         raw_list = [normalize_ticker(t) for t in (tickers or get_universe(mode="core"))]
@@ -591,7 +632,7 @@ class YFinanceDataProvider(DataProvider):
         from src.data.ttl import ttl_for
         from src.monitoring import coverage_event, timed
 
-        cache_key = f"yf_fund_v5:{','.join(sorted(tickers_resolved))}"
+        cache_key = f"yf_fund_v6:{','.join(sorted(tickers_resolved))}"
         cached = _read_cache(cache_key, ttl_for("fundamentals", self.settings))
         if cached is not None:
             with contextlib.suppress(Exception):
@@ -600,174 +641,90 @@ class YFinanceDataProvider(DataProvider):
                 cache_hit("fetch_fundamentals", n_tickers=len(tickers_resolved))
             return pd.DataFrame(cached)
 
-        workers = min(4, int(getattr(self.settings, "yfinance_workers", 4) or 4))
-        t_timeout = float(getattr(self.settings, "yfinance_ticker_timeout", 5.0) or 5.0)
-
-        def _fetch_one(t: str) -> dict[str, Any] | None:
-            try:
-                meta = get_ticker_meta(t)
-                sym = to_yf_symbol(t)
-                tk = yf.Ticker(sym)
-                price = 0.0
-                # fast_info primeiro (bem mais rápido que .info)
-                try:
-                    fast = getattr(tk, "fast_info", None)
-                    if fast is not None:
-                        price = float(
-                            getattr(fast, "last_price", None)
-                            or getattr(fast, "lastPrice", None)
-                            or 0
-                        )
-                except Exception:
-                    price = 0.0
-
-                info: dict[str, Any] = {}
-                try:
-                    from src.data.yf_retry import fetch_with_retry
-
-                    info = fetch_with_retry(
-                        lambda: (tk.info or {}), what=f"info {sym}", max_attempts=3, base_delay=0.6
-                    )
-                except Exception:
-                    info = {}
-
-                if not price:
-                    price = float(
-                        info.get("currentPrice")
-                        or info.get("regularMarketPrice")
-                        or info.get("previousClose")
-                        or 0
-                    )
-
-                pe = info.get("trailingPE") or info.get("forwardPE")
-                dy = info.get("dividendYield")
-                if dy is not None and dy > 1:
-                    dy = dy / 100.0
-                payout = info.get("payoutRatio")
-                roe = info.get("returnOnEquity")
-                roa = info.get("returnOnAssets")
-                debt_eq = info.get("debtToEquity")
-                if debt_eq is not None and debt_eq > 5:
-                    debt_eq = debt_eq / 100.0
-                ebitda = info.get("ebitda")
-                total_debt = info.get("totalDebt")
-                cash = info.get("totalCash") or 0
-                net_debt_ebitda = None
-                if ebitda and ebitda > 0 and total_debt is not None:
-                    net_debt_ebitda = (total_debt - cash) / ebitda
-
-                yf_name = info.get("shortName") or info.get("longName")
-                yf_sector = info.get("sector")
-                yf_industry = info.get("industry")
-                name = yf_name or meta.get("name") or t
-                sector = resolve_sector(meta.get("sector"), yf_sector)
-                industry = yf_industry or meta.get("industry")
-
-                roic = info.get("returnOnCapital") or roe
-                net_margin = info.get("profitMargins")
-                ebitda_margin = info.get("ebitdaMargins")
-                gross_margin = info.get("grossMargins")
-                pb = info.get("priceToBook")
-                ev_ebitda = info.get("enterpriseToEbitda")
-                peg = info.get("pegRatio")
-                fcf_yield = (
-                    (info.get("freeCashflow") / info.get("marketCap"))
-                    if info.get("freeCashflow") and info.get("marketCap")
-                    else None
-                )
-                fcf_positive = (
-                    True
-                    if info.get("freeCashflow") and info.get("freeCashflow") > 0
-                    else (False if info.get("freeCashflow") is not None else None)
-                )
-                rev_growth = info.get("revenueGrowth")
-                earn_growth = info.get("earningsGrowth")
-                years_div = None
-                div_cagr = None
-                quality = (
-                    "market"
-                    if (price and price > 0 and roe is not None)
-                    else "partial"
-                )
-
-                return {
-                    "ticker": t,
-                    "name": name,
-                    "sector": sector,
-                    "industry": industry,
-                    "price": price,
-                    "market_cap": info.get("marketCap"),
-                    "roe": roe,
-                    "roic": roic,
-                    "roa": roa,
-                    "net_margin": net_margin,
-                    "ebitda_margin": ebitda_margin,
-                    "gross_margin": gross_margin,
-                    "dividend_yield": dy,
-                    "payout": payout,
-                    "net_debt_ebitda": net_debt_ebitda,
-                    "debt_equity": debt_eq,
-                    "current_ratio": info.get("currentRatio"),
-                    "interest_coverage": None,
-                    "pe": pe,
-                    "pb": pb,
-                    "ev_ebitda": ev_ebitda,
-                    "peg": peg,
-                    "fcf_yield": fcf_yield,
-                    "revenue_cagr_5y": rev_growth,
-                    "earnings_cagr_5y": earn_growth,
-                    "dividend_cagr_5y": div_cagr,
-                    "years_paying_dividend": years_div,
-                    "fcf_positive": fcf_positive,
-                    "currency": info.get("currency") or "BRL",
-                    "as_of": utcnow_date(),
-                    "source": "yfinance",
-                    "data_quality": quality,
-                    "meta_source": (
-                        "yfinance" if yf_sector else (meta.get("source") or "reference")
-                    ),
-                    "ticker_status": meta.get("status") or "unknown",
-                }
-            except Exception:
-                return None
-
-        rows: list[dict[str, Any]] = []
-        # deadline global para não travar a UI (ex.: 40s)
-        global_timeout = min(45.0, max(12.0, len(tickers_resolved) * t_timeout / max(workers, 1) + 8))
-        with timed("fetch_fundamentals", cache_hit=False, n_tickers=len(tickers_resolved)):
-            with ThreadPoolExecutor(max_workers=max(2, workers)) as pool:
-                futs = {pool.submit(_fetch_one, t): t for t in tickers_resolved}
-                try:
-                    for fut in as_completed(futs, timeout=global_timeout):
-                        try:
-                            row = fut.result(timeout=0.1)
-                        except Exception:
-                            row = None
-                        if row:
-                            rows.append(row)
-                except Exception:
-                    # TimeoutError de as_completed — segue com o que já veio
-                    pass
-
-        # Yahoo falhou: cadastro B3 (nome/setor) sem inventar lucro/dívida.
-        got = {r["ticker"] for r in rows}
-        for t in tickers_resolved:
-            if t in got:
-                continue
-            rows.append(_cadastro_only_row(t))
-
+        rows = [_cadastro_only_row(t) for t in tickers_resolved]
         df = pd.DataFrame(rows)
+        with timed("fetch_fundamentals", cache_hit=False, n_tickers=len(tickers_resolved)):
+            df = overlay_pit_on_fundamentals(df)
+            prices, yields = self._bulk_price_and_yield(tickers_resolved)
+            if prices and "ticker" in df.columns:
+                df["price"] = df["ticker"].map(lambda t: prices.get(str(t)) or 0.0)
+            if yields and "ticker" in df.columns:
+                dy_series = df["ticker"].map(lambda t: yields.get(str(t)))
+                if "dividend_yield" not in df.columns:
+                    df["dividend_yield"] = dy_series
+                else:
+                    df["dividend_yield"] = df["dividend_yield"].where(
+                        df["dividend_yield"].notna(), dy_series
+                    )
+            if "data_quality" in df.columns:
+                has_px = pd.to_numeric(df.get("price"), errors="coerce").fillna(0) > 0
+                has_roe = df["roe"].notna() if "roe" in df.columns else False
+                keep_pit = df["data_quality"].eq("pit_overlay")
+                df.loc[has_px & has_roe & ~keep_pit, "data_quality"] = "market"
+                df.loc[has_px & ~has_roe, "data_quality"] = "partial"
+
         if not df.empty:
-            # só cacheia se pelo menos 50% dos tickers tiverem dados válidos
-            if (df["roe"].notna().sum() >= max(1, int(len(df) * 0.4))):
+            priced = pd.to_numeric(df.get("price"), errors="coerce").fillna(0).gt(0).sum()
+            if priced >= max(1, int(len(df) * 0.25)):
                 _write_cache(cache_key, df.to_dict(orient="records"))
-            # observabilidade: cobertura do snapshot (preços/DY/ROE)
             from src.data.quality import coverage_summary
 
             with contextlib.suppress(Exception):
                 coverage_event("fundamentals", coverage_summary(df))
         return df
 
+    def _bulk_price_and_yield(
+        self, tickers: list[str]
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """Um download Yahoo (1 ano, actions=True) → último preço e DY TTM."""
+        import yfinance as yf
+
+        if not tickers:
+            return {}, {}
+        tickers_n = [normalize_ticker(t) for t in tickers]
+        symbols = [to_yf_symbol(t) for t in tickers_n]
+        try:
+            from src.data.yf_retry import fetch_with_retry
+
+            raw = fetch_with_retry(
+                lambda: yf.download(
+                    symbols if len(symbols) > 1 else symbols[0],
+                    period="1y",
+                    group_by="ticker",
+                    auto_adjust=False,
+                    actions=True,
+                    threads=True,
+                    progress=False,
+                ),
+                what=f"preços+proventos {len(symbols)} tickers",
+            )
+        except Exception:
+            return {}, {}
+        hist = _yf_download_to_long(raw, tickers_n, symbols)
+        prices: dict[str, float] = {}
+        if hist is not None and not hist.empty and "ticker" in hist.columns:
+            last = hist.sort_values("date").groupby("ticker", as_index=True)["close"].last()
+            prices = {
+                str(k): float(v)
+                for k, v in last.items()
+                if v is not None and float(v) > 0
+            }
+        yields: dict[str, float] = {}
+        try:
+            divs = _yf_dividends_from_download(raw, tickers_n, symbols)
+        except Exception:
+            divs = pd.DataFrame()
+        if divs is not None and not getattr(divs, "empty", True) and "ticker" in divs.columns:
+            cutoff = pd.Timestamp(utcnow()) - pd.Timedelta(days=365)
+            work = divs.copy()
+            work["date"] = pd.to_datetime(work["date"], errors="coerce")
+            work = work[work["date"] >= cutoff]
+            sums = work.groupby("ticker")["amount"].sum()
+            for t, total in sums.items():
+                px = prices.get(str(t))
+                if px and px > 0 and float(total) > 0:
+                    yields[str(t)] = float(total) / px
+        return prices, yields
 
     def get_price_history(
         self,

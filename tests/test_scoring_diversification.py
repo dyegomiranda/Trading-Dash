@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.thesis.scoring import composite_score, recommend_weights, score_dividends
+from src.thesis.scoring import apply_filters, composite_score, recommend_weights, score_dividends
 from src.config import get_settings
 
 
@@ -31,6 +31,23 @@ def test_high_yield_trap_lowers_dividend_score():
         }
     )
     assert score_dividends(healthy, settings) > score_dividends(trap, settings)
+
+
+def test_strict_filter_rejects_low_business_quality():
+    row = {
+        "ticker": "WEAK3",
+        "price": 20.0,
+        "roe": 0.20,
+        "dividend_yield": 0.06,
+        "payout": 0.5,
+        "net_debt_ebitda": 1.0,
+        "score_total": 78.0,
+        "score_quality": 22.0,
+        "eligible": True,
+    }
+    ok, bad = apply_filters(pd.DataFrame([row]), min_score=55, strict=True)
+    assert ok.empty
+    assert "qualidade" in str(bad.iloc[0]["reject_reason"]).lower()
 
 
 def test_recommend_weights_respects_position_cap():

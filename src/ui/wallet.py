@@ -179,6 +179,15 @@ def render_stock_detail_card(
         if bucket_pt:
             why_text += f" · classificada como <strong>{html.escape(bucket_pt)}</strong>"
         why_text += f" · nota geral <strong>{score_total:.0f}/100</strong>."
+        why_text += (
+            " <em>Qualidade</em> aqui é o negócio (ROE, margens, caixa) — "
+            "o Q de Quality Dividend, não a nota geral."
+        )
+        if score_quality and score_quality < 50:
+            why_text += (
+                " A nota de qualidade está baixa: a tese exige lucro sustentável, "
+                "não só dividendo alto."
+            )
         if strengths:
             why_text += f" Destaque: {', '.join(strengths)}."
     else:
@@ -282,7 +291,12 @@ def render_stock_detail_card(
         tags = "".join(f'<span class="td-risk-tag">{html.escape(t)}</span>' for t in risk_tags[:4])
         risks_html = f'<div class="td-risks" style="margin-top:0.5rem;"><span style="font-size:0.75rem;color:#FCA5A5;font-weight:600;margin-right:0.3rem;">Pontos de atenção:</span>{tags}</div>'
     else:
-        risks_html = '<div style="font-size:0.75rem;color:#4ADE80;margin-top:0.4rem;">✅ Fundamentos sólidos — nenhum alerta crítico identificado.</div>'
+        risks_html = (
+            '<div style="font-size:0.75rem;color:#4ADE80;margin-top:0.4rem;">'
+            "Nenhum alerta crítico nos <strong>fundamentos da tese</strong> "
+            "(isso não fala do lucro ou prejuízo da sua compra de treino)."
+            "</div>"
+        )
 
     full_html = f"""
 <div class="td-stock-detail">
@@ -291,7 +305,7 @@ def render_stock_detail_card(
     {badge_html}
   </div>
   <div class="td-score-row">
-    {_pill("Qualidade", score_quality)}
+    {_pill("Qualidade (ROE/caixa)", score_quality)}
     {_pill("Dividendos", score_dividends)}
     {_pill("Saúde Fin.", score_health)}
     {_pill("Preço Justo", score_valuation)}
